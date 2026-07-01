@@ -3,6 +3,41 @@ console.log('PK Visuals main.js loaded');
 
 // ── Motion preference ──────────────────────────────────────────────────
 const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ── Preloader ──────────────────────────────────────────────────────────
+(function () {
+  function initPreloader() {
+    const preloader = document.getElementById('sitePreloader');
+    if (!preloader) {
+      document.body.classList.add('site-loaded');
+      return;
+    }
+
+    if (prefersReduced || sessionStorage.getItem('pkIntroPlayed')) {
+      preloader.style.display = 'none';
+      document.body.classList.add('site-loaded');
+      return;
+    }
+
+    sessionStorage.setItem('pkIntroPlayed', 'true');
+
+    const EXIT_DUR = 800;
+
+    function dismissPreloader() {
+      preloader.classList.add('is-hiding');
+      document.body.classList.add('site-loaded');
+      setTimeout(() => { preloader.style.display = 'none'; }, EXIT_DUR + 50);
+    }
+
+    setTimeout(dismissPreloader, 1900);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPreloader);
+  } else {
+    initPreloader();
+  }
+})();
 const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
 // ── Custom cursor ──────────────────────────────────────────────────────
@@ -288,38 +323,74 @@ if (filterBtns.length && workTiles.length) {
   });
 }
 
-// ── Booking form ───────────────────────────────────────────────────────
-const bookForm    = document.getElementById('bookForm');
-const formSuccess = document.getElementById('formSuccess');
-if (bookForm && formSuccess) {
+// ── Booking form (Formspree) ────────────────────────────────────────────
+(function () {
+  const bookForm  = document.getElementById('bookForm');
+  const formError = document.getElementById('formError');
+  if (!bookForm) return;
+
+  // If the endpoint is still a placeholder, warn in console but don't block
+  if (bookForm.action.includes('YOUR_FORM_ID')) {
+    console.warn('PK Visuals: Formspree form ID not set. Update action in book.html.');
+  }
+
   bookForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const firstName = bookForm.querySelector('#firstName');
-    const email     = bookForm.querySelector('#email');
-    const address   = bookForm.querySelector('#address');
+    // Client-side validation
+    const required = bookForm.querySelectorAll('[required]');
     let valid = true;
-    [firstName, email, address].forEach(field => {
-      if (field && !field.value.trim()) {
-        field.style.borderColor = 'rgba(201,100,100,0.6)';
-        valid = false;
-      } else if (field) {
-        field.style.borderColor = '';
-      }
+    required.forEach(field => {
+      const empty = !field.value.trim();
+      field.style.borderColor = empty ? 'rgba(201,100,100,0.6)' : '';
+      if (empty) valid = false;
     });
-    if (!valid) return;
-    bookForm.style.opacity    = '0';
-    bookForm.style.transition = 'opacity 0.4s';
-    setTimeout(() => {
-      bookForm.style.display    = 'none';
-      formSuccess.style.display = 'block';
-      formSuccess.style.opacity = '0';
-      requestAnimationFrame(() => {
-        formSuccess.style.transition = 'opacity 0.6s var(--silk, ease)';
-        formSuccess.style.opacity    = '1';
-      });
-    }, 400);
+    if (!valid) { e.preventDefault(); return; }
+    // Valid — allow native form POST to Formspree; _next redirects to thank-you.html
   });
-}
+})();
+
+// ── Selected Work sticky scroll ─────────────────────────────────────────
+(function () {
+  const track = document.querySelector('.selected-work-track');
+  if (!track || prefersReduced || isMobile) return;
+  const projects = track.querySelectorAll('.selected-project');
+  const medias   = track.querySelectorAll('.project-media');
+  const navItems = track.querySelectorAll('.project-nav-item');
+  const bar      = track.querySelector('.project-progress-bar');
+  const COUNT    = projects.length;
+  let active     = -1;
+  let ticking    = false;
+
+  function setActive(idx) {
+    if (idx === active) return;
+    active = idx;
+    projects.forEach((p, i) => p.classList.toggle('active', i === idx));
+    medias.forEach((m, i)   => m.classList.toggle('active', i === idx));
+    navItems.forEach((n, i) => n.classList.toggle('active', i === idx));
+  }
+
+  function update() {
+    const scrolled   = window.scrollY - track.offsetTop;
+    const scrollable = track.offsetHeight - window.innerHeight;
+    const progress   = Math.max(0, Math.min(1, scrolled / scrollable));
+    if (bar) bar.style.width = (progress * 100) + '%';
+    setActive(Math.min(COUNT - 1, Math.floor(progress * COUNT)));
+    ticking = false;
+  }
+
+  window.addEventListener('scroll', () => {
+    if (!ticking) { requestAnimationFrame(update); ticking = true; }
+  }, { passive: true });
+
+  navItems.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.goto, 10);
+      const scrollable = track.offsetHeight - window.innerHeight;
+      window.scrollTo({ top: track.offsetTop + scrollable * (idx / COUNT), behavior: 'smooth' });
+    });
+  });
+
+  update();
+})();
 
 // ── Smooth hash scroll ─────────────────────────────────────────────────
 document.querySelectorAll('a[href*="#"]').forEach(a => {
