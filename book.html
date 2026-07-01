@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book a Shoot — PK Visuals | Auckland Real Estate Media</title>
+  <meta name="description" content="Book a real estate photography, video or drone shoot with PK Visuals. Auckland-wide, 24–48hr delivery.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="nav scrolled" id="nav">
+  <a href="index.html" class="nav__logo">PK<span>.</span>Visuals</a>
+  <ul class="nav__links">
+    <li><a href="work.html">Portfolio</a></li>
+    <li><a href="services.html">Services</a></li>
+    <li><a href="index.html#about">About</a></li>
+    <li class="nav-apply"><a href="book.html" class="nav__cta-btn">Book Now</a></li>
+  </ul>
+  <button class="nav__burger" id="burger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="nav__drawer" id="drawer">
+  <a href="work.html">Portfolio</a>
+  <a href="services.html">Services</a>
+  <a href="index.html#about">About</a>
+  <a href="book.html">Book Now</a>
+</div>
+
+<div class="book-wrap">
+  <!-- FORM -->
+  <div class="book-main">
+    <div id="formContainer">
+      <h1 class="book-main__heading reveal">Book a Shoot</h1>
+      <p class="book-main__sub reveal reveal-d1">Send us the property details and we'll confirm availability, timing and the best media package for your campaign within 2 hours.</p>
+
+      <form id="bookForm" novalidate>
+
+        <div class="form-section">
+          <div class="form-section__title">Your Details</div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="firstName">Name *</label>
+              <input type="text" id="firstName" name="firstName" placeholder="Your full name" required>
+            </div>
+            <div class="form-field">
+              <label for="agency">Agency</label>
+              <input type="text" id="agency" name="agency" placeholder="RE/MAX, Ray White, Harcourts…">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="phone">Phone *</label>
+              <input type="tel" id="phone" name="phone" placeholder="022 XXX XXXX" required>
+            </div>
+            <div class="form-field">
+              <label for="email">Email *</label>
+              <input type="email" id="email" name="email" placeholder="you@agency.co.nz" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section__title">Property Details</div>
+          <div class="form-field">
+            <label for="address">Property Address *</label>
+            <input type="text" id="address" name="address" placeholder="Full street address, Auckland" required>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="preferredDate">Preferred Shoot Date</label>
+              <input type="date" id="preferredDate" name="preferredDate">
+            </div>
+            <div class="form-field">
+              <label for="propertyType">Property Type</label>
+              <select id="propertyType" name="propertyType">
+                <option value="">Select type</option>
+                <option>House</option>
+                <option>Apartment</option>
+                <option>Townhouse</option>
+                <option>Section / Land</option>
+                <option>Lifestyle / Rural</option>
+                <option>Commercial</option>
+                <option>Development</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="floorArea">Approximate Floor Area</label>
+            <select id="floorArea" name="floorArea">
+              <option value="">Select size</option>
+              <option>Under 100m²</option>
+              <option>100–150m²</option>
+              <option>150–200m²</option>
+              <option>200–300m²</option>
+              <option>300m²+</option>
+              <option>Not sure</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section__title">Services Required</div>
+          <label class="form-check">
+            <input type="checkbox" name="services" value="photography">
+            <div class="form-check__box"></div>
+            <span class="form-check__label">Real Estate Photography</span>
+          </label>
+          <label class="form-check">
+            <input type="checkbox" name="services" value="video">
+            <div class="form-check__box"></div>
+            <span class="form-check__label">Cinematic Videography</span>
+          </label>
+          <label class="form-check">
+            <input type="checkbox" name="services" value="aerial">
+            <div class="form-check__box"></div>
+            <span class="form-check__label">Drone &amp; Aerial</span>
+          </label>
+          <label class="form-check">
+            <input type="checkbox" name="services" value="floorplan">
+            <div class="form-check__box"></div>
+            <span class="form-check__label">Floor Plans</span>
+          </label>
+          <label class="form-check">
+            <input type="checkbox" name="services" value="twilight">
+            <div class="form-check__box"></div>
+            <span class="form-check__label">Twilight Photography</span>
+          </label>
+          <label class="form-check">
+            <input type="checkbox" name="services" value="reel">
+            <div class="form-check__box"></div>
+            <span class="form-check__label">Signature Social Media Reel</span>
+          </label>
+          <label class="form-check">
+            <input type="checkbox" name="services" value="agent-content">
+            <div class="form-check__box"></div>
+            <span class="form-check__label">Agent Content (Personal Brand Reels)</span>
+          </label>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section__title">Campaign Type</div>
+          <div class="form-field">
+            <label for="campaignType">Which package best suits this campaign?</label>
+            <select id="campaignType" name="campaignType">
+              <option value="">Select campaign type</option>
+              <option>Standard — Essential Media (from $350)</option>
+              <option>Video &amp; Photo Package (from $800)</option>
+              <option>Twilight Campaign (from $950)</option>
+              <option>Signature Package — Full Campaign ($1,300)</option>
+              <option>Agent Content Program</option>
+              <option>Not sure — let us recommend</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section__title">Additional Notes</div>
+          <div class="form-field">
+            <label for="notes">Anything else we should know?</label>
+            <textarea id="notes" name="notes" placeholder="Property access details, key collection, specific shots, tight listing deadlines, agent branding requirements…"></textarea>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit">Submit Enquiry</button>
+      </form>
+    </div>
+
+    <div class="form-success" id="formSuccess">
+      <div class="form-success__icon">✦</div>
+      <h2 class="form-success__title">Enquiry Received</h2>
+      <p class="form-success__text">Thank you. We'll be in touch within 2 hours to confirm your shoot date and media package.</p>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside class="book-sidebar">
+    <div class="sidebar-card reveal">
+      <span class="sidebar-card__label">Prefer to Talk First?</span>
+      <h3 class="sidebar-card__title">Call or email us directly.</h3>
+      <p class="sidebar-card__text">
+        <a href="tel:0224502382" style="color:var(--gold);font-size:20px;font-family:var(--serif);display:block;margin-bottom:12px;">022 450 2382</a>
+        <a href="mailto:hello@pkvisuals.com" style="color:var(--white-dim);">hello@pkvisuals.com</a><br><br>
+        <span style="color:var(--white-muted);font-size:12px;">Auckland, New Zealand</span>
+      </p>
+    </div>
+
+    <div class="sidebar-card reveal reveal-d2">
+      <span class="sidebar-card__label">Our Packages</span>
+      <h3 class="sidebar-card__title">Clear pricing, no surprises.</h3>
+      <ul class="sidebar-list">
+        <li>Essential Media <span>from $350</span></li>
+        <li>Video &amp; Photo <span>from $800</span></li>
+        <li>Twilight Premium <span>from $950</span></li>
+        <li>Signature Package <span>$1,300</span></li>
+        <li>Signature Reel Add-On <span>from $600</span></li>
+      </ul>
+      <p style="font-size:11px;color:var(--white-muted);margin-top:16px;line-height:1.6;">All prices include GST. Final pricing may vary by property size and requirements.</p>
+    </div>
+
+    <div class="sidebar-card reveal reveal-d4">
+      <span class="sidebar-card__label">Turnaround</span>
+      <h3 class="sidebar-card__title">Listing-ready, fast.</h3>
+      <ul class="sidebar-list">
+        <li>Photography <span>24 hrs</span></li>
+        <li>Video + Aerial <span>48 hrs</span></li>
+        <li>Floor Plans <span>24 hrs</span></li>
+        <li>Twilight Shoot <span>48 hrs</span></li>
+        <li>Social Reel <span>48 hrs</span></li>
+      </ul>
+    </div>
+  </aside>
+</div>
+
+<footer class="footer">
+  <div class="footer__brand-wrap">
+    <div class="footer__brand">PK<span>.</span>Visuals</div>
+    <p class="footer__tagline">Premium real estate media for Auckland agents.</p>
+  </div>
+  <div class="footer__contact">
+    <a href="tel:0224502382">022 450 2382</a>
+    <a href="mailto:hello@pkvisuals.com">hello@pkvisuals.com</a>
+    <span>Auckland, New Zealand</span>
+  </div>
+  <div class="footer__right">
+    <nav class="footer__nav">
+      <a href="work.html">Portfolio</a>
+      <a href="services.html">Services</a>
+      <a href="index.html#packages">Packages</a>
+      <a href="book.html">Book</a>
+    </nav>
+    <div class="footer__copy">&copy; 2026 PK Visuals. All rights reserved.</div>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+</body>
+</html>
