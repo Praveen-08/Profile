@@ -9,7 +9,7 @@
 <body>
 
 <nav class="nav scrolled" id="nav">
-  <a href="index.html" class="nav__logo">PK<span>.</span>Visuals</a>
+  <a href="index.html" class="nav__logo"><img src="assets/logo-horizontal.png" alt="PK Visuals" class="nav__logo-img"></a>
   <ul class="nav__links">
     <li><a href="work.html">Portfolio</a></li>
     <li><a href="services.html">Services</a></li>
@@ -46,7 +46,7 @@
 
   <article class="work-tile work-tile--wide reveal" data-category="photography aerial">
     <div class="work-tile__img">
-      <img src="assets/work-01.jpg" alt="Remuera estate aerial">
+      <img src="assets/work-01.jpg" alt="Remuera estate aerial" loading="lazy">
     </div>
     <div class="work-tile__info">
       <span class="work-tile__title">Remuera Estate</span>
@@ -56,7 +56,7 @@
 
   <article class="work-tile reveal reveal-d2" data-category="video">
     <div class="work-tile__img">
-      <img src="assets/work-02.jpg" alt="Ponsonby villa video">
+      <img src="assets/work-02.jpg" alt="Ponsonby villa video" loading="lazy">
     </div>
     <div class="work-tile__info">
       <span class="work-tile__title">Ponsonby Villa</span>
@@ -66,7 +66,7 @@
 
   <article class="work-tile reveal" data-category="photography">
     <div class="work-tile__img">
-      <img src="assets/work-03.jpg" alt="Herne Bay interior">
+      <img src="assets/work-03.jpg" alt="Herne Bay interior" loading="lazy">
     </div>
     <div class="work-tile__info">
       <span class="work-tile__title">Herne Bay Residence</span>
@@ -76,7 +76,7 @@
 
   <article class="work-tile reveal reveal-d2" data-category="staging">
     <div class="work-tile__img">
-      <img src="assets/work-04.jpg" alt="Virtual staging bedroom">
+      <img src="assets/work-04.jpg" alt="Virtual staging bedroom" loading="lazy">
     </div>
     <div class="work-tile__info">
       <span class="work-tile__title">Virtual Staging</span>
@@ -86,7 +86,7 @@
 
   <article class="work-tile work-tile--wide reveal" data-category="aerial video">
     <div class="work-tile__img">
-      <img src="assets/work-05.jpg" alt="Parnell aerial">
+      <img src="assets/work-05.jpg" alt="Parnell aerial" loading="lazy">
     </div>
     <div class="work-tile__info">
       <span class="work-tile__title">Parnell Heights</span>
@@ -96,7 +96,7 @@
 
   <article class="work-tile reveal" data-category="floorplan">
     <div class="work-tile__img">
-      <img src="assets/work-06.jpg" alt="Floor plan">
+      <img src="assets/work-06.jpg" alt="Floor plan" loading="lazy">
     </div>
     <div class="work-tile__info">
       <span class="work-tile__title">Epsom Family Home</span>
@@ -106,7 +106,7 @@
 
   <article class="work-tile reveal reveal-d2" data-category="photography">
     <div class="work-tile__img">
-      <img src="assets/work-07.jpg" alt="Twilight exterior">
+      <img src="assets/work-07.jpg" alt="Twilight exterior" loading="lazy">
     </div>
     <div class="work-tile__info">
       <span class="work-tile__title">Twilight Series</span>
@@ -116,7 +116,7 @@
 
   <article class="work-tile reveal reveal-d4" data-category="video aerial">
     <div class="work-tile__img">
-      <img src="assets/work-08.jpg" alt="Luxury development">
+      <img src="assets/work-08.jpg" alt="Luxury development" loading="lazy">
     </div>
     <div class="work-tile__info">
       <span class="work-tile__title">Newmarket Development</span>
@@ -136,19 +136,32 @@
   </div>
 </section>
 
-<footer class="footer">
-  <div class="footer__brand">PK<span>.</span>Visuals</div>
-  <div class="footer__contact">
-    <a href="tel:0224502382">022 450 2382</a> &nbsp;|&nbsp; <a href="mailto:hello@pkvisuals.com">hello@pkvisuals.com</a><br>
-    Auckland, New Zealand
+<footer class="footer" role="contentinfo">
+  <div class="footer__grid">
+    <div class="footer__col footer__col--brand">
+      <div class="footer__brand-name">PK<span> Visuals</span></div>
+      <p class="footer__tagline">Premium real estate media for Auckland agents.</p>
+    </div>
+    <div class="footer__col">
+      <span class="footer__col-heading">Contact</span>
+      <div class="footer__contact">
+        <a href="tel:0224502382">022 450 2382</a>
+        <a href="mailto:Info@pkvisuals.com">Info@pkvisuals.com</a>
+        <span>Auckland, New Zealand</span>
+      </div>
+    </div>
+    <div class="footer__col">
+      <span class="footer__col-heading">Links</span>
+      <nav class="footer__links" aria-label="Footer navigation">
+        <a href="work.html">Work</a>
+        <a href="services.html">Services</a>
+        <a href="book.html">Book</a>
+        <a href="https://www.instagram.com/pkvisualsnz/" class="footer__insta" target="_blank" rel="noopener noreferrer">Instagram</a>
+      </nav>
+    </div>
   </div>
-  <div class="footer__right">
-    <nav class="footer__nav">
-      <a href="work.html">Portfolio</a>
-      <a href="services.html">Services</a>
-      <a href="book.html">Book</a>
-    </nav>
-    <div class="footer__copy">&copy; 2025 PK Visuals. All rights reserved.</div>
+  <div class="footer__bottom">
+    <span class="footer__copy">&copy; 2026 PK Visuals. All rights reserved.</span>
   </div>
 </footer>
 

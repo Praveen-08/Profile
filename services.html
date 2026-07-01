@@ -9,7 +9,7 @@
 <body>
 
 <nav class="nav scrolled" id="nav">
-  <a href="index.html" class="nav__logo">PK<span>.</span>Visuals</a>
+  <a href="index.html" class="nav__logo"><img src="assets/logo-horizontal.png" alt="PK Visuals" class="nav__logo-img"></a>
   <ul class="nav__links">
     <li><a href="work.html">Portfolio</a></li>
     <li><a href="services.html">Services</a></li>
@@ -48,8 +48,8 @@
       <li>Unlimited web-ready exports</li>
     </ul>
   </div>
-  <div class="service-block__media">
-    <img src="assets/service-photo.jpg" alt="Real estate photography">
+  <div class="service-block__media reveal-scale">
+    <img src="assets/service-photo.jpg" alt="Real estate photography" loading="lazy">
   </div>
 </div>
 
@@ -67,8 +67,8 @@
       <li>48-hour delivery</li>
     </ul>
   </div>
-  <div class="service-block__media">
-    <img src="assets/service-video.jpg" alt="Cinematic videography">
+  <div class="service-block__media reveal-scale">
+    <img src="assets/service-video.jpg" alt="Cinematic videography" loading="lazy">
   </div>
 </div>
 
@@ -86,8 +86,8 @@
       <li>Combined with ground shoots</li>
     </ul>
   </div>
-  <div class="service-block__media">
-    <img src="assets/service-drone.jpg" alt="Aerial drone services">
+  <div class="service-block__media reveal-scale">
+    <img src="assets/service-drone.jpg" alt="Aerial drone services" loading="lazy">
   </div>
 </div>
 
@@ -105,8 +105,8 @@
       <li>Print &amp; digital ready</li>
     </ul>
   </div>
-  <div class="service-block__media">
-    <img src="assets/service-floorplan.jpg" alt="Floor plans">
+  <div class="service-block__media reveal-scale">
+    <img src="assets/service-floorplan.jpg" alt="Floor plans" loading="lazy">
   </div>
 </div>
 
@@ -124,57 +124,86 @@
       <li>Ideal for vacant properties</li>
     </ul>
   </div>
-  <div class="service-block__media">
-    <img src="assets/service-twilight.jpg" alt="Virtual staging">
+  <div class="service-block__media reveal-scale">
+    <img src="assets/service-twilight.jpg" alt="Virtual staging" loading="lazy">
   </div>
 </div>
+
+<!-- SERVICING AREA -->
+<section class="servicing-area">
+  <div class="servicing-area__intro reveal">
+    <span class="servicing-area__eyebrow">Service Area</span>
+    <h2 class="servicing-area__heading">Servicing Auckland-Wide</h2>
+    <p class="servicing-area__sub">PK Visuals works with real estate agents and property professionals across Auckland.</p>
+  </div>
+  <div class="servicing-area__grid reveal reveal-d2">
+    <span>Central Auckland</span>
+    <span>East Auckland</span>
+    <span>South Auckland</span>
+    <span>West Auckland</span>
+    <span>North Shore</span>
+    <span>Pukekohe</span>
+    <span>Karaka</span>
+    <span>Paerata</span>
+    <span>Takanini</span>
+    <span>Papakura</span>
+    <span>Manukau</span>
+    <span>Mt Wellington</span>
+    <span>Remuera</span>
+    <span>Ponsonby</span>
+    <span>Parnell</span>
+    <span>Howick</span>
+    <span>Botany</span>
+    <span>Flat Bush</span>
+  </div>
+  <p class="servicing-area__note reveal reveal-d3">If your listing is outside these areas, send through the address and we'll confirm availability.</p>
+</section>
 
 <!-- PACKAGES -->
 <section class="packages" id="packages">
   <div class="packages__intro">
-    <span style="font-size:9px;letter-spacing:0.28em;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:16px;" class="reveal">Investment</span>
-    <h2 class="packages__heading reveal reveal-d1">Choose your<br>package.</h2>
+    <span style="font-size:9px;letter-spacing:0.28em;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:16px;" class="reveal">Media Packages</span>
+    <h2 class="packages__heading reveal reveal-d1">Options for every<br>campaign.</h2>
     <p class="packages__sub reveal reveal-d2">Every package includes fast turnaround and files ready for TradeMe, realestate.co.nz, and social media.</p>
   </div>
   <div class="packages__grid reveal">
     <div class="pkg-card">
-      <span class="pkg-card__label">Essential</span>
-      <div class="pkg-card__price">$349</div>
-      <span class="pkg-card__unit">Starting from</span>
+      <span class="pkg-card__label">Essential Media</span>
+      <p class="pkg-card__desc">Photography + floor plan + aerial images.</p>
       <ul class="pkg-card__features">
         <li>Up to <em>25 photos</em></li>
         <li>HDR editing included</li>
-        <li>24-hour delivery</li>
+        <li>Floor plan</li>
+        <li>24hr photo delivery</li>
         <li>Web &amp; print ready</li>
-        <li>Online gallery link</li>
       </ul>
-      <a href="book.html" class="btn-pkg">Book Now</a>
+      <a href="book.html" class="btn-pkg">Enquire</a>
     </div>
     <div class="pkg-card pkg-card--best">
-      <span class="pkg-card__label">Premium</span>
-      <div class="pkg-card__price">$699</div>
-      <span class="pkg-card__unit">Photography + Video</span>
+      <span class="pkg-card__label">Video &amp; Photo Package</span>
+      <p class="pkg-card__desc">Photography + cinematic video + drone coverage.</p>
       <ul class="pkg-card__features">
         <li>Up to <em>35 photos</em> HDR</li>
         <li>Cinematic walkthrough video</li>
-        <li>Licensed music</li>
-        <li>48-hour delivery</li>
+        <li>Drone coverage</li>
+        <li>48hr video delivery</li>
         <li>Social media cuts included</li>
       </ul>
-      <a href="book.html" class="btn-pkg">Book Now</a>
+      <a href="book.html" class="btn-pkg">Enquire</a>
     </div>
   </div>
   <div class="pkg-wide reveal">
     <div>
-      <span class="pkg-wide__label">Full Media Package</span>
-      <div class="pkg-wide__price">$<span style="font-size:52px;">1,199</span> <small>+</small></div>
+      <span class="pkg-wide__label">Signature Package</span>
+      <span class="pkg-wide__badge">Most Complete</span>
     </div>
-    <p class="pkg-wide__desc">Photography, cinematic video, aerial drone footage, floor plan, and virtual staging — everything you need to present any property at its absolute best.</p>
+    <p class="pkg-wide__desc">Photography, cinematic video, aerial drone footage, floor plan, twilight photography and signature social media reel — everything you need to present any property at its absolute best.</p>
     <div class="pkg-wide__action">
-      <a href="book.html" class="btn-outline">Get a Quote</a>
+      <a href="book.html" class="btn-outline">Enquire About Signature</a>
     </div>
   </div>
 </section>
+
 
 <!-- CTA -->
 <section class="availability">
@@ -187,19 +216,32 @@
   </div>
 </section>
 
-<footer class="footer">
-  <div class="footer__brand">PK<span>.</span>Visuals</div>
-  <div class="footer__contact">
-    <a href="tel:0224502382">022 450 2382</a> &nbsp;|&nbsp; <a href="mailto:hello@pkvisuals.com">hello@pkvisuals.com</a><br>
-    Auckland, New Zealand
+<footer class="footer" role="contentinfo">
+  <div class="footer__grid">
+    <div class="footer__col footer__col--brand">
+      <div class="footer__brand-name">PK<span> Visuals</span></div>
+      <p class="footer__tagline">Premium real estate media for Auckland agents.</p>
+    </div>
+    <div class="footer__col">
+      <span class="footer__col-heading">Contact</span>
+      <div class="footer__contact">
+        <a href="tel:0224502382">022 450 2382</a>
+        <a href="mailto:Info@pkvisuals.com">Info@pkvisuals.com</a>
+        <span>Auckland, New Zealand</span>
+      </div>
+    </div>
+    <div class="footer__col">
+      <span class="footer__col-heading">Links</span>
+      <nav class="footer__links" aria-label="Footer navigation">
+        <a href="work.html">Work</a>
+        <a href="services.html">Services</a>
+        <a href="book.html">Book</a>
+        <a href="https://www.instagram.com/pkvisualsnz/" class="footer__insta" target="_blank" rel="noopener noreferrer">Instagram</a>
+      </nav>
+    </div>
   </div>
-  <div class="footer__right">
-    <nav class="footer__nav">
-      <a href="work.html">Portfolio</a>
-      <a href="services.html">Services</a>
-      <a href="book.html">Book</a>
-    </nav>
-    <div class="footer__copy">&copy; 2025 PK Visuals. All rights reserved.</div>
+  <div class="footer__bottom">
+    <span class="footer__copy">&copy; 2026 PK Visuals. All rights reserved.</span>
   </div>
 </footer>
 
