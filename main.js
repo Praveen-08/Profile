@@ -3,42 +3,6 @@ console.log('PK Visuals main.js loaded');
 
 // ── Motion preference ──────────────────────────────────────────────────
 const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-// ── Preloader ──────────────────────────────────────────────────────────
-(function () {
-  const preloader = document.getElementById('sitePreloader');
-  if (!preloader) {
-    document.body.classList.add('site-loaded');
-    return;
-  }
-
-  // Skip on reduced motion or repeat visits this session
-  if (prefersReduced || sessionStorage.getItem('pkIntroPlayed')) {
-    preloader.style.display = 'none';
-    document.body.classList.add('site-loaded');
-    return;
-  }
-
-  // Mark played so internal nav doesn't replay
-  sessionStorage.setItem('pkIntroPlayed', 'true');
-
-  // logo-in: 0.15s delay + 0.7s anim = 0.85s
-  // hold line: line animates at 0.65s for 0.6s = 1.25s total
-  // pause after: 0.5s → start exit at ~1.55s
-  // exit anim: 0.8s → done at ~2.35s
-  const EXIT_START = 1500; // ms after page load to begin exit
-  const EXIT_DUR   = 800;
-
-  function dismissPreloader() {
-    preloader.classList.add('is-hiding');
-    document.body.classList.add('site-loaded');
-    setTimeout(() => {
-      preloader.style.display = 'none';
-    }, EXIT_DUR + 50);
-  }
-
-  setTimeout(dismissPreloader, EXIT_START);
-})();
 const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
 // ── Custom cursor ──────────────────────────────────────────────────────
@@ -356,50 +320,6 @@ if (bookForm && formSuccess) {
     }, 400);
   });
 }
-
-// ── Selected Work sticky scroll ─────────────────────────────────────────
-(function () {
-  const track = document.querySelector('.selected-work-track');
-  if (!track || prefersReduced || isMobile) return;
-  const projects = track.querySelectorAll('.selected-project');
-  const medias   = track.querySelectorAll('.project-media');
-  const navItems = track.querySelectorAll('.project-nav-item');
-  const bar      = track.querySelector('.project-progress-bar');
-  const COUNT    = projects.length;
-  let active     = -1;
-  let ticking    = false;
-
-  function setActive(idx) {
-    if (idx === active) return;
-    active = idx;
-    projects.forEach((p, i) => p.classList.toggle('active', i === idx));
-    medias.forEach((m, i)   => m.classList.toggle('active', i === idx));
-    navItems.forEach((n, i) => n.classList.toggle('active', i === idx));
-  }
-
-  function update() {
-    const scrolled   = window.scrollY - track.offsetTop;
-    const scrollable = track.offsetHeight - window.innerHeight;
-    const progress   = Math.max(0, Math.min(1, scrolled / scrollable));
-    if (bar) bar.style.width = (progress * 100) + '%';
-    setActive(Math.min(COUNT - 1, Math.floor(progress * COUNT)));
-    ticking = false;
-  }
-
-  window.addEventListener('scroll', () => {
-    if (!ticking) { requestAnimationFrame(update); ticking = true; }
-  }, { passive: true });
-
-  navItems.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx = parseInt(btn.dataset.goto, 10);
-      const scrollable = track.offsetHeight - window.innerHeight;
-      window.scrollTo({ top: track.offsetTop + scrollable * (idx / COUNT), behavior: 'smooth' });
-    });
-  });
-
-  update();
-})();
 
 // ── Smooth hash scroll ─────────────────────────────────────────────────
 document.querySelectorAll('a[href*="#"]').forEach(a => {
