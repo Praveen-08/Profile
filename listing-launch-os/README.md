@@ -2,10 +2,15 @@
 
 *One property form. Every listing campaign asset.*
 
-A focused web app for real estate agents: enter a property's details once, get a complete
-**Listing Launch Pack** — descriptions, social captions, reel scripts, vendor/buyer emails, a
-7-day posting plan, and a built-in **SafeCheck** compliance review — organised into tabs on the
-output page.
+Listing Launch helps NZ real estate agents win, launch, and manage every listing, across three
+modules:
+
+1. **Win the Listing** — coming soon.
+2. **Launch the Listing** — enter a property's details once, get a complete Listing Launch Pack:
+   descriptions, social captions, reel scripts, vendor/buyer emails, a 7-day posting plan, and a
+   built-in **SafeCheck** compliance review, organised into tabs on the output page.
+3. **Manage the Campaign** — turn open-home and campaign activity into a professional
+   **Vendor Update** report (email, SMS, feedback summaries, next steps) with one form.
 
 Built lean on purpose: Next.js + Tailwind + Supabase + the Claude API, deployable on free/low-cost
 tiers, with a **placeholder mode** so you can build and demo the whole product without spending
@@ -25,8 +30,9 @@ No file storage, no queue, no Stripe integration yet — deliberately, per the M
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL editor, run the contents of [`supabase/schema.sql`](./supabase/schema.sql). This creates
-   `user_profiles`, `brand_voice_settings`, `campaigns`, `campaign_outputs`, and locks every table down
-   with row-level security so users can only ever see their own data.
+   `user_profiles`, `brand_voice_settings`, `campaigns`, `campaign_outputs`, `vendor_updates`, and
+   locks every table down with row-level security so users can only ever see their own data. It's
+   safe to re-run against an existing database — it only adds what's missing.
 3. In **Authentication > Providers**, email/password is enabled by default. For faster local testing,
    you can turn off "Confirm email" under **Authentication > Settings** so sign-up logs you straight in
    (turn it back on before giving real agents access).
@@ -92,6 +98,31 @@ needs network access).
 To edit what gets generated, change the per-section instruction strings in
 `lib/prompts/sections.ts` — no other code needs to change.
 
+## Vendor Update Report ("Manage the Campaign")
+
+After an open home or weekly campaign review, the agent enters what happened — enquiries, open
+home attendance, buyer feedback, price feedback, offers, next steps — and Listing Launch generates
+a full vendor update: an email, a short SMS/WhatsApp version, a "what we learned" summary, a
+buyer feedback breakdown, recommended next steps, careful price feedback wording (only when
+relevant), and a next-7-day action plan.
+
+- `lib/vendorUpdateSections.ts` — the 7 output sections; `price_feedback_wording` is only generated
+  when price feedback is actually relevant (`updateType === "price_feedback"` or price feedback was
+  entered), so nothing is invented to fill the section.
+- `lib/prompts/vendorUpdate.ts` — compliance rules specific to vendor updates: never invent
+  numbers (write generally when one's missing), keep the tone calm and confidence-building, and
+  keep price/market commentary hedged rather than stated as fact.
+- `lib/ai/vendorUpdatePlaceholder.ts` — the free template-based generator, following the same
+  "only use what was actually entered" rule as the campaign placeholder.
+- `app/api/vendor-updates/generate/route.ts` — authenticates the user, loads the vendor update
+  **and** its parent campaign (both filtered by `id` and `user_id`), builds the context, generates
+  the relevant sections, and merges them into the `generated_output` JSONB column.
+- `/vendor-updates/new` — the creation form (pick a campaign, update type, activity, tone).
+- `/vendor-updates/[id]` — the output view: copy, edit + save, regenerate per section. Includes a
+  SafeCheck-style reminder banner whenever the update contains price or market-sensitive wording.
+- `/vendor-updates` — every vendor update you've created, across all campaigns.
+- Saved reports for a given campaign also show up under that campaign's **Vendor Updates** tab.
+
 ## SafeCheck
 
 `lib/safecheck.ts` is a free, rule-based scanner (no extra API calls) that reviews every generated
@@ -107,14 +138,16 @@ is a marketing review assistant, not legal advice."*
 
 ## Security notes
 
-- Every table (`campaigns`, `campaign_outputs`, `user_profiles`, `brand_voice_settings`) has RLS
-  locking rows to `auth.uid()`.
-- On top of RLS, every query in application code that fetches, updates, or upserts campaign or
-  output data explicitly filters by the authenticated user's id (`.eq("user_id", user.id)`) —
-  see `app/api/generate/route.ts`, `app/dashboard/page.tsx`, `app/campaigns/[id]/page.tsx`, and
-  `components/campaign/OutputSection.tsx`. `campaign_outputs` carries its own denormalized
-  `user_id` column (copied from the parent campaign at insert time) specifically so this can be a
-  direct column filter instead of relying on a join.
+- Every table (`campaigns`, `campaign_outputs`, `user_profiles`, `brand_voice_settings`,
+  `vendor_updates`) has RLS locking rows to `auth.uid()`.
+- On top of RLS, every query in application code that fetches, updates, or upserts campaign,
+  output, or vendor update data explicitly filters by the authenticated user's id
+  (`.eq("user_id", user.id)`) — see `app/api/generate/route.ts`,
+  `app/api/vendor-updates/generate/route.ts`, `app/dashboard/page.tsx`,
+  `app/campaigns/[id]/page.tsx`, `app/vendor-updates/[id]/page.tsx`, and
+  `components/campaign/OutputSection.tsx` /
+  `components/vendor-update/VendorUpdateOutputSection.tsx`. `campaign_outputs` and `vendor_updates`
+  both carry their own `user_id` column so this is always a direct column filter, never a join.
 - `SettingsForm` re-fetches the authenticated user id at submit time rather than trusting a prop,
   so a tampered client can't upsert settings under a different user id.
 
@@ -122,11 +155,14 @@ is a marketing review assistant, not legal advice."*
 
 - `/` — landing page
 - `/login` — combined login/signup
-- `/dashboard` — saved campaigns
+- `/dashboard` — Launch the Listing (saved campaigns) and Manage the Campaign (vendor updates)
 - `/campaigns/new` — guided property form → generates the full pack
 - `/campaigns/[id]` — the output pack, organised into tabs: Portal Copy, Social Posts, Reels &
   Video, Open Home, Email & Follow-up, Vendor Updates, Campaign Timeline, and SafeCheck. Copy,
   edit + save, and regenerate per section; print/export the whole pack.
+- `/vendor-updates` — every vendor update report you've created
+- `/vendor-updates/new` — create a vendor update for a campaign
+- `/vendor-updates/[id]` — the generated vendor update: copy, edit + save, regenerate per section
 - `/settings` — agent profile + brand voice defaults, reused on every new campaign
 
 ## Testing with real estate agents

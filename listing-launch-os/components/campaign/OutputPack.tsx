@@ -6,21 +6,30 @@ import { Tabs, type TabItem } from "@/components/ui/Tabs";
 import { runSafeCheck } from "@/lib/safecheck";
 import { SECTIONS, TAB_LABELS, TAB_ORDER, sectionsForTab, type TabKey } from "@/lib/sections";
 import { OWNERSHIP_TYPE_LABELS, SALE_METHOD_LABELS, type CampaignInput } from "@/lib/types";
-import { downloadTextFile } from "@/lib/utils";
+import { downloadTextFile, formatDate } from "@/lib/utils";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { OutputSection } from "./OutputSection";
 import { SafeCheckPanel } from "./SafeCheckPanel";
+
+export interface VendorUpdateSummary {
+  id: string;
+  label: string;
+  createdAt: string;
+}
 
 export function OutputPack({
   campaignId,
   userId,
   campaign,
   outputs: initialOutputs,
+  vendorUpdates = [],
 }: {
   campaignId: string;
   userId: string;
   campaign: CampaignInput;
   outputs: Record<string, string>;
+  vendorUpdates?: VendorUpdateSummary[];
 }) {
   const [outputs, setOutputs] = useState(initialOutputs);
   const [activeTab, setActiveTab] = useState<TabKey>("portal_copy");
@@ -64,6 +73,30 @@ export function OutputPack({
           <SafeCheckPanel outputs={outputs} input={campaign} />
         ) : (
           <>
+            {activeTab === "vendor_updates" && (
+              <Card className="p-5 text-sm text-ink/70">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h3 className="font-medium text-ink">Vendor update reports</h3>
+                  <Button href={`/vendor-updates/new?campaignId=${campaignId}`} size="sm" variant="outline">
+                    Create Vendor Update
+                  </Button>
+                </div>
+                {vendorUpdates.length === 0 ? (
+                  <p>No vendor update reports for this campaign yet — create one after your next open home or weekly review.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {vendorUpdates.map((v) => (
+                      <li key={v.id}>
+                        <Link href={`/vendor-updates/${v.id}`} className="text-gold-dark underline">
+                          {v.label}
+                        </Link>{" "}
+                        <span className="text-ink/40">— {formatDate(v.createdAt)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            )}
             {activeTab === "campaign_timeline" && (
               <Card className="p-5 text-sm text-ink/70">
                 <h3 className="mb-2 font-medium text-ink">Key campaign dates</h3>

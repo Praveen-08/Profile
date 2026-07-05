@@ -1,6 +1,8 @@
-import type { CampaignInput } from "../types";
+import type { CampaignInput, VendorUpdateContext } from "../types";
 import { getSectionPrompt } from "../prompts/sections";
+import { getVendorUpdateSectionPrompt } from "../prompts/vendorUpdate";
 import { generatePlaceholder } from "./placeholder";
+import { generateVendorUpdatePlaceholder } from "./vendorUpdatePlaceholder";
 import { generateWithClaude } from "./anthropic";
 
 export type AiMode = "placeholder" | "live";
@@ -26,6 +28,27 @@ export async function generateSections(
 ): Promise<Record<string, string>> {
   const results = await Promise.all(
     sectionKeys.map(async (key) => [key, await generateSection(key, input)] as const)
+  );
+  return Object.fromEntries(results);
+}
+
+export async function generateVendorUpdateSection(sectionKey: string, input: VendorUpdateContext): Promise<string> {
+  const mode = getAiMode();
+
+  if (mode === "placeholder") {
+    return generateVendorUpdatePlaceholder(sectionKey, input);
+  }
+
+  const { system, user } = getVendorUpdateSectionPrompt(sectionKey, input);
+  return generateWithClaude(system, user);
+}
+
+export async function generateVendorUpdateSections(
+  sectionKeys: string[],
+  input: VendorUpdateContext
+): Promise<Record<string, string>> {
+  const results = await Promise.all(
+    sectionKeys.map(async (key) => [key, await generateVendorUpdateSection(key, input)] as const)
   );
   return Object.fromEntries(results);
 }

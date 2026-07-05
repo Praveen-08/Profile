@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-export function AppNav({ active }: { active?: "dashboard" | "settings" }) {
+export function AppNav({ active }: { active?: "dashboard" | "vendor-updates" | "settings" }) {
   const router = useRouter();
 
   async function handleLogout() {
@@ -23,6 +23,12 @@ export function AppNav({ active }: { active?: "dashboard" | "settings" }) {
         <div className="flex items-center gap-6 text-sm">
           <Link href="/dashboard" className={active === "dashboard" ? "font-medium text-ink" : "text-ink/60"}>
             Campaigns
+          </Link>
+          <Link
+            href="/vendor-updates"
+            className={active === "vendor-updates" ? "font-medium text-ink" : "text-ink/60"}
+          >
+            Vendor Updates
           </Link>
           <Link href="/settings" className={active === "settings" ? "font-medium text-ink" : "text-ink/60"}>
             Settings
