@@ -1,10 +1,12 @@
 import { Nav } from "@/components/landing/Nav";
 import { Footer } from "@/components/landing/Footer";
+import { ProductPreview } from "@/components/landing/ProductPreview";
 import {
   Hero,
   ProblemSection,
   HowItWorks,
   PackContents,
+  WhoItsFor,
   Benefits,
   ExamplePreview,
   Pricing,
@@ -17,9 +19,11 @@ export default function LandingPage() {
       <Nav />
       <main>
         <Hero />
+        <ProductPreview />
         <ProblemSection />
         <HowItWorks />
         <PackContents />
+        <WhoItsFor />
         <Benefits />
         <ExamplePreview />
         <Pricing />

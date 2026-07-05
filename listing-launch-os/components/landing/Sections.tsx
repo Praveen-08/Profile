@@ -20,8 +20,8 @@ export function Hero() {
           <Button href="/login" size="lg">
             Create your first launch pack
           </Button>
-          <Button href="#pack-contents" variant="outline" size="lg">
-            See what's included
+          <Button href="#product-preview" variant="outline" size="lg">
+            View Sample Campaign
           </Button>
         </div>
       </div>
@@ -74,18 +74,12 @@ const SAFECHECK_HIGHLIGHTS = [
 ];
 
 export function PackContents() {
-  const totalSections = TAB_ORDER.filter((t) => t !== "safecheck").reduce(
-    (sum, t) => sum + sectionsForTab(t).length,
-    0
-  );
-
   return (
     <section id="pack-contents" className="border-y border-ink/10 bg-white py-16">
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="text-center font-serif text-2xl sm:text-3xl">What's in every Listing Launch Pack</h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-ink/60">
-          {totalSections} pieces of campaign-ready content, organised into tabs, generated together from one
-          property form.
+          A complete campaign pack, organised into practical tabs, generated from one property form.
         </p>
         <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {TAB_ORDER.map((tab) => (
@@ -131,6 +125,31 @@ export function Benefits() {
   );
 }
 
+const WHO_ITS_FOR = [
+  { title: "New agents", body: "Who need to look professional fast, without a marketing background." },
+  { title: "Busy agents", body: "Launching multiple listings at once and need every campaign to get the full treatment." },
+  { title: "Small teams", body: "Without a full in-house marketing department to lean on." },
+  { title: "Real estate media businesses", body: "Offering campaign copy as an add-on alongside photography and video." },
+];
+
+export function WhoItsFor() {
+  return (
+    <section className="border-y border-ink/10 bg-white py-16">
+      <div className="mx-auto max-w-6xl px-6">
+        <h2 className="text-center font-serif text-2xl sm:text-3xl">Who it's for</h2>
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {WHO_ITS_FOR.map((w) => (
+            <Card key={w.title} className="p-6">
+              <h3 className="font-medium">{w.title}</h3>
+              <p className="mt-2 text-sm text-ink/60">{w.body}</p>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function ExamplePreview() {
   return (
     <section className="border-y border-ink/10 bg-white py-16">
@@ -139,14 +158,10 @@ export function ExamplePreview() {
         <Card className="mt-8 p-6">
           <p className="text-xs font-medium uppercase tracking-wider text-gold-dark">Premium listing description</p>
           <p className="mt-3 text-sm leading-relaxed text-ink/80">
-            Positioned in Mount Eden, this 3-bedroom, 2-bathroom home at 14 Fenwick Avenue presents a practical,
-            comfortable home for family life. Featuring 3 bedrooms, 2 bathrooms, 2 car parks, approximately 450m²
-            land, the home offers a considered layout suited to everyday living. Highlights include renovated
-            kitchen, north-facing living, and off-street parking.
-          </p>
-          <p className="mt-4 text-sm leading-relaxed text-ink/80">
-            Approximately 450m² of land and approximately 180m² floor area give a sense of scale, while the Mount
-            Eden location adds everyday convenience. Contact us today to arrange a viewing.
+            Positioned in the heart of Mount Eden, this three-bedroom, two-bathroom home brings together everyday
+            convenience, flexible living, and a location buyers know and trust. With north-facing living, a
+            renovated kitchen, off-street parking, and approximately 450m² of land, it offers a strong option for
+            families, professionals, and buyers wanting an established city-fringe address.
           </p>
         </Card>
       </div>
@@ -165,7 +180,8 @@ export function Pricing() {
     <section id="pricing" className="mx-auto max-w-6xl px-6 py-16">
       <h2 className="text-center font-serif text-2xl sm:text-3xl">Pricing</h2>
       <p className="mx-auto mt-3 max-w-xl text-center text-ink/60">
-        Payment is coming soon — for now, get in touch for early access.
+        Early access is open while we test with NZ agents. Create your first campaign free and tell us what you
+        would improve.
       </p>
       <div className="mt-10 grid gap-6 sm:grid-cols-3">
         {PLANS.map((plan) => (
