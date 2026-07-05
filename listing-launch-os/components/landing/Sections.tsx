@@ -154,7 +154,7 @@ export function ExamplePreview() {
   return (
     <section className="border-y border-ink/10 bg-white py-16">
       <div className="mx-auto max-w-3xl px-6">
-        <h2 className="text-center font-serif text-2xl sm:text-3xl">SafeCheck in action</h2>
+        <h2 className="text-center font-serif text-2xl sm:text-3xl">SafeCheck example</h2>
         <p className="mx-auto mt-3 max-w-xl text-center text-ink/60">
           Every generated section is reviewed for risky NZ real estate wording before you publish it.
         </p>
@@ -175,6 +175,10 @@ export function ExamplePreview() {
             diligence."
           </p>
         </Card>
+        <p className="mx-auto mt-4 max-w-xl text-center text-xs text-ink/40">
+          Review all copy before publishing. The agent remains responsible for accuracy. This is a marketing
+          review assistant, not legal advice.
+        </p>
       </div>
     </section>
   );
