@@ -121,6 +121,26 @@ create index if not exists campaign_outputs_campaign_id_idx on public.campaign_o
 create index if not exists campaign_outputs_user_id_idx on public.campaign_outputs(user_id);
 
 -- ---------------------------------------------------------------------------
+-- vendor_updates: "Manage the Campaign" module — one row per vendor update
+-- report (post-open-home, weekly, price feedback, low enquiry, offer update).
+-- form_data holds what the agent entered; generated_output holds the
+-- generated sections (email, SMS, summaries, next steps), keyed by section.
+-- ---------------------------------------------------------------------------
+create table if not exists public.vendor_updates (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  campaign_id uuid not null references public.campaigns(id) on delete cascade,
+  update_type text not null,
+  form_data jsonb not null default '{}'::jsonb,
+  generated_output jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists vendor_updates_user_id_idx on public.vendor_updates(user_id);
+create index if not exists vendor_updates_campaign_id_idx on public.vendor_updates(campaign_id);
+
+-- ---------------------------------------------------------------------------
 -- Row Level Security: every table is locked to its owning user.
 -- Application code additionally filters every query by the authenticated
 -- user's id explicitly (defense in depth) — RLS is the backstop, not the
@@ -130,6 +150,7 @@ alter table public.user_profiles enable row level security;
 alter table public.brand_voice_settings enable row level security;
 alter table public.campaigns enable row level security;
 alter table public.campaign_outputs enable row level security;
+alter table public.vendor_updates enable row level security;
 
 drop policy if exists "user_profiles_owner" on public.user_profiles;
 create policy "user_profiles_owner" on public.user_profiles
@@ -147,6 +168,10 @@ create policy "campaigns_owner" on public.campaigns
 -- its own user_id.
 drop policy if exists "campaign_outputs_owner" on public.campaign_outputs;
 create policy "campaign_outputs_owner" on public.campaign_outputs
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "vendor_updates_owner" on public.vendor_updates;
+create policy "vendor_updates_owner" on public.vendor_updates
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ---------------------------------------------------------------------------
@@ -174,4 +199,8 @@ create trigger set_updated_at before update on public.campaigns
 
 drop trigger if exists set_updated_at on public.campaign_outputs;
 create trigger set_updated_at before update on public.campaign_outputs
+  for each row execute procedure public.set_updated_at();
+
+drop trigger if exists set_updated_at on public.vendor_updates;
+create trigger set_updated_at before update on public.vendor_updates
   for each row execute procedure public.set_updated_at();

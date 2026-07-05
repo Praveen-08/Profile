@@ -176,6 +176,97 @@ export interface CampaignOutputRow {
   updated_at: string;
 }
 
+// ---------------------------------------------------------------------------
+// Vendor updates — "Manage the Campaign" module
+// ---------------------------------------------------------------------------
+
+export type VendorUpdateType =
+  | "post_open_home"
+  | "weekly_update"
+  | "price_feedback"
+  | "low_enquiry_update"
+  | "offer_update";
+
+export const VENDOR_UPDATE_TYPE_LABELS: Record<VendorUpdateType, string> = {
+  post_open_home: "Post-open-home",
+  weekly_update: "Weekly update",
+  price_feedback: "Price feedback",
+  low_enquiry_update: "Low enquiry update",
+  offer_update: "Offer update",
+};
+
+export type VendorUpdateTone = "confident" | "warm" | "direct" | "careful" | "premium";
+
+export const VENDOR_UPDATE_TONE_LABELS: Record<VendorUpdateTone, string> = {
+  confident: "Confident",
+  warm: "Warm",
+  direct: "Direct",
+  careful: "Careful",
+  premium: "Premium",
+};
+
+export interface VendorUpdateFormData {
+  updateType: VendorUpdateType;
+  enquiries?: number;
+  openHomeGroups?: number;
+  buyerFeedbackSummary?: string;
+  positiveFeedback?: string;
+  concerns?: string;
+  priceFeedback?: string;
+  offersOrInterest?: string;
+  onlineViews?: string;
+  socialActivity?: string;
+  recommendedNextStep?: string;
+  agentNotes?: string;
+  tone: VendorUpdateTone;
+}
+
+/** Everything a vendor update prompt/template needs: the form data plus the property/agent context pulled from the parent campaign. */
+export interface VendorUpdateContext extends VendorUpdateFormData {
+  address: string;
+  suburb: string;
+  propertyType: string;
+  agentName?: string;
+  agencyName?: string;
+  agentPhone?: string;
+  agentEmail?: string;
+}
+
+export interface VendorUpdate {
+  id: string;
+  userId: string;
+  campaignId: string;
+  updateType: VendorUpdateType;
+  formData: VendorUpdateFormData;
+  generatedOutput: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VendorUpdateRow {
+  id: string;
+  user_id: string;
+  campaign_id: string;
+  update_type: VendorUpdateType;
+  form_data: VendorUpdateFormData;
+  generated_output: Record<string, string>;
+  created_at: string;
+  updated_at: string;
+}
+
+export function vendorUpdateFromRow(row: VendorUpdateRow): VendorUpdate {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    campaignId: row.campaign_id,
+    updateType: row.update_type,
+    formData: row.form_data || ({} as VendorUpdateFormData),
+    generatedOutput: row.generated_output || {},
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 export function campaignFromRow(row: CampaignRow): Campaign {
   return {
     id: row.id,

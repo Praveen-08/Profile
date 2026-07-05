@@ -3,7 +3,15 @@ import { OutputPack } from "@/components/campaign/OutputPack";
 import { RetryGenerateButton } from "@/components/campaign/RetryGenerateButton";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/server";
-import { campaignFromRow, TARGET_BUYER_LABELS, TONE_LABELS, type CampaignOutputRow, type CampaignRow } from "@/lib/types";
+import {
+  campaignFromRow,
+  TARGET_BUYER_LABELS,
+  TONE_LABELS,
+  VENDOR_UPDATE_TYPE_LABELS,
+  type CampaignOutputRow,
+  type CampaignRow,
+  type VendorUpdateType,
+} from "@/lib/types";
 import { propertyFactsList } from "@/lib/utils";
 import { notFound } from "next/navigation";
 
@@ -41,6 +49,21 @@ export default async function CampaignOutputPage({ params }: { params: { id: str
 
   const hasOutputs = Object.keys(outputs).length > 0;
 
+  const { data: vendorUpdateRows } = await supabase
+    .from("vendor_updates")
+    .select("id, update_type, created_at")
+    .eq("campaign_id", campaign.id)
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  const vendorUpdates = (
+    (vendorUpdateRows as { id: string; update_type: VendorUpdateType; created_at: string }[]) || []
+  ).map((v) => ({
+    id: v.id,
+    label: VENDOR_UPDATE_TYPE_LABELS[v.update_type],
+    createdAt: v.created_at,
+  }));
+
   return (
     <>
       <AppNav />
@@ -57,7 +80,13 @@ export default async function CampaignOutputPage({ params }: { params: { id: str
         </div>
 
         {hasOutputs ? (
-          <OutputPack campaignId={campaign.id} userId={user.id} campaign={campaign} outputs={outputs} />
+          <OutputPack
+            campaignId={campaign.id}
+            userId={user.id}
+            campaign={campaign}
+            outputs={outputs}
+            vendorUpdates={vendorUpdates}
+          />
         ) : (
           <Card className="flex flex-col items-center gap-4 p-16 text-center">
             <p className="font-serif text-xl">Generation hasn't completed for this campaign</p>
