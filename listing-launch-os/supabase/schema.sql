@@ -13,9 +13,16 @@ create table if not exists public.user_profiles (
   agency_name text,
   phone text,
   default_cta text,
+  -- 'free' | 'starter' | 'pro' | 'growth'. No billing yet — see lib/plans.ts.
+  -- Stripe billing will be added later; for MVP, plan access is manual/simulated.
+  plan text not null default 'free',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Adds the plan column to a pre-existing user_profiles table. No-op on a
+-- fresh install (column already exists).
+alter table public.user_profiles add column if not exists plan text not null default 'free';
 
 -- ---------------------------------------------------------------------------
 -- brand_voice_settings: saved tone + signature phrasing per user

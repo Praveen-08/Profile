@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { createClient } from "@/lib/supabase/server";
+import { getPlan, planHasModule } from "@/lib/plans";
 import {
   campaignFromRow,
   MEETING_TYPE_LABELS,
@@ -37,11 +38,17 @@ function campaignLabel(row: VendorUpdatePreviewRow): string {
   return campaign ? `${campaign.address}, ${campaign.suburb}` : "Unknown listing";
 }
 
-const MODULES = [
-  { title: "Win the Listing", href: "/meeting-playbooks", body: "Meeting playbooks, vendor questions, and marketing package recommendations." },
-  { title: "Launch the Listing", href: "/dashboard", body: "Turn one property form into a full campaign pack." },
-  { title: "Manage the Campaign", href: "/vendor-updates", body: "Turn campaign activity into professional vendor updates." },
-];
+function LockedModuleNotice({ label }: { label: string }) {
+  return (
+    <Card className="mt-6 flex flex-col items-center gap-3 p-8 text-center">
+      <Badge>Pro feature</Badge>
+      <p className="text-sm text-ink/60">{label} is included in Pro and Growth.</p>
+      <Link href="/#pricing" className="text-sm text-gold-dark underline">
+        View Pro Plan
+      </Link>
+    </Card>
+  );
+}
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -49,8 +56,16 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const { data: profileRow } = user
+    ? await supabase.from("user_profiles").select("plan").eq("user_id", user.id).maybeSingle()
+    : { data: null };
+
+  const plan = getPlan(profileRow?.plan);
+  const hasMeetingPlaybookAccess = planHasModule(plan.id, "meeting_playbook");
+  const hasVendorUpdateAccess = planHasModule(plan.id, "vendor_update_report");
+
   // Explicit user_id filter in addition to RLS: never rely on RLS alone.
-  const { data: playbookRows } = user
+  const { data: playbookRows } = user && hasMeetingPlaybookAccess
     ? await supabase
         .from("agent_meeting_playbooks")
         .select("id, meeting_type, property_address, suburb, created_at")
@@ -67,7 +82,7 @@ export default async function DashboardPage() {
         .order("created_at", { ascending: false })
     : { data: null };
 
-  const { data: vendorUpdateRows } = user
+  const { data: vendorUpdateRows } = user && hasVendorUpdateAccess
     ? await supabase
         .from("vendor_updates")
         .select("id, update_type, created_at, campaigns(address, suburb)")
@@ -80,17 +95,40 @@ export default async function DashboardPage() {
   const campaigns = ((campaignRows as CampaignRow[]) || []).map(campaignFromRow);
   const vendorUpdates = (vendorUpdateRows as VendorUpdatePreviewRow[]) || [];
 
+  const freeCampaignUsed = plan.id === "free" && campaigns.length >= plan.campaignLimit;
+
+  const MODULES = [
+    { title: "Win the Listing", href: "/meeting-playbooks", locked: !hasMeetingPlaybookAccess, body: "Meeting playbooks, vendor questions, and marketing package recommendations." },
+    { title: "Launch the Listing", href: "/dashboard", locked: false, body: "Turn one property form into a full campaign pack." },
+    { title: "Manage the Campaign", href: "/vendor-updates", locked: !hasVendorUpdateAccess, body: "Turn campaign activity into professional vendor updates." },
+  ];
+
   return (
     <>
       <AppNav active="dashboard" />
       <main className="mx-auto max-w-6xl px-6 py-10">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-ink/60">Current plan:</span>
+            <Badge>{plan.name}</Badge>
+            {plan.id === "free" && (
+              <span className="text-sm text-ink/60">
+                {freeCampaignUsed ? "Free campaign used — upgrade to continue" : "1 free campaign included"}
+              </span>
+            )}
+          </div>
+          <Link href="/#pricing" className="text-sm text-gold-dark underline">
+            View Plans
+          </Link>
+        </Card>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
           {MODULES.map((m) => (
             <Link key={m.title} href={m.href}>
               <Card className="h-full p-4 transition-shadow hover:shadow-lg">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold">{m.title}</h3>
-                  <Badge>Active</Badge>
+                  <Badge className={m.locked ? "bg-ink/10 text-ink/50" : ""}>{m.locked ? "Pro" : "Active"}</Badge>
                 </div>
                 <p className="mt-1 text-xs text-ink/60">{m.body}</p>
               </Card>
@@ -103,10 +141,12 @@ export default async function DashboardPage() {
             <h2 className="font-serif text-2xl">Win the Listing</h2>
             <p className="mt-1 text-sm text-ink/60">Prepare for your next appraisal or vendor meeting.</p>
           </div>
-          <Button href="/meeting-playbooks/new">Create Meeting Playbook</Button>
+          {hasMeetingPlaybookAccess && <Button href="/meeting-playbooks/new">Create Meeting Playbook</Button>}
         </div>
 
-        {playbooks.length === 0 ? (
+        {!hasMeetingPlaybookAccess ? (
+          <LockedModuleNotice label="The Agent Meeting Playbook" />
+        ) : playbooks.length === 0 ? (
           <Card className="mt-6 flex flex-col items-center gap-4 p-10 text-center">
             <p className="text-sm text-ink/60">
               No meeting playbooks yet. Before your next appraisal or vendor pitch, create one to walk in prepared.
@@ -178,10 +218,12 @@ export default async function DashboardPage() {
             <h2 className="font-serif text-2xl">Manage the Campaign</h2>
             <p className="mt-1 text-sm text-ink/60">Turn open-home and campaign activity into a vendor update.</p>
           </div>
-          <Button href="/vendor-updates/new">Create Vendor Update</Button>
+          {hasVendorUpdateAccess && <Button href="/vendor-updates/new">Create Vendor Update</Button>}
         </div>
 
-        {vendorUpdates.length === 0 ? (
+        {!hasVendorUpdateAccess ? (
+          <LockedModuleNotice label="Vendor Update Reports" />
+        ) : vendorUpdates.length === 0 ? (
           <Card className="mt-6 flex flex-col items-center gap-4 p-10 text-center">
             <p className="text-sm text-ink/60">
               No vendor updates yet. After your next open home or weekly review, create one to keep vendors

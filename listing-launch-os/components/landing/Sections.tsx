@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { TAB_LABELS, TAB_ORDER, sectionsForTab } from "@/lib/sections";
+import { PLANS, PLAN_ORDER } from "@/lib/plans";
 
 export function Hero() {
   return (
@@ -221,38 +222,69 @@ export function ExamplePreview() {
   );
 }
 
-const PLANS = [
-  { name: "Starter", price: "$29", period: "/month", campaigns: "10 campaigns / month" },
-  { name: "Pro", price: "$79", period: "/month", campaigns: "40 campaigns / month", featured: true },
-  { name: "Team", price: "$149", period: "/month", campaigns: "100 campaigns / month" },
-];
-
 export function Pricing() {
   return (
     <section id="pricing" className="mx-auto max-w-6xl px-6 py-16">
       <h2 className="text-center font-serif text-2xl sm:text-3xl">Pricing</h2>
       <p className="mx-auto mt-3 max-w-xl text-center text-ink/60">
-        Early access is open while we test with NZ agents. Create your first campaign free and tell us what you
-        would improve.
+        Early access is open while we test with NZ agents.
       </p>
-      <div className="mt-10 grid gap-6 sm:grid-cols-3">
-        {PLANS.map((plan) => (
-          <Card
-            key={plan.name}
-            className={`p-6 ${plan.featured ? "border-gold ring-1 ring-gold" : ""}`}
-          >
-            {plan.featured && <Badge className="mb-3">Most popular</Badge>}
-            <h3 className="font-serif text-xl">{plan.name}</h3>
-            <p className="mt-2">
-              <span className="font-serif text-3xl">{plan.price}</span>
-              <span className="text-ink/50">{plan.period}</span>
-            </p>
-            <p className="mt-2 text-sm text-ink/60">{plan.campaigns}</p>
-            <Button href="/login" variant={plan.featured ? "primary" : "outline"} className="mt-6 w-full">
-              Coming soon
-            </Button>
-          </Card>
-        ))}
+      <Card className="mx-auto mt-6 max-w-xl border-gold/40 bg-gold/5 p-4 text-center text-sm text-ink/70">
+        Try Listing Launch with one real property. Create your first campaign pack free — no credit card required.
+      </Card>
+
+      <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {PLAN_ORDER.map((planId) => {
+          const plan = PLANS[planId];
+          return (
+            <Card
+              key={plan.id}
+              className={`flex flex-col p-6 ${plan.recommended ? "border-gold ring-1 ring-gold" : ""}`}
+            >
+              {plan.recommended && <Badge className="mb-3 self-start">Recommended</Badge>}
+              <h3 className="font-serif text-xl">{plan.name}</h3>
+              <p className="mt-2">
+                <span className="font-serif text-3xl">{plan.priceMonthly === 0 ? "$0" : `$${plan.priceMonthly}`}</span>
+                {plan.priceMonthly > 0 && <span className="text-ink/50">/month</span>}
+              </p>
+              <p className="mt-2 text-sm text-ink/60">{plan.purpose}</p>
+              <p className="mt-3 text-xs font-medium uppercase tracking-wide text-gold-dark">
+                {plan.campaignLimitLabel}
+              </p>
+
+              <ul className="mt-4 space-y-1.5 text-sm text-ink/70">
+                {plan.features.slice(0, 4).map((f) => (
+                  <li key={f}>· {f}</li>
+                ))}
+              </ul>
+
+              <details className="mt-3 text-sm">
+                <summary className="cursor-pointer text-gold-dark">See full plan details</summary>
+                <ul className="mt-2 space-y-1.5 text-ink/70">
+                  {plan.features.map((f) => (
+                    <li key={f}>· {f}</li>
+                  ))}
+                </ul>
+                {plan.lockedFeatures.length > 0 && (
+                  <>
+                    <p className="mt-3 text-xs font-medium uppercase tracking-wide text-ink/40">Does not include</p>
+                    <ul className="mt-1.5 space-y-1.5 text-ink/50">
+                      {plan.lockedFeatures.map((f) => (
+                        <li key={f}>· {f}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </details>
+
+              <p className="mt-4 flex-1 text-xs text-ink/50">{plan.planNote}</p>
+
+              <Button href="/login" variant={plan.recommended ? "primary" : "outline"} className="mt-6 w-full">
+                {plan.ctaLabel}
+              </Button>
+            </Card>
+          );
+        })}
       </div>
     </section>
   );

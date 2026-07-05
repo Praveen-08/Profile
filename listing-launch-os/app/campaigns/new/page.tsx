@@ -1,6 +1,8 @@
 import { AppNav } from "@/components/app/AppNav";
 import { CampaignForm } from "@/components/campaign/CampaignForm";
+import { CampaignLimitPrompt } from "@/components/plans/CampaignLimitPrompt";
 import { createClient } from "@/lib/supabase/server";
+import { hasReachedCampaignLimit } from "@/lib/plans";
 import type { Tone } from "@/lib/types";
 
 export default async function NewCampaignPage() {
@@ -9,10 +11,13 @@ export default async function NewCampaignPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: brandVoice }] = await Promise.all([
+  const [{ data: profile }, { data: brandVoice }, { count: campaignCount }] = await Promise.all([
     supabase.from("user_profiles").select("*").eq("user_id", user?.id).maybeSingle(),
     supabase.from("brand_voice_settings").select("*").eq("user_id", user?.id).maybeSingle(),
+    supabase.from("campaigns").select("id", { count: "exact", head: true }).eq("user_id", user?.id ?? ""),
   ]);
+
+  const limitReached = hasReachedCampaignLimit(profile?.plan, campaignCount ?? 0);
 
   return (
     <>
@@ -23,16 +28,20 @@ export default async function NewCampaignPage() {
           Fill in what you know — leave the rest blank and we'll keep the copy general rather than guessing.
         </p>
         <div className="mt-8">
-          <CampaignForm
-            defaults={{
-              agentName: profile?.agent_name || undefined,
-              agencyName: profile?.agency_name || undefined,
-              agentPhone: profile?.phone || undefined,
-              agentEmail: user?.email || undefined,
-              defaultCta: profile?.default_cta || undefined,
-              defaultTone: (brandVoice?.default_tone as Tone) || undefined,
-            }}
-          />
+          {limitReached ? (
+            <CampaignLimitPrompt />
+          ) : (
+            <CampaignForm
+              defaults={{
+                agentName: profile?.agent_name || undefined,
+                agencyName: profile?.agency_name || undefined,
+                agentPhone: profile?.phone || undefined,
+                agentEmail: user?.email || undefined,
+                defaultCta: profile?.default_cta || undefined,
+                defaultTone: (brandVoice?.default_tone as Tone) || undefined,
+              }}
+            />
+          )}
         </div>
       </main>
     </>

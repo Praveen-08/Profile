@@ -1,4 +1,5 @@
 import type { MarketingPackage } from "./marketingPackages";
+import type { PlanId } from "./plans";
 
 export type TargetBuyer =
   | "first_home_buyer"
@@ -123,6 +124,7 @@ export interface UserProfile {
   agencyName?: string;
   phone?: string;
   defaultCta?: string;
+  plan?: PlanId;
 }
 
 export interface BrandVoiceSettings {

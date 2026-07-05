@@ -19,6 +19,25 @@ Built lean on purpose: Next.js + Tailwind + Supabase + the Claude API, deployabl
 tiers, with a **placeholder mode** so you can build and demo the whole product without spending
 anything on AI calls.
 
+## Pricing & plans
+
+Four plans — Free, Starter, Pro, Growth — defined in `lib/plans.ts` and shown on the landing page's
+pricing section. **No Stripe or payment processing yet** — plan access is manual/simulated for the
+MVP:
+
+- Every user has a `plan` column on `user_profiles` (`'free'` by default).
+- Settings has a "Plan (simulated)" selector that sets this column directly — the only way to
+  change plan right now, since there's no checkout.
+- Free is capped at **1 campaign pack total** (`hasReachedCampaignLimit` in `lib/plans.ts`); hitting
+  the cap on `/campaigns/new` shows an upgrade prompt instead of the form.
+- The Agent Meeting Playbook and Vendor Update Report modules are gated to Pro/Growth
+  (`planHasModule`) — Free/Starter see a "locked feature" prompt instead of the list/creation form
+  on `/meeting-playbooks*` and `/vendor-updates*`, and on the dashboard.
+- Starter/Pro/Growth's monthly campaign limits are defined for display but not yet enforced in code
+  — that needs real usage tracking, which will come with billing.
+- `// Stripe billing will be added later. For MVP, plan access is manual/simulated.` — see the
+  comment at the top of `lib/plans.ts`.
+
 ## Stack
 
 - **Next.js 14** (App Router, TypeScript) — UI + API routes
@@ -223,7 +242,8 @@ is a marketing review assistant, not legal advice."*
 
 ## Deliberately not in v1
 
-- Stripe / billing (pricing section says "coming soon")
+- Stripe, checkout, subscription billing, coupon codes, team billing, invoices — plans are defined
+  and priced, but access is manual/simulated via the Settings "Plan" selector until billing exists
 - PDF export (browser print-to-PDF covers it)
 - Team accounts / multi-user agencies
 - File/photo storage

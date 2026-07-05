@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { createClient } from "@/lib/supabase/client";
+import { PLAN_ORDER, PLANS, type PlanId } from "@/lib/plans";
 import { TONE_LABELS, type Tone } from "@/lib/types";
 import { useState } from "react";
 
@@ -18,6 +19,7 @@ export interface SettingsDefaults {
   defaultTone?: Tone;
   signaturePhrases?: string;
   complianceNotes?: string;
+  plan?: PlanId;
 }
 
 export function SettingsForm({ defaults }: { defaults: SettingsDefaults }) {
@@ -28,6 +30,7 @@ export function SettingsForm({ defaults }: { defaults: SettingsDefaults }) {
   const [defaultTone, setDefaultTone] = useState<Tone>(defaults.defaultTone || "simple_professional");
   const [signaturePhrases, setSignaturePhrases] = useState(defaults.signaturePhrases || "");
   const [complianceNotes, setComplianceNotes] = useState(defaults.complianceNotes || "");
+  const [plan, setPlan] = useState<PlanId>(defaults.plan || "free");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +61,7 @@ export function SettingsForm({ defaults }: { defaults: SettingsDefaults }) {
         agency_name: agencyName || null,
         phone: phone || null,
         default_cta: defaultCta || null,
+        plan,
       }),
       supabase.from("brand_voice_settings").upsert(
         {
@@ -94,6 +98,24 @@ export function SettingsForm({ defaults }: { defaults: SettingsDefaults }) {
             placeholder="Contact me today to arrange a viewing"
           />
         </div>
+      </Card>
+
+      <Card className="space-y-4 p-6">
+        <h2 className="font-serif text-lg">Plan (simulated)</h2>
+        <p className="text-sm text-ink/60">
+          There's no billing yet — this switches your plan directly for testing. See{" "}
+          <a href="/#pricing" className="text-gold-dark underline">
+            plan details
+          </a>
+          .
+        </p>
+        <Select label="Plan" value={plan} onChange={(e) => setPlan(e.target.value as PlanId)}>
+          {PLAN_ORDER.map((id) => (
+            <option key={id} value={id}>
+              {PLANS[id].name}
+            </option>
+          ))}
+        </Select>
       </Card>
 
       <Card className="space-y-4 p-6">

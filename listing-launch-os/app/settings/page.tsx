@@ -1,6 +1,7 @@
 import { AppNav } from "@/components/app/AppNav";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { createClient } from "@/lib/supabase/server";
+import type { PlanId } from "@/lib/plans";
 import type { Tone } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,7 @@ export default async function SettingsPage() {
               defaultTone: (brandVoice?.default_tone as Tone) || undefined,
               signaturePhrases: brandVoice?.signature_phrases || undefined,
               complianceNotes: brandVoice?.compliance_notes || undefined,
+              plan: (profile?.plan as PlanId) || undefined,
             }}
           />
         </div>
