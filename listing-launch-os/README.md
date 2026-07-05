@@ -2,10 +2,13 @@
 
 *One property form. Every listing campaign asset.*
 
-Listing Launch helps NZ real estate agents win, launch, and manage every listing, across three
-modules:
+Listing Launch helps NZ real estate agents win the listing, launch the campaign, and manage vendor
+communication — win it, launch it, manage it — across three modules:
 
-1. **Win the Listing** — coming soon.
+1. **Win the Listing** — prepare for appraisal, vendor pitch, and listing presentation meetings
+   with an **Agent Meeting Playbook**: checklist, talking points, questions to ask, a marketing
+   package recommendation, a cost explanation script, objection handling, compliance/SafeCheck
+   notes, a follow-up pack, and a 7-day win-the-listing plan.
 2. **Launch the Listing** — enter a property's details once, get a complete Listing Launch Pack:
    descriptions, social captions, reel scripts, vendor/buyer emails, a 7-day posting plan, and a
    built-in **SafeCheck** compliance review, organised into tabs on the output page.
@@ -30,9 +33,10 @@ No file storage, no queue, no Stripe integration yet — deliberately, per the M
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL editor, run the contents of [`supabase/schema.sql`](./supabase/schema.sql). This creates
-   `user_profiles`, `brand_voice_settings`, `campaigns`, `campaign_outputs`, `vendor_updates`, and
-   locks every table down with row-level security so users can only ever see their own data. It's
-   safe to re-run against an existing database — it only adds what's missing.
+   `user_profiles`, `brand_voice_settings`, `campaigns`, `campaign_outputs`, `vendor_updates`,
+   `agent_meeting_playbooks`, and locks every table down with row-level security so users can only
+   ever see their own data. It's safe to re-run against an existing database — it only adds what's
+   missing.
 3. In **Authentication > Providers**, email/password is enabled by default. For faster local testing,
    you can turn off "Confirm email" under **Authentication > Settings** so sign-up logs you straight in
    (turn it back on before giving real agents access).
@@ -123,6 +127,37 @@ relevant), and a next-7-day action plan.
 - `/vendor-updates` — every vendor update you've created, across all campaigns.
 - Saved reports for a given campaign also show up under that campaign's **Vendor Updates** tab.
 
+## Agent Meeting Playbook ("Win the Listing")
+
+Before an appraisal, vendor pitch, or listing presentation, the agent fills in meeting details,
+the vendor's situation (motivation, priorities, concerns, personality), property context, their
+own positioning, and optionally customises a marketing package and its costs. Listing Launch
+generates a 9-tab meeting pack: a before/during/after checklist, a talking script, grouped
+questions to ask the vendor, a marketing package recommendation, a cost explanation script,
+objection handling for ten common objections, compliance/SafeCheck notes, a follow-up pack, and a
+7-day win-the-listing plan.
+
+- `lib/marketingPackages.ts` — the three default NZ-style package templates (Essential, Premium,
+  Signature Launch) as editable inclusion lists, never fixed prices or promises.
+- `lib/meetingPlaybookSections.ts` — the 9 output sections, each its own tab.
+- `lib/prompts/agentMeetingPlaybook.ts` (`agentMeetingPlaybookPrompt`) — the strictest compliance
+  rules in the app: workflow guidance and draft wording only, never legal advice, never a
+  guaranteed price/outcome, costs are inputs not facts, and a reminder that a written appraisal is
+  required before a prospective client signs an agency agreement.
+- `lib/ai/agentMeetingPlaybookPlaceholder.ts` — the free template-based generator, including a
+  rule-based package recommendation (based on vendor priority/concerns) that also respects an
+  agent-chosen package if one was set.
+- `app/api/agent-meeting-playbooks/generate/route.ts` — authenticates the user, loads the playbook
+  (filtered by `id` and `user_id`), generates the requested sections, and merges them into the
+  `generated_output` JSONB column.
+- `/meeting-playbooks/new` — the creation form (meeting details, vendor situation, property
+  context, agent positioning, marketing package advisor).
+- `/meeting-playbooks/[id]` — the output view, one tab per section: copy, edit + save, regenerate.
+  Always shows the compliance reminder on the Compliance/SafeCheck Notes tab.
+- `/meeting-playbooks` — every meeting playbook you've created.
+- A playbook can exist with no campaign yet — this module is designed to be useful *before* the
+  agent has won the listing.
+
 ## SafeCheck
 
 `lib/safecheck.ts` is a free, rule-based scanner (no extra API calls) that reviews every generated
@@ -139,15 +174,15 @@ is a marketing review assistant, not legal advice."*
 ## Security notes
 
 - Every table (`campaigns`, `campaign_outputs`, `user_profiles`, `brand_voice_settings`,
-  `vendor_updates`) has RLS locking rows to `auth.uid()`.
+  `vendor_updates`, `agent_meeting_playbooks`) has RLS locking rows to `auth.uid()`.
 - On top of RLS, every query in application code that fetches, updates, or upserts campaign,
-  output, or vendor update data explicitly filters by the authenticated user's id
-  (`.eq("user_id", user.id)`) — see `app/api/generate/route.ts`,
-  `app/api/vendor-updates/generate/route.ts`, `app/dashboard/page.tsx`,
-  `app/campaigns/[id]/page.tsx`, `app/vendor-updates/[id]/page.tsx`, and
-  `components/campaign/OutputSection.tsx` /
-  `components/vendor-update/VendorUpdateOutputSection.tsx`. `campaign_outputs` and `vendor_updates`
-  both carry their own `user_id` column so this is always a direct column filter, never a join.
+  output, vendor update, or meeting playbook data explicitly filters by the authenticated user's
+  id (`.eq("user_id", user.id)`) — see `app/api/generate/route.ts`,
+  `app/api/vendor-updates/generate/route.ts`, `app/api/agent-meeting-playbooks/generate/route.ts`,
+  `app/dashboard/page.tsx`, `app/campaigns/[id]/page.tsx`, `app/vendor-updates/[id]/page.tsx`,
+  `app/meeting-playbooks/[id]/page.tsx`, and the corresponding `OutputSection` components.
+  `campaign_outputs`, `vendor_updates`, and `agent_meeting_playbooks` all carry their own
+  `user_id` column so this is always a direct column filter, never a join.
 - `SettingsForm` re-fetches the authenticated user id at submit time rather than trusting a prop,
   so a tampered client can't upsert settings under a different user id.
 
@@ -155,7 +190,11 @@ is a marketing review assistant, not legal advice."*
 
 - `/` — landing page
 - `/login` — combined login/signup
-- `/dashboard` — Launch the Listing (saved campaigns) and Manage the Campaign (vendor updates)
+- `/dashboard` — overview of all three modules: Win the Listing (meeting playbooks), Launch the
+  Listing (campaigns), Manage the Campaign (vendor updates)
+- `/meeting-playbooks` — every meeting playbook you've created
+- `/meeting-playbooks/new` — create a meeting playbook for an appraisal or vendor meeting
+- `/meeting-playbooks/[id]` — the generated playbook, one tab per section
 - `/campaigns/new` — guided property form → generates the full pack
 - `/campaigns/[id]` — the output pack, organised into tabs: Portal Copy, Social Posts, Reels &
   Video, Open Home, Email & Follow-up, Vendor Updates, Campaign Timeline, and SafeCheck. Copy,
@@ -191,3 +230,9 @@ is a marketing review assistant, not legal advice."*
 - Saved multiple brand voices per user (one default voice per user for now)
 - Direct publishing integrations (Trade Me, realestate.co.nz, OneRoof, Facebook/Instagram) — the app
   produces copy for you to paste into those platforms, it doesn't post to them
+- CRM integrations
+- External marketing price scraping — package costs are agent-entered inputs, never scraped or
+  hardcoded national prices
+- Legal advice — the Agent Meeting Playbook and SafeCheck are workflow assistants and drafting
+  aids only; agents remain responsible for compliance, accuracy, and their own agency/REA
+  obligations

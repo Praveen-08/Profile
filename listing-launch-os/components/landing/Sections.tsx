@@ -11,6 +11,10 @@ export function Hero() {
         <h1 className="mt-6 font-serif text-4xl leading-tight tracking-tight sm:text-5xl">
           One property form. Every listing campaign asset.
         </h1>
+        <p className="mx-auto mt-3 max-w-xl text-base font-medium text-gold-dark">
+          Now built around the full listing lifecycle: win the listing, launch the campaign, and manage vendor
+          communication.
+        </p>
         <p className="mx-auto mt-5 max-w-2xl text-lg text-ink/60">
           Enter a property's details once. Get a complete Listing Launch Pack — descriptions, social captions, reel
           scripts, vendor updates, open-home posts, a 7-day plan, and a built-in SafeCheck review — ready to copy,
@@ -23,6 +27,39 @@ export function Hero() {
           <Button href="#product-preview" variant="outline" size="lg">
             View Sample Campaign
           </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const LIFECYCLE_MODULES = [
+  {
+    title: "Win the Listing",
+    body: "Meeting playbooks, vendor questions, marketing package recommendations, objection handling.",
+  },
+  {
+    title: "Launch the Listing",
+    body: "Portal copy, social posts, reels, open-home content, campaign timeline.",
+  },
+  {
+    title: "Manage the Campaign",
+    body: "Vendor updates, open-home debriefs, buyer follow-ups, SafeCheck.",
+  },
+];
+
+export function MoreThanListingCopy() {
+  return (
+    <section className="border-y border-ink/10 bg-white py-16">
+      <div className="mx-auto max-w-5xl px-6">
+        <h2 className="text-center font-serif text-2xl sm:text-3xl">More than listing copy</h2>
+        <div className="mt-10 grid gap-6 sm:grid-cols-3">
+          {LIFECYCLE_MODULES.map((m) => (
+            <Card key={m.title} className="p-6">
+              <h3 className="font-medium">{m.title}</h3>
+              <p className="mt-2 text-sm text-ink/60">{m.body}</p>
+            </Card>
+          ))}
         </div>
       </div>
     </section>

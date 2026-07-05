@@ -1,8 +1,10 @@
-import type { CampaignInput, VendorUpdateContext } from "../types";
+import type { AgentMeetingPlaybookFormData, CampaignInput, VendorUpdateContext } from "../types";
 import { getSectionPrompt } from "../prompts/sections";
 import { getVendorUpdateSectionPrompt } from "../prompts/vendorUpdate";
+import { agentMeetingPlaybookPrompt } from "../prompts/agentMeetingPlaybook";
 import { generatePlaceholder } from "./placeholder";
 import { generateVendorUpdatePlaceholder } from "./vendorUpdatePlaceholder";
+import { generateMeetingPlaybookPlaceholder } from "./agentMeetingPlaybookPlaceholder";
 import { generateWithClaude } from "./anthropic";
 
 export type AiMode = "placeholder" | "live";
@@ -49,6 +51,30 @@ export async function generateVendorUpdateSections(
 ): Promise<Record<string, string>> {
   const results = await Promise.all(
     sectionKeys.map(async (key) => [key, await generateVendorUpdateSection(key, input)] as const)
+  );
+  return Object.fromEntries(results);
+}
+
+export async function generateMeetingPlaybookSection(
+  sectionKey: string,
+  input: AgentMeetingPlaybookFormData
+): Promise<string> {
+  const mode = getAiMode();
+
+  if (mode === "placeholder") {
+    return generateMeetingPlaybookPlaceholder(sectionKey, input);
+  }
+
+  const { system, user } = agentMeetingPlaybookPrompt(sectionKey, input);
+  return generateWithClaude(system, user);
+}
+
+export async function generateMeetingPlaybookSections(
+  sectionKeys: string[],
+  input: AgentMeetingPlaybookFormData
+): Promise<Record<string, string>> {
+  const results = await Promise.all(
+    sectionKeys.map(async (key) => [key, await generateMeetingPlaybookSection(key, input)] as const)
   );
   return Object.fromEntries(results);
 }

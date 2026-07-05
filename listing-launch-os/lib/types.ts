@@ -1,3 +1,5 @@
+import type { MarketingPackage } from "./marketingPackages";
+
 export type TargetBuyer =
   | "first_home_buyer"
   | "family"
@@ -261,6 +263,245 @@ export function vendorUpdateFromRow(row: VendorUpdateRow): VendorUpdate {
     campaignId: row.campaign_id,
     updateType: row.update_type,
     formData: row.form_data || ({} as VendorUpdateFormData),
+    generatedOutput: row.generated_output || {},
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Agent Meeting Playbook — "Win the Listing" module
+// ---------------------------------------------------------------------------
+
+export type MeetingType =
+  | "appraisal"
+  | "vendor_pitch"
+  | "listing_presentation"
+  | "marketing_review"
+  | "price_feedback_meeting"
+  | "pre_auction_meeting"
+  | "post_open_home_review";
+
+export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
+  appraisal: "Appraisal",
+  vendor_pitch: "Vendor pitch",
+  listing_presentation: "Listing presentation",
+  marketing_review: "Marketing review",
+  price_feedback_meeting: "Price feedback meeting",
+  pre_auction_meeting: "Pre-auction meeting",
+  post_open_home_review: "Post-open-home review",
+};
+
+export type MeetingSaleMethod =
+  | "auction"
+  | "deadline_sale"
+  | "price_by_negotiation"
+  | "asking_price"
+  | "tender"
+  | "negotiation"
+  | "unknown";
+
+export const MEETING_SALE_METHOD_LABELS: Record<MeetingSaleMethod, string> = {
+  auction: "Auction",
+  deadline_sale: "Deadline sale",
+  price_by_negotiation: "Price by negotiation",
+  asking_price: "Asking price",
+  tender: "Tender",
+  negotiation: "Negotiation",
+  unknown: "Unknown / to be discussed",
+};
+
+export type VendorMotivation =
+  | "upsizing"
+  | "downsizing"
+  | "relocating"
+  | "investor_sale"
+  | "deceased_estate"
+  | "separation"
+  | "financial_pressure"
+  | "testing_market"
+  | "other"
+  | "unknown";
+
+export const VENDOR_MOTIVATION_LABELS: Record<VendorMotivation, string> = {
+  upsizing: "Upsizing",
+  downsizing: "Downsizing",
+  relocating: "Relocating",
+  investor_sale: "Investor sale",
+  deceased_estate: "Deceased estate",
+  separation: "Separation",
+  financial_pressure: "Financial pressure",
+  testing_market: "Testing the market",
+  other: "Other",
+  unknown: "Unknown",
+};
+
+export type VendorPriority =
+  | "highest_price"
+  | "fastest_sale"
+  | "low_stress"
+  | "privacy"
+  | "premium_marketing"
+  | "low_upfront_cost"
+  | "certainty"
+  | "other";
+
+export const VENDOR_PRIORITY_LABELS: Record<VendorPriority, string> = {
+  highest_price: "Highest price",
+  fastest_sale: "Fastest sale",
+  low_stress: "Low stress",
+  privacy: "Privacy",
+  premium_marketing: "Premium marketing",
+  low_upfront_cost: "Low upfront cost",
+  certainty: "Certainty",
+  other: "Other",
+};
+
+export type VendorConcern =
+  | "commission"
+  | "marketing_cost"
+  | "timing"
+  | "privacy"
+  | "market_conditions"
+  | "property_condition"
+  | "tenant_access"
+  | "buyer_interest"
+  | "price_expectation"
+  | "previous_failed_campaign"
+  | "other";
+
+export const VENDOR_CONCERN_LABELS: Record<VendorConcern, string> = {
+  commission: "Commission",
+  marketing_cost: "Marketing cost",
+  timing: "Timing",
+  privacy: "Privacy",
+  market_conditions: "Market conditions",
+  property_condition: "Property condition",
+  tenant_access: "Tenant access",
+  buyer_interest: "Buyer interest",
+  price_expectation: "Price expectation",
+  previous_failed_campaign: "Previous failed campaign",
+  other: "Other",
+};
+
+export type VendorPersonality =
+  | "analytical"
+  | "emotional"
+  | "time_poor"
+  | "price_sensitive"
+  | "premium_focused"
+  | "cautious"
+  | "direct"
+  | "relationship_focused";
+
+export const VENDOR_PERSONALITY_LABELS: Record<VendorPersonality, string> = {
+  analytical: "Analytical",
+  emotional: "Emotional",
+  time_poor: "Time-poor",
+  price_sensitive: "Price-sensitive",
+  premium_focused: "Premium-focused",
+  cautious: "Cautious",
+  direct: "Direct",
+  relationship_focused: "Relationship-focused",
+};
+
+export type MeetingTone = "professional" | "premium" | "warm" | "direct" | "confident" | "consultative";
+
+export const MEETING_TONE_LABELS: Record<MeetingTone, string> = {
+  professional: "Professional",
+  premium: "Premium",
+  warm: "Warm",
+  direct: "Direct",
+  confident: "Confident",
+  consultative: "Consultative",
+};
+
+export interface AgentMeetingPlaybookFormData {
+  // Meeting details
+  meetingType: MeetingType;
+  propertyAddress: string;
+  suburb: string;
+  propertyType: string;
+  estimatedValueRange?: string;
+  saleMethod?: MeetingSaleMethod;
+  meetingDateTime?: string;
+  vendorName?: string;
+
+  // Vendor situation
+  vendorMotivation?: VendorMotivation;
+  vendorPriority?: VendorPriority;
+  vendorConcerns?: VendorConcern[];
+  vendorPersonality?: VendorPersonality;
+
+  // Property context
+  keyStrengths?: string;
+  knownWeaknesses?: string;
+  renovations?: string;
+  amenities?: string;
+  schoolZoneNotes?: string;
+  limBuildingReportNotes?: string;
+  disclosureItems?: string;
+  claimsToVerify?: string;
+
+  // Agent positioning
+  agentName?: string;
+  agencyName?: string;
+  agentPhone?: string;
+  agentEmail?: string;
+  agentStrengths?: string;
+  recentSales?: string;
+  testimonials?: string;
+  whyChooseAgent?: string;
+  tone: MeetingTone;
+
+  // Marketing package advisor
+  preferredPackage?: MarketingPackage;
+  photographyCost?: string;
+  videoCost?: string;
+  floorPlanCost?: string;
+  droneCost?: string;
+  twilightCost?: string;
+  portalUpgradeCost?: string;
+  socialAdBudget?: string;
+  printSignageCost?: string;
+  totalBudget?: string;
+}
+
+export interface AgentMeetingPlaybook {
+  id: string;
+  userId: string;
+  campaignId?: string;
+  meetingType: MeetingType;
+  propertyAddress: string;
+  suburb: string;
+  formData: AgentMeetingPlaybookFormData;
+  generatedOutput: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentMeetingPlaybookRow {
+  id: string;
+  user_id: string;
+  campaign_id: string | null;
+  meeting_type: MeetingType;
+  property_address: string;
+  suburb: string;
+  form_data: AgentMeetingPlaybookFormData;
+  generated_output: Record<string, string>;
+  created_at: string;
+  updated_at: string;
+}
+
+export function agentMeetingPlaybookFromRow(row: AgentMeetingPlaybookRow): AgentMeetingPlaybook {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    campaignId: row.campaign_id ?? undefined,
+    meetingType: row.meeting_type,
+    propertyAddress: row.property_address,
+    suburb: row.suburb,
+    formData: row.form_data || ({} as AgentMeetingPlaybookFormData),
     generatedOutput: row.generated_output || {},
     createdAt: row.created_at,
     updatedAt: row.updated_at,

@@ -141,6 +141,28 @@ create index if not exists vendor_updates_user_id_idx on public.vendor_updates(u
 create index if not exists vendor_updates_campaign_id_idx on public.vendor_updates(campaign_id);
 
 -- ---------------------------------------------------------------------------
+-- agent_meeting_playbooks: "Win the Listing" module — one row per
+-- appraisal/vendor-pitch/listing-presentation meeting prep pack. campaign_id
+-- is nullable because a playbook is often created before any campaign
+-- exists (the agent hasn't won the listing yet).
+-- ---------------------------------------------------------------------------
+create table if not exists public.agent_meeting_playbooks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  campaign_id uuid references public.campaigns(id) on delete set null,
+  meeting_type text not null,
+  property_address text not null,
+  suburb text not null,
+  form_data jsonb not null default '{}'::jsonb,
+  generated_output jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists agent_meeting_playbooks_user_id_idx on public.agent_meeting_playbooks(user_id);
+create index if not exists agent_meeting_playbooks_campaign_id_idx on public.agent_meeting_playbooks(campaign_id);
+
+-- ---------------------------------------------------------------------------
 -- Row Level Security: every table is locked to its owning user.
 -- Application code additionally filters every query by the authenticated
 -- user's id explicitly (defense in depth) — RLS is the backstop, not the
@@ -151,6 +173,7 @@ alter table public.brand_voice_settings enable row level security;
 alter table public.campaigns enable row level security;
 alter table public.campaign_outputs enable row level security;
 alter table public.vendor_updates enable row level security;
+alter table public.agent_meeting_playbooks enable row level security;
 
 drop policy if exists "user_profiles_owner" on public.user_profiles;
 create policy "user_profiles_owner" on public.user_profiles
@@ -172,6 +195,10 @@ create policy "campaign_outputs_owner" on public.campaign_outputs
 
 drop policy if exists "vendor_updates_owner" on public.vendor_updates;
 create policy "vendor_updates_owner" on public.vendor_updates
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "agent_meeting_playbooks_owner" on public.agent_meeting_playbooks;
+create policy "agent_meeting_playbooks_owner" on public.agent_meeting_playbooks
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ---------------------------------------------------------------------------
@@ -203,4 +230,8 @@ create trigger set_updated_at before update on public.campaign_outputs
 
 drop trigger if exists set_updated_at on public.vendor_updates;
 create trigger set_updated_at before update on public.vendor_updates
+  for each row execute procedure public.set_updated_at();
+
+drop trigger if exists set_updated_at on public.agent_meeting_playbooks;
+create trigger set_updated_at before update on public.agent_meeting_playbooks
   for each row execute procedure public.set_updated_at();

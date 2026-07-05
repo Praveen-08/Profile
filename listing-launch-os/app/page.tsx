@@ -3,6 +3,7 @@ import { Footer } from "@/components/landing/Footer";
 import { ProductPreview } from "@/components/landing/ProductPreview";
 import {
   Hero,
+  MoreThanListingCopy,
   ProblemSection,
   HowItWorks,
   PackContents,
@@ -20,6 +21,7 @@ export default function LandingPage() {
       <main>
         <Hero />
         <ProductPreview />
+        <MoreThanListingCopy />
         <ProblemSection />
         <HowItWorks />
         <PackContents />
