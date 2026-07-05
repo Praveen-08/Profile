@@ -1,5 +1,6 @@
 import type { CampaignInput } from "./types";
 import { sectionMeta } from "./sections";
+import { COMMON_TYPO_FIXES } from "./formatCampaignData";
 
 export type RiskLevel = "low" | "medium" | "high";
 
@@ -16,10 +17,14 @@ export interface SafeCheckResult {
   issues: SafeCheckIssue[];
   summary: Record<RiskLevel, number>;
   disclaimer: string;
+  noIssuesMessage: string;
 }
 
 export const SAFECHECK_DISCLAIMER =
   "Review all copy before publishing. The agent remains responsible for accuracy. This is a marketing review assistant, not legal advice.";
+
+export const SAFECHECK_NO_ISSUES_MESSAGE =
+  "No major compliance risks detected, but review all copy against confirmed property facts before publishing.";
 
 const RISK_ORDER: Record<RiskLevel, number> = { high: 0, medium: 1, low: 2 };
 
@@ -42,6 +47,13 @@ const ALWAYS_FLAG: AlwaysFlag[] = [
     alternative: "potential for growth over time (without a guarantee)",
   },
   {
+    pattern: /\bguaranteed\b/i,
+    riskLevel: "high",
+    issue: '"Guaranteed"',
+    reason: "Guarantees about price, timing, or outcome can't be backed and are a common source of misrepresentation complaints.",
+    alternative: "Remove, or rephrase without a guarantee (e.g. \"expected\", \"likely\").",
+  },
+  {
     pattern: /best\s+investment/i,
     riskLevel: "high",
     issue: '"Best investment"',
@@ -49,11 +61,18 @@ const ALWAYS_FLAG: AlwaysFlag[] = [
     alternative: "an investment opportunity worth considering",
   },
   {
-    pattern: /perfect\s+family\s+home/i,
+    pattern: /\bbest\b/i,
     riskLevel: "medium",
-    issue: '"Perfect family home"',
-    reason: '"Perfect" is an unsupported superlative unless specifically confirmed by the agent.',
-    alternative: "a home well suited to family living",
+    issue: '"Best"',
+    reason: "Unsupported superlative unless the form specifically backs it up.",
+    alternative: "Remove, or replace with a specific, factual detail.",
+  },
+  {
+    pattern: /\bperfect\b/i,
+    riskLevel: "medium",
+    issue: '"Perfect"',
+    reason: "Unsupported superlative unless the form specifically backs it up.",
+    alternative: "Remove, or replace with a specific, factual detail.",
   },
   {
     pattern: /\bno\s+issues\b/i,
@@ -83,6 +102,20 @@ const ALWAYS_FLAG: AlwaysFlag[] = [
     reason: "Zoning and enrolment can change and are not something an agent can guarantee.",
     alternative: "within the [suburb] school zone (confirm current zoning with the Ministry of Education)",
   },
+  {
+    pattern: /won'?t\s+(?:last|stay\s+on\s+the\s+market\s+(?:for\s+)?long)/i,
+    riskLevel: "high",
+    issue: "Unsupported urgency claim",
+    reason: "Claims like \"won't last\" or \"won't stay on the market long\" can't be backed up and read as pressure tactics.",
+    alternative: "Remove, or use a genuine, time-bound fact instead (e.g. a confirmed open home or deadline sale date).",
+  },
+  {
+    pattern: /close\s+to\s+everything/i,
+    riskLevel: "medium",
+    issue: '"Close to everything"',
+    reason: "A vague, unverifiable claim — name the specific amenities instead.",
+    alternative: "Replace with the specific amenities entered in the form.",
+  },
 ];
 
 interface ConditionalFlag {
@@ -103,6 +136,14 @@ const CONDITIONAL_FLAGS: ConditionalFlag[] = [
     reason: "Only use this if the renovations you entered describe a full renovation — otherwise it overstates the work done.",
     alternative: "recently updated, or name the specific renovated areas",
     isSupported: (input) => !!input.renovations && /\bfull(y)?\b/i.test(input.renovations),
+  },
+  {
+    pattern: /recently\s+upgraded/i,
+    riskLevel: "medium",
+    issue: '"Recently upgraded"',
+    reason: "No renovations/upgrades were entered in the form to support this claim.",
+    alternative: "Remove, or add the specific upgrade to the form's renovations field.",
+    isSupported: (input) => !!input.renovations,
   },
   {
     pattern: /subdivision\s+potential/i,
@@ -128,6 +169,22 @@ const CONDITIONAL_FLAGS: ConditionalFlag[] = [
     alternative: "add rental/yield notes to the form, or remove the yield claim",
     isSupported: (input) => !!input.rentalYieldNotes,
   },
+  {
+    pattern: /\bzoned for\b|\bschool zone\b/i,
+    riskLevel: "high",
+    issue: "Unsupported school zone claim",
+    reason: "No school zone notes were provided — zoning claims must be confirmed before publishing.",
+    alternative: "remove, or add school zone notes to the form so this can be confirmed",
+    isSupported: (input) => !!input.schoolZoneNotes,
+  },
+  {
+    pattern: /family\s+home/i,
+    riskLevel: "medium",
+    issue: '"Family home" framing',
+    reason: "The property profile (2 bedrooms or fewer) may not clearly support family-home framing — consider a broader buyer angle.",
+    alternative: "well suited to first-home buyers, professionals, downsizers, or investors",
+    isSupported: (input) => !(typeof input.bedrooms === "number" && input.bedrooms <= 2),
+  },
 ];
 
 const GENERIC_SUPERLATIVES = /\b(unbeatable|unmatched|flawless|ultimate|unrivalled|unrivaled|best in|number one|#1)\b/gi;
@@ -137,6 +194,8 @@ const NUMERIC_CHECKS: Array<{ regex: RegExp; formKey: "bedrooms" | "bathrooms" |
   { regex: /(\d+)\s*[- ]?(?:bath\s?rooms?|baths?)\b/gi, formKey: "bathrooms", label: "bathrooms" },
   { regex: /(\d+)\s*[- ]?(?:car\s?parks?|garages?)\b/gi, formKey: "garages", label: "car parks" },
 ];
+
+const MISSING_M2_PATTERN = /\b(\d{2,4})\s*(?:sqm|sq\s?m|square\s?met(?:re|er)s?)\b/gi;
 
 const PLACE_SUFFIX = /(Park|School|Mall|Centre|Center|Beach|Reserve|Village|Station|Market|Library|Zoo|Stadium|University|College|Domain|Marina|Wharf)$/;
 const PROPER_NOUN_PHRASE = /\b([A-Z][a-zA-Z']+(?:\s+[A-Z][a-zA-Z']+){0,3})\b/g;
@@ -189,6 +248,16 @@ function findUnsupportedAmenities(text: string, input: CampaignInput): string[] 
   return Array.from(found);
 }
 
+function findTypos(text: string): Array<{ typo: string; fix: string }> {
+  const found: Array<{ typo: string; fix: string }> = [];
+  for (const [typo, fix] of Object.entries(COMMON_TYPO_FIXES)) {
+    if (new RegExp(`\\b${typo}\\b`, "i").test(text)) {
+      found.push({ typo, fix });
+    }
+  }
+  return found;
+}
+
 export function runSafeCheck(outputs: Record<string, string>, input: CampaignInput): SafeCheckResult {
   const issues: SafeCheckIssue[] = [];
 
@@ -239,6 +308,28 @@ export function runSafeCheck(outputs: Record<string, string>, input: CampaignInp
       }
     }
 
+    for (const m of content.matchAll(MISSING_M2_PATTERN)) {
+      issues.push({
+        sectionKey,
+        sectionLabel,
+        riskLevel: "low",
+        issue: `Missing m² unit ("${m[0]}")`,
+        reason: "Measurements should use the m² symbol consistently, not \"sqm\" or \"sq m\".",
+        saferAlternative: `approximately ${m[1]}m²`,
+      });
+    }
+
+    for (const { typo, fix } of findTypos(content)) {
+      issues.push({
+        sectionKey,
+        sectionLabel,
+        riskLevel: "high",
+        issue: `Spelling error ("${typo}")`,
+        reason: "This looks like a typo — proofread before publishing.",
+        saferAlternative: `Correct to "${fix}".`,
+      });
+    }
+
     for (const place of findUnsupportedAmenities(content, input)) {
       issues.push({
         sectionKey,
@@ -256,5 +347,5 @@ export function runSafeCheck(outputs: Record<string, string>, input: CampaignInp
   const summary: Record<RiskLevel, number> = { high: 0, medium: 0, low: 0 };
   for (const issue of issues) summary[issue.riskLevel]++;
 
-  return { issues, summary, disclaimer: SAFECHECK_DISCLAIMER };
+  return { issues, summary, disclaimer: SAFECHECK_DISCLAIMER, noIssuesMessage: SAFECHECK_NO_ISSUES_MESSAGE };
 }

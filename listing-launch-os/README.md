@@ -121,6 +121,32 @@ needs network access).
 To edit what gets generated, change the per-section instruction strings in
 `lib/prompts/sections.ts` — no other code needs to change.
 
+The Launch pack has grown to 40 sections across its 6 content tabs (Portal Copy, Social Posts,
+Reels & Video, Open Home, Email & Follow-up, Vendor Updates), each with its own placeholder
+template and live-mode instruction — see `lib/sections.ts` for the full list.
+
+## Data normalisation & output quality
+
+`lib/formatCampaignData.ts` normalises raw agent-entered text before it's used for generation or
+display — this runs automatically, nothing to configure:
+
+- Title-cases address/suburb (`"16a bliss court"` → `"16A Bliss Court"`, keeping unit letters like
+  `16A` capitalised) and amenities (`"bruce pulman park"` → `"Bruce Pulman Park"`).
+- Formats land/floor size consistently as `"approximately 450m²"` from any raw input (`"450"`,
+  `"450sqm"`, etc.) — `lib/utils.ts`'s `propertyFactsList` also guards against double-prefixing
+  "approximately" if the value is already normalised.
+- Parses open-home date/times into a consistent format (`"sunday 10-10.30"` →
+  `"Sunday, 10:00–10:30am"`).
+- Corrects a small set of common typos (`"buit"` → `"built"`), preserving capitalisation.
+- Applied in `app/campaigns/[id]/page.tsx` for display and inside both `generatePlaceholder` and
+  `buildContextBlock` for generation, without rewriting what the agent actually typed in the
+  database.
+
+`lib/buyerAngle.ts` stops the pack from defaulting to family-home framing just because "Family" is
+the form's default selection — if the property profile looks like a starter/compact listing
+(≤2 bedrooms, or a unit/apartment) and "Family" was selected, the copy widens to the buyer types it
+actually suits (first-home buyers, professionals, downsizers, investors) instead.
+
 ## Vendor Update Report ("Manage the Campaign")
 
 After an open home or weekly campaign review, the agent enters what happened — enquiries, open
@@ -181,14 +207,40 @@ objection handling for ten common objections, compliance/SafeCheck notes, a foll
 
 `lib/safecheck.ts` is a free, rule-based scanner (no extra API calls) that reviews every generated
 section for wording that's risky under NZ real estate advertising standards: guaranteed
-returns/yield, "best investment", unverified building claims ("waterproof", "leak-free", "no
-issues"), guaranteed school zones, "fully renovated"/"subdivision potential"/"development
-potential"/"high yield" claims not backed by the form data, unsupported superlatives, factual
-mismatches (e.g. a bedroom count in the copy that doesn't match the form), and place names that
-don't appear in the amenities you entered. Each flag has a risk level, a plain-English reason, and
-safer replacement wording. It's surfaced as its own tab on the output page and always shows the
-disclaimer: *"Review all copy before publishing. The agent remains responsible for accuracy. This
-is a marketing review assistant, not legal advice."*
+returns/yield (and "guaranteed" generally), "best"/"perfect"/"best investment" (unsupported
+superlatives), unverified building claims ("waterproof", "leak-free", "no issues"), guaranteed
+school zones and unsupported school-zone claims generally, "fully renovated"/"recently
+upgraded"/"subdivision potential"/"development potential"/"high yield" claims not backed by the
+form data, "family home" framing on a 2-bedroom-or-fewer property, urgency pressure phrases
+("won't last", "won't stay on the market long"), vague filler ("close to everything"), factual
+mismatches (e.g. a bedroom count in the copy that doesn't match the form), measurements missing
+the m² symbol ("450sqm" instead of "approximately 450m²"), a small set of common typos, and place
+names that don't appear in the amenities you entered. Each flag shows a risk level, the issue, why
+it matters, safer wording, and the affected section. It's surfaced as its own tab on the output
+page and always shows the disclaimer: *"Review all copy before publishing. The agent remains
+responsible for accuracy. This is a marketing review assistant, not legal advice."* When there are
+no issues, it still shows: *"No major compliance risks detected, but review all copy against
+confirmed property facts before publishing."*
+
+## Saving and export
+
+- **Saving**: every generate/regenerate call (`/api/generate`) upserts straight into
+  `campaign_outputs` (`campaign_id` + `user_id` + `section_key`), so a campaign's pack is already
+  persisted by the time you're redirected to view it — leaving and coming back re-fetches it from
+  Supabase, it doesn't rely on browser state. A **Save Campaign** button (top of the output page)
+  additionally lets you force a bulk upsert of everything currently on screen, with explicit status
+  text ("Saving…", "Campaign saved", or "Save failed: \<exact error\>") — useful after editing
+  several sections. Right after generating, a banner confirms "Campaign generated and saved" (or,
+  if generation itself failed, prompts you to click Save Campaign or copy your output before
+  leaving).
+- **Export**: the Download menu on the output page (`components/campaign/DownloadMenu.tsx`) covers
+  the Full Campaign Pack plus each tab individually (Portal Copy, Social Posts, Reels & Video, Open
+  Home, Vendor Emails, Buyer Follow-up, SafeCheck, Campaign Timeline). Each opens a clean, isolated
+  print window (`lib/campaignExport.ts`) — its own `<title>`, header (property address, section
+  name, agent/agency, generated date), and styling — then triggers the browser's print dialog, so
+  "Save as PDF" gets a proper suggested file name instead of the app's page title. File names follow
+  `{Address}-{Suburb}_{Section}_{YYYY-MM-DD}` (e.g.
+  `16A-Bliss-Court-Takanini_Portal-Copy_2026-07-06`).
 
 ## Security notes
 

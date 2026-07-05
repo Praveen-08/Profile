@@ -33,9 +33,7 @@ export function SafeCheckPanel({ outputs, input }: { outputs: Record<string, str
       </div>
 
       {result.issues.length === 0 ? (
-        <Card className="p-8 text-center text-sm text-ink/60">
-          No risky wording detected in the current copy. Still give it a final read before publishing.
-        </Card>
+        <Card className="p-8 text-center text-sm text-ink/60">{result.noIssuesMessage}</Card>
       ) : (
         <div className="space-y-3">
           {result.issues.map((issue, i) => (

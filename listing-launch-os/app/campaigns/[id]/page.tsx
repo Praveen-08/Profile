@@ -1,8 +1,10 @@
 import { AppNav } from "@/components/app/AppNav";
 import { OutputPack } from "@/components/campaign/OutputPack";
 import { RetryGenerateButton } from "@/components/campaign/RetryGenerateButton";
+import { GeneratedBanner } from "@/components/campaign/GeneratedBanner";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeCampaignInput } from "@/lib/formatCampaignData";
 import {
   campaignFromRow,
   TARGET_BUYER_LABELS,
@@ -14,6 +16,7 @@ import {
 } from "@/lib/types";
 import { propertyFactsList } from "@/lib/utils";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -34,12 +37,16 @@ export default async function CampaignOutputPage({ params }: { params: { id: str
     .single();
   if (!row) notFound();
 
-  const campaign = campaignFromRow(row as CampaignRow);
+  const rawCampaign = campaignFromRow(row as CampaignRow);
+  // Normalised for display and for generation — title-cased address/suburb/
+  // amenities, consistent m² units, a readable open-home time — without
+  // rewriting what the agent actually typed in the database.
+  const campaign = normalizeCampaignInput(rawCampaign);
 
   const { data: outputRows } = await supabase
     .from("campaign_outputs")
     .select("*")
-    .eq("campaign_id", campaign.id)
+    .eq("campaign_id", rawCampaign.id)
     .eq("user_id", user.id);
 
   const outputs: Record<string, string> = {};
@@ -52,7 +59,7 @@ export default async function CampaignOutputPage({ params }: { params: { id: str
   const { data: vendorUpdateRows } = await supabase
     .from("vendor_updates")
     .select("id, update_type, created_at")
-    .eq("campaign_id", campaign.id)
+    .eq("campaign_id", rawCampaign.id)
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -68,10 +75,15 @@ export default async function CampaignOutputPage({ params }: { params: { id: str
     <>
       <AppNav />
       <main className="mx-auto max-w-4xl px-6 py-10">
+        <Suspense>
+          <GeneratedBanner />
+        </Suspense>
         <div className="mb-8">
-          <h1 className="font-serif text-2xl">{campaign.address}</h1>
+          <h1 className="font-serif text-2xl">
+            {campaign.address}, {campaign.suburb}
+          </h1>
           <p className="mt-1 text-sm text-ink/60">
-            {campaign.suburb} · {campaign.propertyType}
+            {campaign.propertyType}
             {propertyFactsList(campaign).length ? ` · ${propertyFactsList(campaign).join(", ")}` : ""}
           </p>
           <p className="mt-1 text-xs uppercase tracking-wider text-gold-dark">
@@ -81,7 +93,7 @@ export default async function CampaignOutputPage({ params }: { params: { id: str
 
         {hasOutputs ? (
           <OutputPack
-            campaignId={campaign.id}
+            campaignId={rawCampaign.id}
             userId={user.id}
             campaign={campaign}
             outputs={outputs}
@@ -89,11 +101,12 @@ export default async function CampaignOutputPage({ params }: { params: { id: str
           />
         ) : (
           <Card className="flex flex-col items-center gap-4 p-16 text-center">
-            <p className="font-serif text-xl">Generation hasn't completed for this campaign</p>
+            <p className="font-serif text-xl">No campaign pack generated yet</p>
             <p className="max-w-sm text-sm text-ink/60">
-              This can happen if generation failed right after the campaign was created. Retry below.
+              Generate the full launch pack for this campaign — descriptions, social posts, reels, open-home
+              content, and more.
             </p>
-            <RetryGenerateButton campaignId={campaign.id} />
+            <RetryGenerateButton campaignId={rawCampaign.id} label="Generate campaign pack" />
           </Card>
         )}
       </main>

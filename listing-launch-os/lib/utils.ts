@@ -4,14 +4,18 @@ export function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
+function withApprox(value: string): string {
+  return /approx/i.test(value) ? value : `approximately ${value}`;
+}
+
 /** Human-readable one-line summary of the facts we actually have, skipping anything not provided. */
 export function propertyFactsList(input: CampaignInput): string[] {
   const facts: string[] = [];
   if (input.bedrooms) facts.push(`${input.bedrooms} bedroom${input.bedrooms === 1 ? "" : "s"}`);
   if (input.bathrooms) facts.push(`${input.bathrooms} bathroom${input.bathrooms === 1 ? "" : "s"}`);
   if (input.garages) facts.push(`${input.garages} car park${input.garages === 1 ? "" : "s"}`);
-  if (input.landSize) facts.push(`approximately ${input.landSize} land`);
-  if (input.floorArea) facts.push(`approximately ${input.floorArea} floor area`);
+  if (input.landSize) facts.push(`${withApprox(input.landSize)} land`);
+  if (input.floorArea) facts.push(`${withApprox(input.floorArea)} floor area`);
   return facts;
 }
 

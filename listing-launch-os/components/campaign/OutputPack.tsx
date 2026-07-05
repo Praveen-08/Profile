@@ -1,12 +1,13 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Tabs, type TabItem } from "@/components/ui/Tabs";
+import { DownloadMenu } from "./DownloadMenu";
+import { SaveCampaignButton } from "./SaveCampaignButton";
 import { runSafeCheck } from "@/lib/safecheck";
-import { SECTIONS, TAB_LABELS, TAB_ORDER, sectionsForTab, type TabKey } from "@/lib/sections";
+import { TAB_LABELS, TAB_ORDER, sectionsForTab, type TabKey } from "@/lib/sections";
 import { OWNERSHIP_TYPE_LABELS, SALE_METHOD_LABELS, type CampaignInput } from "@/lib/types";
-import { downloadTextFile, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { OutputSection } from "./OutputSection";
@@ -46,24 +47,13 @@ export function OutputPack({
     badge: tab === "safecheck" ? safeCheckIssueCount : undefined,
   }));
 
-  function handleExport() {
-    const text = SECTIONS.map((s) => `${s.label}\n${"-".repeat(s.label.length)}\n${outputs[s.key] || ""}`).join(
-      "\n\n"
-    );
-    downloadTextFile(`${campaign.address.replace(/[^\w-]+/g, "_")}_launch_pack.txt`, text);
-  }
-
   const activeSections = sectionsForTab(activeTab);
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end gap-3 no-print">
-        <Button variant="outline" onClick={() => window.print()}>
-          Print / Save as PDF
-        </Button>
-        <Button variant="outline" onClick={handleExport}>
-          Download as text
-        </Button>
+      <div className="flex flex-wrap justify-end gap-3 no-print">
+        <SaveCampaignButton campaignId={campaignId} userId={userId} outputs={outputs} />
+        <DownloadMenu campaign={campaign} outputs={outputs} />
       </div>
 
       <Tabs tabs={tabs} active={activeTab} onChange={(key) => setActiveTab(key as TabKey)} />
@@ -77,9 +67,12 @@ export function OutputPack({
               <Card className="p-5 text-sm text-ink/70">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <h3 className="font-medium text-ink">Vendor update reports</h3>
-                  <Button href={`/vendor-updates/new?campaignId=${campaignId}`} size="sm" variant="outline">
+                  <Link
+                    href={`/vendor-updates/new?campaignId=${campaignId}`}
+                    className="rounded-full border border-ink/15 px-3 py-1 text-xs font-medium text-ink/70 hover:border-gold hover:text-ink"
+                  >
                     Create Vendor Update
-                  </Button>
+                  </Link>
                 </div>
                 {vendorUpdates.length === 0 ? (
                   <p>No vendor update reports for this campaign yet — create one after your next open home or weekly review.</p>
