@@ -21,7 +21,7 @@ export interface SectionMeta {
 export const SECTIONS: SectionMeta[] = [
   { key: "premium_description", label: "Premium listing description", tab: "portal_copy", multiline: true },
   { key: "short_description", label: "Short listing description", tab: "portal_copy", multiline: true },
-  { key: "trademe_description", label: "TradeMe / realestate.co.nz description", tab: "portal_copy", multiline: true },
+  { key: "trademe_description", label: "Trade Me / realestate.co.nz description", tab: "portal_copy", multiline: true },
   { key: "instagram_caption", label: "Instagram caption", tab: "social_posts", multiline: true },
   { key: "facebook_caption", label: "Facebook caption", tab: "social_posts", multiline: true },
   { key: "linkedin_caption", label: "LinkedIn caption", tab: "social_posts", multiline: true },
