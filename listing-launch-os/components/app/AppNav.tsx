@@ -18,7 +18,7 @@ export function AppNav({ active }: { active?: "dashboard" | "settings" }) {
     <nav className="border-b border-ink/10 bg-paper">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/dashboard" className="font-serif text-lg font-semibold tracking-tight">
-          Listing Launch <span className="text-gold-dark">OS</span>
+          Listing Launch
         </Link>
         <div className="flex items-center gap-6 text-sm">
           <Link href="/dashboard" className={active === "dashboard" ? "font-medium text-ink" : "text-ink/60"}>

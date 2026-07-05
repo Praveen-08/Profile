@@ -6,7 +6,17 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { createClient } from "@/lib/supabase/client";
-import { TARGET_BUYER_LABELS, TONE_LABELS, type CampaignInput, type Tone, type TargetBuyer } from "@/lib/types";
+import {
+  OWNERSHIP_TYPE_LABELS,
+  SALE_METHOD_LABELS,
+  TARGET_BUYER_LABELS,
+  TONE_LABELS,
+  type CampaignInput,
+  type OwnershipType,
+  type SaleMethod,
+  type TargetBuyer,
+  type Tone,
+} from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -23,6 +33,8 @@ const PROPERTY_TYPES = [
 export interface CampaignFormDefaults {
   agentName?: string;
   agencyName?: string;
+  agentPhone?: string;
+  agentEmail?: string;
   defaultCta?: string;
   defaultTone?: Tone;
 }
@@ -50,6 +62,15 @@ export function CampaignForm({ defaults }: { defaults: CampaignFormDefaults }) {
     notes: "",
     agentName: defaults.agentName || "",
     agencyName: defaults.agencyName || "",
+    saleMethod: undefined,
+    ownershipType: undefined,
+    schoolZoneNotes: "",
+    limBuildingReportNotes: "",
+    rentalYieldNotes: "",
+    wordsToAvoid: "",
+    openHomeDateTime: "",
+    agentPhone: defaults.agentPhone || "",
+    agentEmail: defaults.agentEmail || "",
   });
 
   function update<K extends keyof CampaignInput>(key: K, value: CampaignInput[K]) {
@@ -93,6 +114,15 @@ export function CampaignForm({ defaults }: { defaults: CampaignFormDefaults }) {
         notes: form.notes || null,
         agent_name: form.agentName || null,
         agency_name: form.agencyName || null,
+        sale_method: form.saleMethod || null,
+        ownership_type: form.ownershipType || null,
+        school_zone_notes: form.schoolZoneNotes || null,
+        lim_building_report_notes: form.limBuildingReportNotes || null,
+        rental_yield_notes: form.rentalYieldNotes || null,
+        words_to_avoid: form.wordsToAvoid || null,
+        open_home_date_time: form.openHomeDateTime || null,
+        agent_phone: form.agentPhone || null,
+        agent_email: form.agentEmail || null,
       })
       .select()
       .single();
@@ -247,6 +277,68 @@ export function CampaignForm({ defaults }: { defaults: CampaignFormDefaults }) {
       </Card>
 
       <Card className="space-y-4 p-6">
+        <h2 className="font-serif text-lg">NZ listing details</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select
+            label="Sale method"
+            value={form.saleMethod || ""}
+            onChange={(e) => update("saleMethod", (e.target.value || undefined) as SaleMethod | undefined)}
+          >
+            <option value="">Not set</option>
+            {Object.entries(SALE_METHOD_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </Select>
+          <Select
+            label="Ownership / property note"
+            value={form.ownershipType || ""}
+            onChange={(e) => update("ownershipType", (e.target.value || undefined) as OwnershipType | undefined)}
+          >
+            <option value="">Not set</option>
+            {Object.entries(OWNERSHIP_TYPE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </Select>
+          <Input
+            label="Open home date/time"
+            hint="Optional — e.g. Saturday 11:00am - 11:30am"
+            value={form.openHomeDateTime}
+            onChange={(e) => update("openHomeDateTime", e.target.value)}
+            placeholder="Saturday 11:00am - 11:30am"
+          />
+        </div>
+        <Textarea
+          label="School zone notes"
+          hint="Optional — only what you can confirm. Never guaranteed in generated copy."
+          value={form.schoolZoneNotes}
+          onChange={(e) => update("schoolZoneNotes", e.target.value)}
+        />
+        <Textarea
+          label="LIM / building report notes"
+          hint="Optional"
+          value={form.limBuildingReportNotes}
+          onChange={(e) => update("limBuildingReportNotes", e.target.value)}
+        />
+        <Textarea
+          label="Rental / yield notes"
+          hint="Optional — required before any yield claim can be made in generated copy"
+          value={form.rentalYieldNotes}
+          onChange={(e) => update("rentalYieldNotes", e.target.value)}
+        />
+        <Textarea
+          label="Words or claims to avoid"
+          hint="Comma-separated — these will never appear in generated copy"
+          value={form.wordsToAvoid}
+          onChange={(e) => update("wordsToAvoid", e.target.value)}
+          placeholder="e.g. luxury, stunning"
+        />
+      </Card>
+
+      <Card className="space-y-4 p-6">
         <h2 className="font-serif text-lg">Attribution</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
@@ -258,6 +350,17 @@ export function CampaignForm({ defaults }: { defaults: CampaignFormDefaults }) {
             label="Agency name"
             value={form.agencyName}
             onChange={(e) => update("agencyName", e.target.value)}
+          />
+          <Input
+            label="Agent phone"
+            value={form.agentPhone}
+            onChange={(e) => update("agentPhone", e.target.value)}
+          />
+          <Input
+            label="Agent email"
+            type="email"
+            value={form.agentEmail}
+            onChange={(e) => update("agentEmail", e.target.value)}
           />
         </div>
       </Card>

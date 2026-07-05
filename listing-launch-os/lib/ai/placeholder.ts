@@ -1,4 +1,4 @@
-import { TARGET_BUYER_LABELS, type CampaignInput } from "../types";
+import { OWNERSHIP_TYPE_LABELS, SALE_METHOD_LABELS, TARGET_BUYER_LABELS, type CampaignInput } from "../types";
 import { propertyFactsList } from "../utils";
 
 /**
@@ -34,6 +34,41 @@ function agentSignoff(input: CampaignInput): string {
   return `${name}${agency}`;
 }
 
+function agentContactLine(input: CampaignInput): string {
+  const parts = [input.agentPhone, input.agentEmail].filter(Boolean);
+  return parts.length ? `\n${parts.join(" · ")}` : "";
+}
+
+function ownershipLine(input: CampaignInput): string {
+  return input.ownershipType && input.ownershipType !== "unknown"
+    ? ` This is a ${OWNERSHIP_TYPE_LABELS[input.ownershipType].toLowerCase()} property.`
+    : "";
+}
+
+function saleMethodHeading(input: CampaignInput): string {
+  return input.saleMethod ? `For Sale by ${SALE_METHOD_LABELS[input.saleMethod]}\n\n` : "";
+}
+
+function openHomeLine(input: CampaignInput): string {
+  return input.openHomeDateTime ? `Open home: ${input.openHomeDateTime}.` : "Come along to this weekend's open home.";
+}
+
+/** Strips any agent-specified "words to avoid" from generated placeholder copy. */
+function applyWordsToAvoid(text: string, wordsToAvoid?: string): string {
+  if (!wordsToAvoid) return text;
+  const phrases = wordsToAvoid
+    .split(",")
+    .map((w) => w.trim())
+    .filter(Boolean);
+
+  let result = text;
+  for (const phrase of phrases) {
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    result = result.replace(new RegExp(`\\b${escaped}\\b`, "gi"), "");
+  }
+  return result.replace(/[ \t]{2,}/g, " ").replace(/ +([.,!?])/g, "$1");
+}
+
 const buyerAngle: Record<string, string> = {
   first_home_buyer: "an excellent opportunity to step onto the property ladder",
   family: "a practical, comfortable home for family life",
@@ -45,9 +80,9 @@ const buyerAngle: Record<string, string> = {
 const PLACEHOLDER_GENERATORS: Record<string, (input: CampaignInput) => string> = {
   premium_description: (i) =>
     `Positioned in ${i.suburb}, this ${i.propertyType.toLowerCase()} at ${i.address} presents ${buyerAngle[i.targetBuyer]}. ` +
-    `${factsSentence(i)}the home offers a considered layout suited to everyday living.${featuresLine(i)}${renovationsLine(i)}${amenitiesLine(i)}\n\n` +
+    `${factsSentence(i)}the home offers a considered layout suited to everyday living.${featuresLine(i)}${renovationsLine(i)}${amenitiesLine(i)}${ownershipLine(i)}\n\n` +
     `Approximately ${i.landSize || "size on request"} of land and ${i.floorArea || "floor area on request"} give a sense of scale, ` +
-    `while the ${i.suburb} location adds everyday convenience. ${ctaLine(i)}\n\n— ${agentSignoff(i)}`,
+    `while the ${i.suburb} location adds everyday convenience. ${ctaLine(i)}\n\n— ${agentSignoff(i)}${agentContactLine(i)}`,
 
   short_description: (i) =>
     `${i.propertyType} in ${i.suburb} — ${propertyFactsList(i).join(", ") || "details on request"}. ${
@@ -55,7 +90,7 @@ const PLACEHOLDER_GENERATORS: Record<string, (input: CampaignInput) => string> =
     }${ctaLine(i)}`,
 
   trademe_description: (i) =>
-    `**${i.propertyType} — ${i.suburb}**\n\n${factsSentence(i)}this home at ${i.address} offers ${buyerAngle[i.targetBuyer]}.${featuresLine(i)}\n\n` +
+    `${saleMethodHeading(i)}**${i.propertyType} — ${i.suburb}**\n\n${factsSentence(i)}this home at ${i.address} offers ${buyerAngle[i.targetBuyer]}.${featuresLine(i)}${ownershipLine(i)}\n\n` +
     `Key details:\n${propertyFactsList(i)
       .map((f) => `- ${f.charAt(0).toUpperCase()}${f.slice(1)}`)
       .join("\n") || "- Details available on request"}${i.amenities ? `\n- Close to ${i.amenities.toLowerCase()}` : ""}\n\n` +
@@ -114,16 +149,18 @@ const PLACEHOLDER_GENERATORS: Record<string, (input: CampaignInput) => string> =
     ].join("\n"),
 
   open_home_post: (i) =>
-    `Open home reminder — ${i.address}, ${i.suburb}. Come and see this ${i.propertyType.toLowerCase()} for yourself this weekend.${featuresLine(i)} Can't make it? ${ctaLine(i)}`,
+    `Open home reminder — ${i.address}, ${i.suburb}. ${openHomeLine(i)} Come and see this ${i.propertyType.toLowerCase()} for yourself.${featuresLine(i)} Can't make it? ${ctaLine(i)}`,
 
   just_listed_post: (i) =>
     `Just listed in ${i.suburb}! This ${i.propertyType.toLowerCase()} offers ${propertyFactsList(i).join(", ") || "great potential"}.${featuresLine(i)} ${ctaLine(i)}`,
 
   vendor_update_email: (i) =>
-    `Hi there,\n\nQuick update on the campaign for ${i.address}. The listing is now live and the full marketing pack — descriptions, social content, and video assets — has been prepared and rolled out across our channels.\n\nNext steps: we'll be tracking enquiries and open home attendance, and I'll keep you posted after each touchpoint.\n\nPlease let me know if you have any questions in the meantime.\n\nKind regards,\n${agentSignoff(i)}`,
+    `Hi there,\n\nQuick update on the campaign for ${i.address}. The listing is now live and the full marketing pack — descriptions, social content, and video assets — has been prepared and rolled out across our channels.${
+      i.saleMethod ? ` The campaign is running as a ${SALE_METHOD_LABELS[i.saleMethod].toLowerCase()}.` : ""
+    }\n\nNext steps: we'll be tracking enquiries and open home attendance, and I'll keep you posted after each touchpoint.\n\nPlease let me know if you have any questions in the meantime.\n\nKind regards,\n${agentSignoff(i)}${agentContactLine(i)}`,
 
   buyer_followup_email: (i) =>
-    `Hi [Buyer name],\n\nThanks for your interest in ${i.address}, ${i.suburb}. ${featuresLine(i).trim() || "It's a great property with plenty to offer."}\n\nHappy to answer any questions or arrange a second viewing at a time that suits you.\n\nLooking forward to hearing from you.\n\nKind regards,\n${agentSignoff(i)}`,
+    `Hi [Buyer name],\n\nThanks for your interest in ${i.address}, ${i.suburb}. ${featuresLine(i).trim() || "It's a great property with plenty to offer."}\n\nHappy to answer any questions or arrange a second viewing at a time that suits you.\n\nLooking forward to hearing from you.\n\nKind regards,\n${agentSignoff(i)}${agentContactLine(i)}`,
 
   social_plan_7day: (i) =>
     [
@@ -172,5 +209,5 @@ export function generatePlaceholder(sectionKey: string, input: CampaignInput): s
   if (!generator) {
     return `[Placeholder content for "${sectionKey}" — no template defined yet.]`;
   }
-  return generator(input);
+  return applyWordsToAvoid(generator(input), input.wordsToAvoid);
 }

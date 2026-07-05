@@ -12,7 +12,18 @@ export const dynamic = "force-dynamic";
 export default async function CampaignOutputPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
 
-  const { data: row } = await supabase.from("campaigns").select("*").eq("id", params.id).single();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) notFound();
+
+  // Explicit user_id filter in addition to RLS: never trust the row id alone.
+  const { data: row } = await supabase
+    .from("campaigns")
+    .select("*")
+    .eq("id", params.id)
+    .eq("user_id", user.id)
+    .single();
   if (!row) notFound();
 
   const campaign = campaignFromRow(row as CampaignRow);
@@ -20,7 +31,8 @@ export default async function CampaignOutputPage({ params }: { params: { id: str
   const { data: outputRows } = await supabase
     .from("campaign_outputs")
     .select("*")
-    .eq("campaign_id", campaign.id);
+    .eq("campaign_id", campaign.id)
+    .eq("user_id", user.id);
 
   const outputs: Record<string, string> = {};
   ((outputRows as CampaignOutputRow[]) || []).forEach((r) => {
@@ -45,7 +57,7 @@ export default async function CampaignOutputPage({ params }: { params: { id: str
         </div>
 
         {hasOutputs ? (
-          <OutputPack campaignId={campaign.id} outputs={outputs} addressLine={campaign.address} />
+          <OutputPack campaignId={campaign.id} userId={user.id} campaign={campaign} outputs={outputs} />
         ) : (
           <Card className="flex flex-col items-center gap-4 p-16 text-center">
             <p className="font-serif text-xl">Generation hasn't completed for this campaign</p>

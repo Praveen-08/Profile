@@ -15,5 +15,14 @@
   "cta": "Contact Jane today to arrange a private viewing",
   "notes": "Vendors are motivated, keen for a quick settlement.",
   "agentName": "Jane Smith",
-  "agencyName": "Fenwick Realty"
+  "agencyName": "Fenwick Realty",
+  "saleMethod": "deadline_sale",
+  "ownershipType": "freehold",
+  "schoolZoneNotes": "Zoned for Mount Eden Normal School (confirm current zoning independently)",
+  "limBuildingReportNotes": "LIM ordered, available on request",
+  "rentalYieldNotes": "",
+  "wordsToAvoid": "luxury, stunning",
+  "openHomeDateTime": "Saturday 11:00am - 11:30am",
+  "agentPhone": "021 555 0134",
+  "agentEmail": "jane@fenwickrealty.co.nz"
 }

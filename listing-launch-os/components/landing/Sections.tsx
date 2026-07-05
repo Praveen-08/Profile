@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { CATEGORY_LABELS, SECTIONS } from "@/lib/sections";
+import { TAB_LABELS, TAB_ORDER, sectionsForTab } from "@/lib/sections";
 
 export function Hero() {
   return (
@@ -9,11 +9,12 @@ export function Hero() {
       <div className="mx-auto max-w-3xl text-center">
         <Badge>Built for Auckland &amp; NZ agents</Badge>
         <h1 className="mt-6 font-serif text-4xl leading-tight tracking-tight sm:text-5xl">
-          Launch every listing like a full marketing campaign — in minutes, not hours.
+          One property form. Every listing campaign asset.
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-lg text-ink/60">
           Enter a property's details once. Get a complete Listing Launch Pack — descriptions, social captions, reel
-          scripts, vendor updates, open-home posts and a 7-day plan — ready to copy, edit and publish.
+          scripts, vendor updates, open-home posts, a 7-day plan, and a built-in SafeCheck review — ready to copy,
+          edit and publish.
         </p>
         <div className="mt-8 flex justify-center gap-3">
           <Button href="/login" size="lg">
@@ -35,7 +36,7 @@ export function ProblemSection() {
         <h2 className="font-serif text-2xl sm:text-3xl">Every listing needs a dozen pieces of copy.</h2>
         <p className="mx-auto mt-4 max-w-2xl text-ink/60">
           Property description, TradeMe copy, Instagram captions, reel scripts, an open-home post, a vendor
-          update — most agents either spend hours writing it themselves or skip half of it. Listing Launch OS
+          update — most agents either spend hours writing it themselves or skip half of it. Listing Launch
           builds the whole campaign from one form.
         </p>
       </div>
@@ -66,30 +67,38 @@ export function HowItWorks() {
   );
 }
 
+const SAFECHECK_HIGHLIGHTS = [
+  "Flags risky NZ real estate wording before you publish",
+  "Guaranteed returns, unverified building claims, unsupported superlatives",
+  "Risk level, plain-English reason, and safer rewording for every flag",
+];
+
 export function PackContents() {
-  const grouped = SECTIONS.reduce<Record<string, string[]>>((acc, s) => {
-    acc[s.category] = acc[s.category] || [];
-    acc[s.category].push(s.label);
-    return acc;
-  }, {});
+  const totalSections = TAB_ORDER.filter((t) => t !== "safecheck").reduce(
+    (sum, t) => sum + sectionsForTab(t).length,
+    0
+  );
 
   return (
     <section id="pack-contents" className="border-y border-ink/10 bg-white py-16">
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="text-center font-serif text-2xl sm:text-3xl">What's in every Listing Launch Pack</h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-ink/60">
-          {SECTIONS.length} pieces of campaign-ready content, generated together from one property form.
+          {totalSections} pieces of campaign-ready content, organised into tabs, generated together from one
+          property form.
         </p>
         <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {Object.entries(grouped).map(([category, labels]) => (
-            <div key={category}>
+          {TAB_ORDER.map((tab) => (
+            <div key={tab}>
               <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gold-dark">
-                {CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS]}
+                {TAB_LABELS[tab]}
               </h3>
               <ul className="space-y-2 text-sm text-ink/70">
-                {labels.map((label) => (
-                  <li key={label}>{label}</li>
-                ))}
+                {(tab === "safecheck" ? SAFECHECK_HIGHLIGHTS : sectionsForTab(tab).map((s) => s.label)).map(
+                  (label) => (
+                    <li key={label}>{label}</li>
+                  )
+                )}
               </ul>
             </div>
           ))}

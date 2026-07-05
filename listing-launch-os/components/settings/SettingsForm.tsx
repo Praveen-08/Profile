@@ -39,9 +39,21 @@ export function SettingsForm({ defaults }: { defaults: SettingsDefaults }) {
     setSaved(false);
     const supabase = createClient();
 
+    // Use the freshly-authenticated user id rather than trusting the prop —
+    // defense in depth on top of RLS.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setError("Your session expired. Please log in again.");
+      setSaving(false);
+      return;
+    }
+
     const [{ error: profileError }, { error: brandVoiceError }] = await Promise.all([
       supabase.from("user_profiles").upsert({
-        user_id: defaults.userId,
+        user_id: user.id,
         agent_name: agentName || null,
         agency_name: agencyName || null,
         phone: phone || null,
@@ -49,7 +61,7 @@ export function SettingsForm({ defaults }: { defaults: SettingsDefaults }) {
       }),
       supabase.from("brand_voice_settings").upsert(
         {
-          user_id: defaults.userId,
+          user_id: user.id,
           default_tone: defaultTone,
           signature_phrases: signaturePhrases || null,
           compliance_notes: complianceNotes || null,

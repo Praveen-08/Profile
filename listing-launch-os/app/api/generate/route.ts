@@ -22,10 +22,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "campaignId is required." }, { status: 400 });
   }
 
+  // Explicit user_id filter in addition to RLS: this fetch can only ever
+  // return a campaign owned by the authenticated user.
   const { data: row, error: fetchError } = await supabase
     .from("campaigns")
     .select("*")
     .eq("id", campaignId)
+    .eq("user_id", user.id)
     .single();
 
   if (fetchError || !row) {
@@ -51,6 +54,7 @@ export async function POST(request: Request) {
 
   const upserts = Object.entries(generated).map(([sectionKey, content]) => ({
     campaign_id: campaignId,
+    user_id: user.id,
     section_key: sectionKey,
     content,
   }));
@@ -64,7 +68,8 @@ export async function POST(request: Request) {
   }
 
   if (!requestedSections?.length) {
-    await supabase.from("campaigns").update({ status: "generated" }).eq("id", campaignId);
+    // Explicit user_id filter in addition to RLS on the update as well.
+    await supabase.from("campaigns").update({ status: "generated" }).eq("id", campaignId).eq("user_id", user.id);
   }
 
   return NextResponse.json({ outputs: generated });

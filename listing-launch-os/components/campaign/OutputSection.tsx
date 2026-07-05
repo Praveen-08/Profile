@@ -4,25 +4,32 @@ import { Button } from "@/components/ui/Button";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function OutputSection({
   campaignId,
+  userId,
   sectionKey,
   label,
-  initialContent,
+  content,
+  onContentChange,
 }: {
   campaignId: string;
+  userId: string;
   sectionKey: string;
   label: string;
-  initialContent: string;
+  content: string;
+  onContentChange: (content: string) => void;
 }) {
-  const [content, setContent] = useState(initialContent);
-  const [draft, setDraft] = useState(initialContent);
+  const [draft, setDraft] = useState(content);
   const [editing, setEditing] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editing) setDraft(content);
+  }, [content, editing]);
 
   async function handleRegenerate() {
     setRegenerating(true);
@@ -36,7 +43,7 @@ export function OutputSection({
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || "Regeneration failed.");
       const newContent = body.outputs?.[sectionKey] ?? content;
-      setContent(newContent);
+      onContentChange(newContent);
       setDraft(newContent);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Regeneration failed.");
@@ -49,16 +56,19 @@ export function OutputSection({
     setSaving(true);
     setError(null);
     const supabase = createClient();
+    // Explicit user_id filter in addition to RLS: this row can only ever be
+    // the authenticated user's own output row.
     const { error } = await supabase
       .from("campaign_outputs")
       .update({ content: draft })
       .eq("campaign_id", campaignId)
-      .eq("section_key", sectionKey);
+      .eq("section_key", sectionKey)
+      .eq("user_id", userId);
 
     if (error) {
       setError(error.message);
     } else {
-      setContent(draft);
+      onContentChange(draft);
       setEditing(false);
     }
     setSaving(false);

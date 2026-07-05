@@ -12,6 +12,23 @@ export type Tone =
   | "bold_social"
   | "simple_professional";
 
+export type SaleMethod =
+  | "auction"
+  | "deadline_sale"
+  | "price_by_negotiation"
+  | "asking_price"
+  | "tender"
+  | "negotiation"
+  | "other";
+
+export type OwnershipType =
+  | "freehold"
+  | "cross_lease"
+  | "unit_title"
+  | "body_corporate"
+  | "leasehold"
+  | "unknown";
+
 export const TARGET_BUYER_LABELS: Record<TargetBuyer, string> = {
   first_home_buyer: "First-home buyer",
   family: "Family",
@@ -26,6 +43,25 @@ export const TONE_LABELS: Record<Tone, string> = {
   investor_focused: "Investor-focused",
   bold_social: "Bold social",
   simple_professional: "Simple professional",
+};
+
+export const SALE_METHOD_LABELS: Record<SaleMethod, string> = {
+  auction: "Auction",
+  deadline_sale: "Deadline sale",
+  price_by_negotiation: "Price by negotiation",
+  asking_price: "Asking price",
+  tender: "Tender",
+  negotiation: "Negotiation",
+  other: "Other",
+};
+
+export const OWNERSHIP_TYPE_LABELS: Record<OwnershipType, string> = {
+  freehold: "Freehold",
+  cross_lease: "Cross lease",
+  unit_title: "Unit title",
+  body_corporate: "Body corporate",
+  leasehold: "Leasehold",
+  unknown: "Unknown",
 };
 
 export interface PropertyDetails {
@@ -49,6 +85,17 @@ export interface CampaignInput extends PropertyDetails {
   notes?: string;
   agentName?: string;
   agencyName?: string;
+
+  // NZ-specific fields
+  saleMethod?: SaleMethod;
+  ownershipType?: OwnershipType;
+  schoolZoneNotes?: string;
+  limBuildingReportNotes?: string;
+  rentalYieldNotes?: string;
+  wordsToAvoid?: string;
+  openHomeDateTime?: string;
+  agentPhone?: string;
+  agentEmail?: string;
 }
 
 export interface Campaign extends CampaignInput {
@@ -105,6 +152,15 @@ export interface CampaignRow {
   notes: string | null;
   agent_name: string | null;
   agency_name: string | null;
+  sale_method: SaleMethod | null;
+  ownership_type: OwnershipType | null;
+  school_zone_notes: string | null;
+  lim_building_report_notes: string | null;
+  rental_yield_notes: string | null;
+  words_to_avoid: string | null;
+  open_home_date_time: string | null;
+  agent_phone: string | null;
+  agent_email: string | null;
   status: "draft" | "generated" | "archived";
   created_at: string;
   updated_at: string;
@@ -113,6 +169,7 @@ export interface CampaignRow {
 export interface CampaignOutputRow {
   id: string;
   campaign_id: string;
+  user_id: string;
   section_key: string;
   content: string;
   created_at: string;
@@ -140,6 +197,15 @@ export function campaignFromRow(row: CampaignRow): Campaign {
     notes: row.notes ?? undefined,
     agentName: row.agent_name ?? undefined,
     agencyName: row.agency_name ?? undefined,
+    saleMethod: row.sale_method ?? undefined,
+    ownershipType: row.ownership_type ?? undefined,
+    schoolZoneNotes: row.school_zone_notes ?? undefined,
+    limBuildingReportNotes: row.lim_building_report_notes ?? undefined,
+    rentalYieldNotes: row.rental_yield_notes ?? undefined,
+    wordsToAvoid: row.words_to_avoid ?? undefined,
+    openHomeDateTime: row.open_home_date_time ?? undefined,
+    agentPhone: row.agent_phone ?? undefined,
+    agentEmail: row.agent_email ?? undefined,
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

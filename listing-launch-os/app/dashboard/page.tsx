@@ -11,10 +11,18 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const supabase = createClient();
-  const { data: rows } = await supabase
-    .from("campaigns")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Explicit user_id filter in addition to RLS: never rely on RLS alone.
+  const { data: rows } = user
+    ? await supabase
+        .from("campaigns")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+    : { data: null };
 
   const campaigns = ((rows as CampaignRow[]) || []).map(campaignFromRow);
 

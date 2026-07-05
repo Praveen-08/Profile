@@ -56,7 +56,7 @@ function LoginForm() {
   return (
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
       <Link href="/" className="mb-8 text-center font-serif text-lg font-semibold">
-        Listing Launch <span className="text-gold-dark">OS</span>
+        Listing Launch
       </Link>
 
       <div className="mb-6 flex rounded-full border border-ink/10 p-1 text-sm">

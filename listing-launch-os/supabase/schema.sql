@@ -1,4 +1,4 @@
--- Listing Launch OS — Supabase schema
+-- Listing Launch — Supabase schema
 -- Run this in the Supabase SQL editor (Project > SQL Editor > New query).
 -- Safe to re-run: uses "if not exists" / "create or replace" where possible.
 
@@ -61,6 +61,17 @@ create table if not exists public.campaigns (
   agent_name text,
   agency_name text,
 
+  -- NZ-specific listing details
+  sale_method text,
+  ownership_type text,
+  school_zone_notes text,
+  lim_building_report_notes text,
+  rental_yield_notes text,
+  words_to_avoid text,
+  open_home_date_time text,
+  agent_phone text,
+  agent_email text,
+
   status text not null default 'draft', -- draft | generated | archived
 
   created_at timestamptz not null default now(),
@@ -69,12 +80,27 @@ create table if not exists public.campaigns (
 
 create index if not exists campaigns_user_id_idx on public.campaigns(user_id);
 
+-- Adds NZ-specific columns to a pre-existing campaigns table from an earlier
+-- version of this schema. No-ops on a fresh install (columns already exist).
+alter table public.campaigns add column if not exists sale_method text;
+alter table public.campaigns add column if not exists ownership_type text;
+alter table public.campaigns add column if not exists school_zone_notes text;
+alter table public.campaigns add column if not exists lim_building_report_notes text;
+alter table public.campaigns add column if not exists rental_yield_notes text;
+alter table public.campaigns add column if not exists words_to_avoid text;
+alter table public.campaigns add column if not exists open_home_date_time text;
+alter table public.campaigns add column if not exists agent_phone text;
+alter table public.campaigns add column if not exists agent_email text;
+
 -- ---------------------------------------------------------------------------
 -- campaign_outputs: one row per generated section, keyed by section_key
+-- user_id is denormalized from campaigns.user_id so every query and RLS
+-- check can filter directly on it without a join.
 -- ---------------------------------------------------------------------------
 create table if not exists public.campaign_outputs (
   id uuid primary key default gen_random_uuid(),
   campaign_id uuid not null references public.campaigns(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
   section_key text not null,
   content text not null default '',
   created_at timestamptz not null default now(),
@@ -82,10 +108,23 @@ create table if not exists public.campaign_outputs (
   unique (campaign_id, section_key)
 );
 
+-- Backfills user_id on a pre-existing campaign_outputs table. No-op on a
+-- fresh install (column already exists and is populated on insert).
+alter table public.campaign_outputs add column if not exists user_id uuid references auth.users(id) on delete cascade;
+update public.campaign_outputs co
+  set user_id = c.user_id
+  from public.campaigns c
+  where co.campaign_id = c.id and co.user_id is null;
+alter table public.campaign_outputs alter column user_id set not null;
+
 create index if not exists campaign_outputs_campaign_id_idx on public.campaign_outputs(campaign_id);
+create index if not exists campaign_outputs_user_id_idx on public.campaign_outputs(user_id);
 
 -- ---------------------------------------------------------------------------
--- Row Level Security: every table is locked to its owning user
+-- Row Level Security: every table is locked to its owning user.
+-- Application code additionally filters every query by the authenticated
+-- user's id explicitly (defense in depth) — RLS is the backstop, not the
+-- only line of defense.
 -- ---------------------------------------------------------------------------
 alter table public.user_profiles enable row level security;
 alter table public.brand_voice_settings enable row level security;
@@ -104,20 +143,11 @@ drop policy if exists "campaigns_owner" on public.campaigns;
 create policy "campaigns_owner" on public.campaigns
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Simple, direct column check (no join) now that campaign_outputs carries
+-- its own user_id.
 drop policy if exists "campaign_outputs_owner" on public.campaign_outputs;
 create policy "campaign_outputs_owner" on public.campaign_outputs
-  for all using (
-    exists (
-      select 1 from public.campaigns c
-      where c.id = campaign_outputs.campaign_id and c.user_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.campaigns c
-      where c.id = campaign_outputs.campaign_id and c.user_id = auth.uid()
-    )
-  );
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ---------------------------------------------------------------------------
 -- updated_at maintenance

@@ -27,6 +27,8 @@ export default async function NewCampaignPage() {
             defaults={{
               agentName: profile?.agent_name || undefined,
               agencyName: profile?.agency_name || undefined,
+              agentPhone: profile?.phone || undefined,
+              agentEmail: user?.email || undefined,
               defaultCta: profile?.default_cta || undefined,
               defaultTone: (brandVoice?.default_tone as Tone) || undefined,
             }}

@@ -1,8 +1,11 @@
-# Listing Launch OS
+# Listing Launch
+
+*One property form. Every listing campaign asset.*
 
 A focused web app for real estate agents: enter a property's details once, get a complete
-**Listing Launch Pack** — 19 pieces of campaign-ready copy (descriptions, social captions, reel
-scripts, vendor/buyer emails, a 7-day posting plan, and more).
+**Listing Launch Pack** — descriptions, social captions, reel scripts, vendor/buyer emails, a
+7-day posting plan, and a built-in **SafeCheck** compliance review — organised into tabs on the
+output page.
 
 Built lean on purpose: Next.js + Tailwind + Supabase + the Claude API, deployable on free/low-cost
 tiers, with a **placeholder mode** so you can build and demo the whole product without spending
@@ -71,19 +74,49 @@ needs network access).
 ## How generation works
 
 - `lib/prompts/system.ts` — the shared compliance system prompt (NZ English, no invented facts,
-  no unsupported superlatives, no guaranteed investment claims, "approximately" for measurements).
+  no unsupported superlatives, no guaranteed investment claims, "approximately" for measurements,
+  never uses the agent's "words to avoid").
 - `lib/prompts/sections.ts` — one instruction per output section, combined with the property
   context to form the full prompt sent to Claude.
-- `lib/ai/placeholder.ts` — the free template-based generator (`AI_MODE=placeholder`).
+- `lib/ai/placeholder.ts` — the free template-based generator (`AI_MODE=placeholder`). Uses the
+  same NZ-specific fields (sale method, ownership, open home date/time, agent contact, words to
+  avoid) as live mode.
 - `lib/ai/anthropic.ts` — the real Claude API call (`AI_MODE=live`).
 - `lib/ai/generate.ts` — picks between the two based on `AI_MODE`, so nothing else in the app needs
   to know which mode is active.
 - `app/api/generate/route.ts` — the only server route that talks to Claude. It authenticates the
-  user, loads their campaign (RLS-protected), generates either the full pack or a single requested
-  section (used by the "Regenerate" button), and upserts results into `campaign_outputs`.
+  user, loads their campaign (filtered by `id` **and** `user_id` — RLS is the backstop, not the
+  only check), generates either the full pack or a single requested section (used by the
+  "Regenerate" button), and upserts results into `campaign_outputs`.
 
 To edit what gets generated, change the per-section instruction strings in
 `lib/prompts/sections.ts` — no other code needs to change.
+
+## SafeCheck
+
+`lib/safecheck.ts` is a free, rule-based scanner (no extra API calls) that reviews every generated
+section for wording that's risky under NZ real estate advertising standards: guaranteed
+returns/yield, "best investment", unverified building claims ("waterproof", "leak-free", "no
+issues"), guaranteed school zones, "fully renovated"/"subdivision potential"/"development
+potential"/"high yield" claims not backed by the form data, unsupported superlatives, factual
+mismatches (e.g. a bedroom count in the copy that doesn't match the form), and place names that
+don't appear in the amenities you entered. Each flag has a risk level, a plain-English reason, and
+safer replacement wording. It's surfaced as its own tab on the output page and always shows the
+disclaimer: *"Review all copy before publishing. The agent remains responsible for accuracy. This
+is a marketing review assistant, not legal advice."*
+
+## Security notes
+
+- Every table (`campaigns`, `campaign_outputs`, `user_profiles`, `brand_voice_settings`) has RLS
+  locking rows to `auth.uid()`.
+- On top of RLS, every query in application code that fetches, updates, or upserts campaign or
+  output data explicitly filters by the authenticated user's id (`.eq("user_id", user.id)`) —
+  see `app/api/generate/route.ts`, `app/dashboard/page.tsx`, `app/campaigns/[id]/page.tsx`, and
+  `components/campaign/OutputSection.tsx`. `campaign_outputs` carries its own denormalized
+  `user_id` column (copied from the parent campaign at insert time) specifically so this can be a
+  direct column filter instead of relying on a join.
+- `SettingsForm` re-fetches the authenticated user id at submit time rather than trusting a prop,
+  so a tampered client can't upsert settings under a different user id.
 
 ## Product structure
 
@@ -91,7 +124,9 @@ To edit what gets generated, change the per-section instruction strings in
 - `/login` — combined login/signup
 - `/dashboard` — saved campaigns
 - `/campaigns/new` — guided property form → generates the full pack
-- `/campaigns/[id]` — the output pack: copy, edit + save, regenerate per section, print/export
+- `/campaigns/[id]` — the output pack, organised into tabs: Portal Copy, Social Posts, Reels &
+  Video, Open Home, Email & Follow-up, Vendor Updates, Campaign Timeline, and SafeCheck. Copy,
+  edit + save, and regenerate per section; print/export the whole pack.
 - `/settings` — agent profile + brand voice defaults, reused on every new campaign
 
 ## Testing with real estate agents
@@ -118,3 +153,5 @@ To edit what gets generated, change the per-section instruction strings in
 - Team accounts / multi-user agencies
 - File/photo storage
 - Saved multiple brand voices per user (one default voice per user for now)
+- Direct publishing integrations (TradeMe, realestate.co.nz, OneRoof, Facebook/Instagram) — the app
+  produces copy for you to paste into those platforms, it doesn't post to them
