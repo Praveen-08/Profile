@@ -153,5 +153,5 @@ is a marketing review assistant, not legal advice."*
 - Team accounts / multi-user agencies
 - File/photo storage
 - Saved multiple brand voices per user (one default voice per user for now)
-- Direct publishing integrations (TradeMe, realestate.co.nz, OneRoof, Facebook/Instagram) — the app
+- Direct publishing integrations (Trade Me, realestate.co.nz, OneRoof, Facebook/Instagram) — the app
   produces copy for you to paste into those platforms, it doesn't post to them

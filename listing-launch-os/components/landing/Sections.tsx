@@ -7,7 +7,7 @@ export function Hero() {
   return (
     <section className="mx-auto max-w-6xl px-6 pb-20 pt-16 sm:pt-24">
       <div className="mx-auto max-w-3xl text-center">
-        <Badge>Built for Auckland &amp; NZ agents</Badge>
+        <Badge>Built for NZ agents</Badge>
         <h1 className="mt-6 font-serif text-4xl leading-tight tracking-tight sm:text-5xl">
           One property form. Every listing campaign asset.
         </h1>
@@ -35,7 +35,7 @@ export function ProblemSection() {
       <div className="mx-auto max-w-4xl px-6 text-center">
         <h2 className="font-serif text-2xl sm:text-3xl">Every listing needs a dozen pieces of copy.</h2>
         <p className="mx-auto mt-4 max-w-2xl text-ink/60">
-          Property description, TradeMe copy, Instagram captions, reel scripts, an open-home post, a vendor
+          Property description, Trade Me copy, Instagram captions, reel scripts, an open-home post, a vendor
           update — most agents either spend hours writing it themselves or skip half of it. Listing Launch
           builds the whole campaign from one form.
         </p>
@@ -106,7 +106,7 @@ const BENEFITS = [
   { title: "Hours back every week", body: "Stop starting from a blank page for every new listing." },
   { title: "Consistent quality", body: "Every campaign gets the full treatment, not just whatever you have time for." },
   { title: "On-brand every time", body: "Save your agent name, agency and preferred tone once, reuse it on every campaign." },
-  { title: "NZ-specific", body: "Written in NZ English, for TradeMe and realestate.co.nz conventions, with compliant wording." },
+  { title: "NZ-specific", body: "Written in NZ English, for Trade Me and realestate.co.nz conventions, with compliant wording." },
 ];
 
 export function Benefits() {
@@ -154,14 +154,25 @@ export function ExamplePreview() {
   return (
     <section className="border-y border-ink/10 bg-white py-16">
       <div className="mx-auto max-w-3xl px-6">
-        <h2 className="text-center font-serif text-2xl sm:text-3xl">Example output</h2>
-        <Card className="mt-8 p-6">
-          <p className="text-xs font-medium uppercase tracking-wider text-gold-dark">Premium listing description</p>
-          <p className="mt-3 text-sm leading-relaxed text-ink/80">
-            Positioned in the heart of Mount Eden, this three-bedroom, two-bathroom home brings together everyday
-            convenience, flexible living, and a location buyers know and trust. With north-facing living, a
-            renovated kitchen, off-street parking, and approximately 450m² of land, it offers a strong option for
-            families, professionals, and buyers wanting an established city-fringe address.
+        <h2 className="text-center font-serif text-2xl sm:text-3xl">SafeCheck in action</h2>
+        <p className="mx-auto mt-3 max-w-xl text-center text-ink/60">
+          Every generated section is reviewed for risky NZ real estate wording before you publish it.
+        </p>
+        <Card className="mt-8 border-red-200 bg-red-50/40 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium text-ink">"Guaranteed return"</p>
+            <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-red-700">
+              High risk
+            </span>
+          </div>
+          <p className="mt-3 text-sm text-ink/70">
+            <span className="font-medium text-ink/70">Why it matters: </span>
+            This may imply a financial outcome that cannot be guaranteed.
+          </p>
+          <p className="mt-2 text-sm text-ink/70">
+            <span className="font-medium text-ink/70">Safer wording: </span>
+            "Potential rental appeal for buyers seeking an investment-style property, subject to their own due
+            diligence."
           </p>
         </Card>
       </div>

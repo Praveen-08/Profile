@@ -11,7 +11,7 @@ const SECTION_INSTRUCTIONS: Record<string, string> = {
 
   short_description: `Write a short listing description (50-70 words) for use where space is limited (e.g. a signboard flyer or a listing summary card). Cover the essentials only: property type, key stats, standout feature, suburb appeal.`,
 
-  trademe_description: `Write a listing description in the style used on TradeMe Property and realestate.co.nz (NZ's major listing portals). Use short paragraphs and occasional bullet points for key features. 200-300 words. If a sale method was supplied, state it clearly near the top (e.g. "For Sale by Auction", "Deadline Sale", "Price by Negotiation") in the way NZ portals conventionally present it. If an ownership type was supplied, mention it factually. Include a closing line inviting enquiries or an open home visit.`,
+  trademe_description: `Write a listing description in the style used on Trade Me Property and realestate.co.nz (NZ's major listing portals). Use short paragraphs and occasional bullet points for key features. 200-300 words. If a sale method was supplied, state it clearly near the top (e.g. "For Sale by Auction", "Deadline Sale", "Price by Negotiation") in the way NZ portals conventionally present it. If an ownership type was supplied, mention it factually. Include a closing line inviting enquiries or an open home visit.`,
 
   instagram_caption: `Write an Instagram caption for this listing. Punchy opening line, 3-5 short lines of body copy, a clear CTA, and 8-12 relevant NZ real estate hashtags (mix of suburb, property type, and general real estate tags) on a final line.`,
 
