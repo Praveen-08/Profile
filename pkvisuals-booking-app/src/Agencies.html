@@ -1,0 +1,19 @@
+<div class="view" id="view-agencies">
+  <div class="panel">
+    <div class="btn-row" style="margin-bottom:16px;">
+      <input id="acy-search" placeholder="Search agencies..." style="flex:2;" oninput="renderAgenciesTable()">
+      <div class="btn btn-gold" onclick="openModal('modal-add-agency')">+ Add Agency</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Agency</th><th>Office Email</th><th>Office Phone</th><th>Accounts Email</th>
+            <th>Total Jobs</th><th>Total Revenue</th><th>Active</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="agencies-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,802 @@
+<script>
+  var STATE = { settings: {}, agents: [], agencies: [], packages: [], dashboard: null, jobs: [], currentJob: null, emailTemplates: [] };
+  var EDIT_MODE_JOB_ID = null;
+  var VIEWS = ['dashboard', 'jobs', 'job-detail', 'new-job', 'agents', 'agencies', 'packages', 'reports', 'settings'];
+  var PAGE_TITLES = { dashboard: 'Dashboard', jobs: 'Jobs', 'job-detail': 'Job Detail', 'new-job': 'New Job', agents: 'Agents', agencies: 'Agencies', packages: 'Packages', reports: 'Reports', settings: 'Settings' };
+  var JOB_STATUSES = ['Booked', 'Shoot Completed', 'Editing', 'Ready to Deliver', 'Delivered', 'Invoice Sent', 'Paid', 'Cancelled'];
+  var PAYMENT_STATUSES = ['Not Invoiced', 'Invoice Sent', 'Part Paid', 'Paid', 'Overdue', 'Written Off'];
+
+  /* ---------- API helper ---------- */
+  function api(fnName) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)[fnName].apply(null, args);
+    });
+  }
+  function errMsg(err) { return (err && err.message) ? err.message : String(err); }
+
+  /* ---------- Small utils ---------- */
+  function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function money(n) { return '$' + Number(n || 0).toFixed(2); }
+  function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+  function fmtDate(d) {
+    if (!d) return '';
+    var date = new Date(d);
+    if (isNaN(date.getTime())) return String(d);
+    return date.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  function fmtDateTime(d) {
+    var date = new Date(d);
+    if (isNaN(date.getTime())) return String(d);
+    return date.toLocaleString('en-NZ');
+  }
+  function toDateInputValue(d) {
+    var date = new Date(d);
+    if (isNaN(date.getTime())) return '';
+    return date.getFullYear() + '-' + ('0' + (date.getMonth() + 1)).slice(-2) + '-' + ('0' + date.getDate()).slice(-2);
+  }
+  function todayISO() { return toDateInputValue(new Date()); }
+  function truthy(v) { return v === true || v === 'TRUE' || v === 'true'; }
+  function addMinutes(timeStr, minutes) {
+    var parts = String(timeStr).split(':');
+    var d = new Date(2000, 0, 1, Number(parts[0]) || 0, Number(parts[1]) || 0);
+    d.setMinutes(d.getMinutes() + Number(minutes || 0));
+    return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+  function calcGstClient(total) {
+    total = Number(total) || 0;
+    return { gst: round2(total * 3 / 23), exGst: round2(total * 20 / 23) };
+  }
+
+  function toast(msg, isError) {
+    var wrap = document.getElementById('toast-wrap');
+    var el = document.createElement('div');
+    el.className = 'toast' + (isError ? ' error' : '');
+    el.textContent = msg;
+    wrap.appendChild(el);
+    setTimeout(function () { el.remove(); }, 4500);
+  }
+
+  function statusBadge(status) {
+    var map = { 'Booked': 'badge-gold', 'Shoot Completed': 'badge-gold', 'Editing': 'badge-warn', 'Ready to Deliver': 'badge-warn', 'Delivered': 'badge-ok', 'Invoice Sent': 'badge-warn', 'Paid': 'badge-ok', 'Cancelled': 'badge-danger' };
+    return '<span class="badge ' + (map[status] || 'badge-dim') + '">' + esc(status) + '</span>';
+  }
+  function paymentBadge(status) {
+    var map = { 'Not Invoiced': 'badge-dim', 'Invoice Sent': 'badge-warn', 'Part Paid': 'badge-warn', 'Paid': 'badge-ok', 'Overdue': 'badge-danger', 'Written Off': 'badge-dim' };
+    return '<span class="badge ' + (map[status] || 'badge-dim') + '">' + esc(status) + '</span>';
+  }
+  function deliveryBadge(status) {
+    var map = { 'Not Ready': 'badge-dim', 'Ready to Deliver': 'badge-warn', 'Delivered': 'badge-ok' };
+    return '<span class="badge ' + (map[status] || 'badge-dim') + '">' + esc(status) + '</span>';
+  }
+  function kv(label, value) { return '<div class="kv"><span>' + label + '</span><b>' + value + '</b></div>'; }
+  function btn(label, onclick) { return '<div class="btn" onclick="' + onclick + '">' + label + '</div>'; }
+  function dangerBtn(label, onclick) { return '<div class="btn btn-danger" onclick="' + onclick + '">' + label + '</div>'; }
+  function linkBtn(label, url) { return '<a class="btn" href="' + url + '" target="_blank" rel="noopener">' + label + '</a>'; }
+
+  /* ---------- Navigation ---------- */
+  function navigate(view, skipReset) {
+    VIEWS.forEach(function (v) { var el = document.getElementById('view-' + v); if (el) el.classList.remove('active'); });
+    var target = document.getElementById('view-' + view);
+    if (target) target.classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(function (n) { n.classList.toggle('active', n.getAttribute('data-view') === view); });
+
+    if (view !== 'job-detail') {
+      document.getElementById('page-title').textContent = PAGE_TITLES[view] || view;
+      document.getElementById('page-sub').textContent = '';
+    }
+    closeSidebar();
+
+    if (view === 'dashboard') loadDashboardView();
+    else if (view === 'jobs') loadJobsView();
+    else if (view === 'agents') loadAgentsView();
+    else if (view === 'agencies') loadAgenciesView();
+    else if (view === 'packages') loadPackagesView();
+    else if (view === 'reports') loadReportsView();
+    else if (view === 'settings') loadSettingsView();
+    else if (view === 'new-job' && !skipReset) resetNewJobForm();
+  }
+
+  function openSidebar() { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebar-scrim').classList.add('open'); }
+  function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-scrim').classList.remove('open'); }
+  function openModal(id) { document.getElementById(id).classList.add('open'); if (id === 'modal-add-agent') populateAgencyDropdown(); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+  /* ---------- Bootstrap ---------- */
+  function init() {
+    api('getBootstrapData').then(function (data) {
+      STATE.settings = data.settings;
+      STATE.agents = data.agents;
+      STATE.agencies = data.agencies;
+      STATE.packages = data.packages;
+      STATE.dashboard = data.dashboard;
+      populateStaticDropdowns();
+      renderDashboard();
+      maybeInitPlaces();
+      navigate('dashboard');
+    }).catch(function (err) { toast('Failed to load app data: ' + errMsg(err), true); });
+
+    document.querySelectorAll('.nav-item').forEach(function (el) {
+      el.addEventListener('click', function () { navigate(el.getAttribute('data-view')); });
+    });
+    document.getElementById('nj-agent-search').addEventListener('input', function (e) {
+      document.getElementById('nj-agent-id').value = '';
+      renderAgentCombo(e.target.value);
+    });
+    document.getElementById('nj-agent-search').addEventListener('focus', function (e) { renderAgentCombo(e.target.value); });
+    document.getElementById('nj-package').addEventListener('change', onPackageChange);
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest || !e.target.closest('.combo')) {
+        document.querySelectorAll('.combo-list').forEach(function (l) { l.classList.remove('open'); });
+      }
+    });
+  }
+  document.addEventListener('DOMContentLoaded', init);
+
+  function populateStaticDropdowns() {
+    populateAgencyDropdown();
+    populatePackageSelect();
+  }
+
+  /* ---------- Dashboard ---------- */
+  function loadDashboardView() {
+    api('getDashboardData').then(function (d) { STATE.dashboard = d; renderDashboard(); }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+  function renderJobMiniList(jobs, emptyMsg) {
+    if (!jobs || !jobs.length) return '<div class="empty-state">' + emptyMsg + '</div>';
+    return '<div class="table-wrap"><table><tbody>' + jobs.map(function (j) {
+      return '<tr onclick="viewJob(\'' + j.JobID + '\')" style="cursor:pointer;">' +
+        '<td>' + fmtDate(j.ShootDate) + ' ' + (j.StartTime || '') + '</td>' +
+        '<td>' + esc(j.PropertyAddress) + '</td>' +
+        '<td>' + esc(j.AgentName) + '</td>' +
+        '<td>' + statusBadge(j.Status) + '</td>' +
+        '</tr>';
+    }).join('') + '</tbody></table></div>';
+  }
+  function renderDashboard() {
+    var d = STATE.dashboard;
+    if (!d) return;
+    var cards = [
+      { label: "Today's Shoots", value: d.todaysShoots.length },
+      { label: 'Upcoming (7 days)', value: d.upcomingShoots.length },
+      { label: 'Ready to Deliver', value: d.readyToDeliverCount },
+      { label: 'Delivered, Not Invoiced', value: d.deliveredNotInvoicedCount },
+      { label: 'Invoice Sent, Unpaid', value: d.invoiceSentUnpaidCount },
+      { label: 'Overdue Invoices', value: d.overdueInvoicesCount },
+      { label: 'This Month Revenue', value: money(d.monthRevenue) },
+      { label: 'GST Collected (est)', value: money(d.gstCollected) },
+      { label: 'Total Unpaid', value: money(d.totalUnpaid) }
+    ];
+    document.getElementById('dashboard-cards').innerHTML = cards.map(function (c) {
+      return '<div class="card stat-card"><div class="label">' + c.label + '</div><div class="value small">' + c.value + '</div></div>';
+    }).join('');
+    document.getElementById('dashboard-today').innerHTML = renderJobMiniList(d.todaysShoots, 'No shoots scheduled today.');
+    document.getElementById('dashboard-upcoming').innerHTML = renderJobMiniList(d.upcomingShoots, 'Nothing in the next 7 days.');
+    document.getElementById('dashboard-action').innerHTML = renderJobMiniList(d.actionRequired, 'Nothing needs action right now.');
+  }
+
+  /* ---------- Jobs list ---------- */
+  function populateJobFilterDropdowns() {
+    var statusSel = document.getElementById('jf-status');
+    if (statusSel.options.length <= 1) statusSel.innerHTML += JOB_STATUSES.map(function (s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+    var paymentSel = document.getElementById('jf-payment');
+    if (paymentSel.options.length <= 1) paymentSel.innerHTML += PAYMENT_STATUSES.map(function (s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+    var agentSel = document.getElementById('jf-agent');
+    var curAgent = agentSel.value;
+    agentSel.innerHTML = '<option value="">All Agents</option>' + STATE.agents.map(function (a) { return '<option value="' + a.AgentID + '">' + esc(a.AgentName) + '</option>'; }).join('');
+    agentSel.value = curAgent;
+    var agencySel = document.getElementById('jf-agency');
+    var curAgency = agencySel.value;
+    agencySel.innerHTML = '<option value="">All Agencies</option>' + STATE.agencies.map(function (a) { return '<option value="' + a.AgencyID + '">' + esc(a.AgencyName) + '</option>'; }).join('');
+    agencySel.value = curAgency;
+  }
+  function resetJobFilters() {
+    ['jf-search', 'jf-from', 'jf-to', 'jf-status', 'jf-payment', 'jf-agent', 'jf-agency'].forEach(function (id) { document.getElementById(id).value = ''; });
+    loadJobsView();
+  }
+  function loadJobsView() {
+    populateJobFilterDropdowns();
+    var filters = {
+      search: val('jf-search'), dateFrom: val('jf-from'), dateTo: val('jf-to'),
+      status: val('jf-status'), paymentStatus: val('jf-payment'), agentId: val('jf-agent'), agencyId: val('jf-agency')
+    };
+    api('getJobs', filters).then(function (jobs) { STATE.jobs = jobs; renderJobsTable(jobs); }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+  function renderJobsTable(jobs) {
+    document.getElementById('jobs-empty').style.display = jobs.length ? 'none' : 'block';
+    document.getElementById('jobs-table-body').innerHTML = jobs.map(function (j) {
+      return '<tr>' +
+        '<td><a href="#" onclick="viewJob(\'' + j.JobID + '\'); return false;">' + j.JobID + '</a></td>' +
+        '<td>' + fmtDate(j.ShootDate) + '</td>' +
+        '<td>' + esc(j.PropertyAddress) + '</td>' +
+        '<td>' + esc(j.AgentName) + '</td>' +
+        '<td>' + esc(j.AgencyName) + '</td>' +
+        '<td>' + esc(j.PackageName) + '</td>' +
+        '<td>' + statusBadge(j.Status) + '</td>' +
+        '<td>' + money(j.TotalInclGST) + '</td>' +
+        '<td>' + paymentBadge(j.PaymentStatus) + '</td>' +
+        '<td><div class="btn btn-sm" onclick="viewJob(\'' + j.JobID + '\')">View</div></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  /* ---------- Job detail ---------- */
+  function viewJob(jobId) {
+    api('getJobById', jobId).then(function (job) {
+      if (!job) { toast('Job not found.', true); return; }
+      STATE.currentJob = job;
+      navigate('job-detail', true);
+      renderJobDetail(job);
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+  function renderJobDetail(job) {
+    document.getElementById('page-title').textContent = job.JobID;
+    document.getElementById('page-sub').textContent = job.PropertyAddress;
+
+    document.getElementById('jd-header').innerHTML =
+      '<h2 style="margin:0 0 8px;">' + esc(job.PropertyAddress) + '</h2>' +
+      '<div class="btn-row">' + statusBadge(job.Status) + paymentBadge(job.PaymentStatus) + deliveryBadge(job.DeliveryStatus) + '</div>';
+
+    var actions = [btn('Edit Job', 'editJobAction()')];
+    if (job.CalendarEventLink) actions.push(linkBtn('Open Calendar Event', job.CalendarEventLink));
+    if (job.DriveMainFolderLink) actions.push(linkBtn('Open Main Folder', job.DriveMainFolderLink));
+    if (job.PhotosFolderLink) actions.push(linkBtn('Open Photos Folder', job.PhotosFolderLink));
+    if (job.VideosFolderLink) actions.push(linkBtn('Open Videos Folder', job.VideosFolderLink));
+    if (job.FinalDeliveryFolderLink) actions.push(linkBtn('Open Final Delivery Folder', job.FinalDeliveryFolderLink));
+    actions.push(btn('Send Delivery Email', 'openDeliveryModal()'));
+    actions.push(btn('Create Invoice', 'createInvoiceAction()'));
+    actions.push(btn('Send Invoice', 'sendInvoiceAction()'));
+    actions.push(btn('Mark Paid', 'openMarkPaidModal()'));
+    if (job.Status !== 'Cancelled') actions.push(dangerBtn('Cancel Job', 'openCancelModal()'));
+    document.getElementById('jd-actions').innerHTML = actions.join('');
+
+    document.getElementById('jd-property').innerHTML =
+      kv('Address', esc(job.PropertyAddress)) + kv('Street', esc(job.Street || '—')) + kv('Suburb', esc(job.Suburb || '—')) +
+      kv('City', esc(job.City || '—')) + kv('Postcode', esc(job.Postcode || '—')) +
+      (job.GoogleMapsLink ? kv('Maps', '<a href="' + job.GoogleMapsLink + '" target="_blank">Open in Maps</a>') : '');
+
+    document.getElementById('jd-agent').innerHTML =
+      kv('Name', esc(job.AgentName)) + kv('Email', esc(job.AgentEmail)) + kv('Phone', esc(job.AgentPhone));
+
+    document.getElementById('jd-agency').innerHTML =
+      kv('Agency', esc(job.AgencyName)) + kv('Office Email', esc(job.AgencyEmail || '—')) + kv('Accounts Email', esc(job.AccountsEmail || '—'));
+
+    document.getElementById('jd-package').innerHTML =
+      kv('Package', esc(job.PackageName)) + kv('Description', esc(job.PackageDescription || '—')) +
+      kv('Add-ons', esc(job.AddOns || '—')) + kv('Amount ex GST', money(job.AmountExGST)) +
+      kv('GST', money(job.GST)) + kv('Total incl GST', money(job.TotalInclGST));
+
+    document.getElementById('jd-calendar').innerHTML =
+      kv('Shoot Date', fmtDate(job.ShootDate)) + kv('Time', job.StartTime + ' - ' + job.EndTime) +
+      (job.CalendarEventLink ? kv('Event', '<a href="' + job.CalendarEventLink + '" target="_blank">Open Event</a>') : kv('Event', 'Not created'));
+
+    document.getElementById('jd-drive').innerHTML = job.DriveMainFolderLink ?
+      (kv('Main Folder', '<a href="' + job.DriveMainFolderLink + '" target="_blank">Open</a>') +
+        kv('Photos', '<a href="' + job.PhotosFolderLink + '" target="_blank">Open</a>') +
+        kv('Videos', '<a href="' + job.VideosFolderLink + '" target="_blank">Open</a>') +
+        kv('Final Delivery', '<a href="' + job.FinalDeliveryFolderLink + '" target="_blank">Open</a>') +
+        kv('Invoice Folder', '<a href="' + job.InvoiceFolderLink + '" target="_blank">Open</a>')) :
+      '<div class="empty-state">Folders not created.</div>';
+
+    document.getElementById('jd-delivery').innerHTML =
+      kv('Status', deliveryBadge(job.DeliveryStatus)) +
+      kv('Sent Date', job.DeliverySentDate ? fmtDate(job.DeliverySentDate) : '—') +
+      kv('Sent To', esc(job.DeliveryEmailSentTo || '—')) +
+      (job.DeliveryLinkSent ? kv('Link Sent', '<a href="' + job.DeliveryLinkSent + '" target="_blank">Open</a>') : '');
+
+    document.getElementById('jd-invoice').innerHTML =
+      kv('Invoice Number', esc(job.InvoiceNumber || '—')) +
+      kv('Invoice Date', job.InvoiceDate ? fmtDate(job.InvoiceDate) : '—') +
+      kv('Due Date', job.DueDate ? fmtDate(job.DueDate) : '—') +
+      kv('Status', esc(job.InvoiceStatus || 'Not Sent')) +
+      (job.InvoicePDFLink ? kv('PDF', '<a href="' + job.InvoicePDFLink + '" target="_blank">Open</a>') : '');
+
+    document.getElementById('jd-payment').innerHTML =
+      kv('Payment Status', paymentBadge(job.PaymentStatus)) +
+      kv('Amount Paid', money(job.AmountPaid)) +
+      kv('Balance Due', money(job.BalanceDue)) +
+      kv('Payment Date', job.PaymentDate ? fmtDate(job.PaymentDate) : '—') +
+      kv('Payment Method', esc(job.PaymentMethod || '—'));
+
+    document.getElementById('jd-notes').innerHTML =
+      kv('Notes', esc(job.Notes || '—')) + kv('Internal Notes', esc(job.InternalNotes || '—'));
+
+    api('getAuditLogForJob', job.JobID).then(renderAuditLog).catch(function () { renderAuditLog([]); });
+  }
+  function renderAuditLog(logs) {
+    var el = document.getElementById('jd-audit');
+    if (!logs || !logs.length) { el.innerHTML = '<div class="empty-state">No history yet.</div>'; return; }
+    el.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Time</th><th>Action</th><th>Details</th></tr></thead><tbody>' +
+      logs.map(function (l) { return '<tr><td>' + fmtDateTime(l.Timestamp) + '</td><td>' + esc(l.Action) + '</td><td>' + esc(l.Details) + '</td></tr>'; }).join('') +
+      '</tbody></table></div>';
+  }
+
+  /* ---------- Job detail actions ---------- */
+  function onDeliveryChoiceChange() {
+    document.getElementById('dl-custom-wrap').style.display = val('dl-choice') === 'custom' ? 'block' : 'none';
+    updateDeliveryPreview();
+  }
+  function resolveDeliveryLinkClient() {
+    var job = STATE.currentJob, choice = val('dl-choice');
+    if (choice === 'main') return job.DriveMainFolderLink;
+    if (choice === 'custom') return val('dl-custom');
+    return job.FinalDeliveryFolderLink || job.DriveMainFolderLink;
+  }
+  function updateDeliveryPreview() {
+    var job = STATE.currentJob;
+    var link = resolveDeliveryLinkClient();
+    api('previewDeliveryEmail', job.JobID, link).then(function (r) {
+      document.getElementById('dl-preview').innerHTML = '<b>Subject:</b> ' + esc(r.subject) + '<br><br>' + r.bodyHtml;
+    }).catch(function (e) { document.getElementById('dl-preview').textContent = 'Preview unavailable: ' + errMsg(e); });
+  }
+  function openDeliveryModal() {
+    document.getElementById('dl-choice').value = 'final';
+    document.getElementById('dl-custom-wrap').style.display = 'none';
+    document.getElementById('dl-custom').value = '';
+    updateDeliveryPreview();
+    openModal('modal-delivery');
+  }
+  function submitSendDelivery() {
+    var job = STATE.currentJob;
+    var link = resolveDeliveryLinkClient();
+    if (!link) { toast('No delivery link available. Upload files or set a custom link.', true); return; }
+    api('sendDeliveryEmail', job.JobID, { folderChoice: val('dl-choice'), customLink: val('dl-custom') }).then(function (updated) {
+      toast('Delivery email sent.');
+      closeModal('modal-delivery');
+      STATE.currentJob = updated;
+      renderJobDetail(updated);
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+  function createInvoiceAction() {
+    api('createInvoicePDF', STATE.currentJob.JobID).then(function (updated) {
+      toast('Invoice PDF created.');
+      STATE.currentJob = updated;
+      renderJobDetail(updated);
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+  function sendInvoiceAction() {
+    var job = STATE.currentJob;
+    if (!job.InvoicePDFLink) { toast('Create the invoice PDF first.', true); return; }
+    api('sendInvoice', job.JobID).then(function (updated) {
+      toast('Invoice sent.');
+      STATE.currentJob = updated;
+      renderJobDetail(updated);
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+  function openMarkPaidModal() {
+    var job = STATE.currentJob;
+    document.getElementById('mp-date').value = todayISO();
+    document.getElementById('mp-amount').value = job.BalanceDue || job.TotalInclGST;
+    document.getElementById('mp-method').value = 'Bank Transfer';
+    document.getElementById('mp-reference').value = '';
+    document.getElementById('mp-notes').value = '';
+    openModal('modal-mark-paid');
+  }
+  function submitMarkPaid() {
+    var job = STATE.currentJob;
+    var payment = { PaymentDate: val('mp-date'), AmountReceived: Number(val('mp-amount')), PaymentMethod: val('mp-method'), Reference: val('mp-reference'), Notes: val('mp-notes') };
+    api('markPaid', job.JobID, payment).then(function (updated) {
+      toast('Payment recorded.');
+      closeModal('modal-mark-paid');
+      STATE.currentJob = updated;
+      renderJobDetail(updated);
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+  function openCancelModal() { document.getElementById('cj-reason').value = ''; openModal('modal-cancel-job'); }
+  function submitCancelJob() {
+    api('cancelJob', STATE.currentJob.JobID, val('cj-reason')).then(function (updated) {
+      toast('Job cancelled.');
+      closeModal('modal-cancel-job');
+      STATE.currentJob = updated;
+      renderJobDetail(updated);
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+
+  /* ---------- New Job ---------- */
+  function resetNewJobForm() {
+    EDIT_MODE_JOB_ID = null;
+    ['nj-address', 'nj-street', 'nj-suburb', 'nj-city', 'nj-postcode', 'nj-maps-link', 'nj-agent-search', 'nj-agent-id', 'nj-notes', 'nj-override-price', 'nj-date', 'nj-start-time', 'nj-end-time'].forEach(function (id) { document.getElementById(id).value = ''; });
+    document.getElementById('nj-agent-info').style.display = 'none';
+    document.getElementById('nj-package').value = '';
+    document.getElementById('nj-package-info').style.display = 'none';
+    document.getElementById('nj-override-toggle').checked = false;
+    document.getElementById('nj-override-price').style.display = 'none';
+    document.getElementById('nj-submit-btn').textContent = 'Create Job';
+  }
+  function renderAgentCombo(query) {
+    var list = document.getElementById('nj-agent-list');
+    var q = (query || '').toLowerCase();
+    var matches = STATE.agents.filter(function (a) {
+      return a.Active !== false && (String(a.AgentName).toLowerCase().indexOf(q) > -1 || String(a.AgencyName).toLowerCase().indexOf(q) > -1);
+    }).slice(0, 30);
+    var html = matches.map(function (a) {
+      return '<div class="combo-option" onclick="selectAgent(\'' + a.AgentID + '\')">' + esc(a.AgentName) + ' <span style="color:var(--text-dim);">— ' + esc(a.AgencyName) + '</span></div>';
+    }).join('');
+    html += '<div class="combo-option combo-add" onclick="openModal(\'modal-add-agent\')">+ Add New Agent</div>';
+    list.innerHTML = html;
+    list.classList.add('open');
+  }
+  function selectAgent(agentId) { setAgentSelection(agentId); document.getElementById('nj-agent-list').classList.remove('open'); }
+  function setAgentSelection(agentId) {
+    var agent = STATE.agents.filter(function (a) { return a.AgentID === agentId; })[0];
+    if (!agent) return;
+    document.getElementById('nj-agent-id').value = agent.AgentID;
+    document.getElementById('nj-agent-search').value = agent.AgentName;
+    var info = document.getElementById('nj-agent-info');
+    info.style.display = 'block';
+    info.innerHTML = '<b>Email:</b> ' + esc(agent.Email) + '<br><b>Phone:</b> ' + esc(agent.Phone) + '<br><b>Agency:</b> ' + esc(agent.AgencyName) +
+      (agent.Notes ? '<br><b>Notes:</b> ' + esc(agent.Notes) : '');
+    if (agent.DefaultPackageID) {
+      document.getElementById('nj-package').value = agent.DefaultPackageID;
+      onPackageChange();
+    }
+  }
+  function populatePackageSelect() {
+    var sel = document.getElementById('nj-package');
+    var current = sel.value;
+    sel.innerHTML = '<option value="">Select a package...</option>' + STATE.packages.filter(function (p) { return p.Active !== false; }).map(function (p) {
+      return '<option value="' + p.PackageID + '">' + esc(p.PackageName) + ' — ' + money(p.DefaultPriceInclGST) + '</option>';
+    }).join('');
+    if (current) sel.value = current;
+  }
+  function onPackageChange() {
+    var pkg = STATE.packages.filter(function (p) { return p.PackageID === val('nj-package'); })[0];
+    var info = document.getElementById('nj-package-info');
+    if (!pkg) { info.style.display = 'none'; return; }
+    info.style.display = 'block';
+    var gst = calcGstClient(pkg.DefaultPriceInclGST);
+    info.innerHTML = '<b>' + esc(pkg.PackageName) + '</b><br>' + esc(pkg.Description) + '<br>' +
+      '<b>Price:</b> ' + money(pkg.DefaultPriceInclGST) + ' incl GST (GST ' + money(gst.gst) + ', ex GST ' + money(gst.exGst) + ')<br>' +
+      '<b>Duration:</b> ' + pkg.DefaultShootDurationMinutes + ' mins';
+    if (!document.getElementById('nj-override-toggle').checked) document.getElementById('nj-override-price').value = pkg.DefaultPriceInclGST;
+    recalcEndTime();
+  }
+  function recalcEndTime() {
+    var start = val('nj-start-time');
+    var pkg = STATE.packages.filter(function (p) { return p.PackageID === val('nj-package'); })[0];
+    if (!start || !pkg) return;
+    document.getElementById('nj-end-time').value = addMinutes(start, pkg.DefaultShootDurationMinutes || 30);
+  }
+  function toggleOverridePrice() {
+    document.getElementById('nj-override-price').style.display = document.getElementById('nj-override-toggle').checked ? 'block' : 'none';
+  }
+  function submitNewJob() {
+    var formData = {
+      PropertyAddress: val('nj-address'), Street: val('nj-street'), Suburb: val('nj-suburb'),
+      City: val('nj-city'), Postcode: val('nj-postcode'), GoogleMapsLink: val('nj-maps-link'),
+      AgentID: val('nj-agent-id'), PackageID: val('nj-package'),
+      ShootDate: val('nj-date'), StartTime: val('nj-start-time'), EndTime: val('nj-end-time'),
+      Notes: val('nj-notes')
+    };
+    if (document.getElementById('nj-override-toggle').checked) formData.OverridePrice = Number(val('nj-override-price'));
+
+    if (!formData.PropertyAddress || !formData.AgentID || !formData.PackageID || !formData.ShootDate || !formData.StartTime) {
+      toast('Please fill in address, agent, package, date and time.', true);
+      return;
+    }
+    var button = document.getElementById('nj-submit-btn');
+    var originalLabel = button.textContent;
+    button.textContent = EDIT_MODE_JOB_ID ? 'Saving...' : 'Creating job...';
+
+    var call = EDIT_MODE_JOB_ID ? api('updateJob', EDIT_MODE_JOB_ID, formData) : api('createJob', formData);
+    call.then(function (job) {
+      toast(EDIT_MODE_JOB_ID ? 'Job updated.' : 'Job created: ' + job.JobID);
+      if (job.__warnings && job.__warnings.length) toast(job.__warnings.join(' | '), true);
+      resetNewJobForm();
+      STATE.currentJob = job;
+      navigate('job-detail', true);
+      renderJobDetail(job);
+    }).catch(function (e) {
+      toast('Failed: ' + errMsg(e), true);
+      button.textContent = originalLabel;
+    });
+  }
+  function editJobAction() {
+    var job = STATE.currentJob;
+    EDIT_MODE_JOB_ID = job.JobID;
+    navigate('new-job', true);
+    document.getElementById('nj-address').value = job.PropertyAddress;
+    document.getElementById('nj-street').value = job.Street;
+    document.getElementById('nj-suburb').value = job.Suburb;
+    document.getElementById('nj-city').value = job.City;
+    document.getElementById('nj-postcode').value = job.Postcode;
+    document.getElementById('nj-maps-link').value = job.GoogleMapsLink;
+    setAgentSelection(job.AgentID);
+    document.getElementById('nj-package').value = job.PackageID;
+    onPackageChange();
+    document.getElementById('nj-override-toggle').checked = true;
+    document.getElementById('nj-override-price').style.display = 'block';
+    document.getElementById('nj-override-price').value = job.TotalInclGST;
+    document.getElementById('nj-date').value = toDateInputValue(job.ShootDate);
+    document.getElementById('nj-start-time').value = job.StartTime;
+    document.getElementById('nj-end-time').value = job.EndTime;
+    document.getElementById('nj-notes').value = job.Notes;
+    document.getElementById('nj-submit-btn').textContent = 'Save Changes';
+  }
+
+  /* ---------- Add Agent / Add Agency modals ---------- */
+  function populateAgencyDropdown() {
+    var sel = document.getElementById('na-agency');
+    var current = sel.value;
+    sel.innerHTML = STATE.agencies.filter(function (a) { return a.Active !== false; }).map(function (a) {
+      return '<option value="' + a.AgencyID + '">' + esc(a.AgencyName) + '</option>';
+    }).join('');
+    if (current) sel.value = current;
+  }
+  function clearAgentModalForm() { ['na-name', 'na-email', 'na-phone', 'na-instagram', 'na-notes'].forEach(function (id) { document.getElementById(id).value = ''; }); }
+  function clearAgencyModalForm() { ['nc-name', 'nc-email', 'nc-phone', 'nc-accounts-email', 'nc-address', 'nc-notes'].forEach(function (id) { document.getElementById(id).value = ''; }); }
+
+  function submitNewAgent() {
+    var agent = {
+      AgentName: val('na-name'), Email: val('na-email'), Phone: val('na-phone'),
+      AgencyID: val('na-agency'), Instagram: val('na-instagram'), Notes: val('na-notes'),
+      Active: document.getElementById('na-active').checked
+    };
+    if (!agent.AgentName || !agent.Email || !agent.AgencyID) { toast('Name, email and agency are required.', true); return; }
+    api('addAgent', agent).then(function (created) {
+      STATE.agents.push(created);
+      toast('Agent added.');
+      closeModal('modal-add-agent');
+      clearAgentModalForm();
+      setAgentSelection(created.AgentID);
+      renderAgentsTable();
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+  function submitNewAgency() {
+    var agency = {
+      AgencyName: val('nc-name'), OfficeEmail: val('nc-email'), OfficePhone: val('nc-phone'),
+      AccountsEmail: val('nc-accounts-email'), OfficeAddress: val('nc-address'), Notes: val('nc-notes'),
+      Active: document.getElementById('nc-active').checked
+    };
+    if (!agency.AgencyName) { toast('Agency name is required.', true); return; }
+    api('addAgency', agency).then(function (created) {
+      STATE.agencies.push(created);
+      toast('Agency added.');
+      closeModal('modal-add-agency');
+      clearAgencyModalForm();
+      populateAgencyDropdown();
+      document.getElementById('na-agency').value = created.AgencyID;
+      renderAgenciesTable();
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+
+  /* ---------- Agents page ---------- */
+  function loadAgentsView() { renderAgentsTable(); }
+  function renderAgentsTable() {
+    var q = (val('ag-search') || '').toLowerCase();
+    var rows = STATE.agents.filter(function (a) { return !q || (a.AgentName + a.AgencyName + a.Email).toLowerCase().indexOf(q) > -1; });
+    document.getElementById('agents-table-body').innerHTML = rows.map(function (a) {
+      return '<tr>' +
+        '<td>' + esc(a.AgentName) + '</td>' + '<td>' + esc(a.AgencyName) + '</td>' + '<td>' + esc(a.Email) + '</td>' +
+        '<td>' + esc(a.Phone) + '</td>' + '<td>' + esc(a.Instagram || '') + '</td>' +
+        '<td>' + (a.TotalJobs || 0) + '</td>' + '<td>' + money(a.TotalRevenue || 0) + '</td>' +
+        '<td>' + (a.LastJobDate ? fmtDate(a.LastJobDate) : '—') + '</td>' +
+        '<td>' + (a.Active === false ? '<span class="badge badge-dim">Inactive</span>' : '<span class="badge badge-ok">Active</span>') + '</td>' +
+        '<td><div class="btn-row"><div class="btn btn-sm" onclick="viewAgentJobs(\'' + a.AgentID + '\')">Jobs</div>' +
+        (a.Active === false ? '' : '<div class="btn btn-sm btn-danger" onclick="deactivateAgentAction(\'' + a.AgentID + '\')">Deactivate</div>') +
+        '</div></td></tr>';
+    }).join('');
+  }
+  function viewAgentJobs(agentId) { populateJobFilterDropdowns(); document.getElementById('jf-agent').value = agentId; navigate('jobs'); }
+  function deactivateAgentAction(agentId) {
+    if (!confirm('Deactivate this agent?')) return;
+    api('deactivateAgent', agentId).then(function (updated) {
+      var idx = STATE.agents.findIndex(function (a) { return a.AgentID === agentId; });
+      if (idx > -1) STATE.agents[idx] = updated;
+      toast('Agent deactivated.');
+      renderAgentsTable();
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+
+  /* ---------- Agencies page ---------- */
+  function loadAgenciesView() { renderAgenciesTable(); }
+  function renderAgenciesTable() {
+    var q = (val('acy-search') || '').toLowerCase();
+    var rows = STATE.agencies.filter(function (a) { return !q || (a.AgencyName + a.OfficeEmail).toLowerCase().indexOf(q) > -1; });
+    document.getElementById('agencies-table-body').innerHTML = rows.map(function (a) {
+      return '<tr>' +
+        '<td>' + esc(a.AgencyName) + '</td>' + '<td>' + esc(a.OfficeEmail || '') + '</td>' +
+        '<td>' + esc(a.OfficePhone || '') + '</td>' + '<td>' + esc(a.AccountsEmail || '') + '</td>' +
+        '<td>' + (a.TotalJobs || 0) + '</td>' + '<td>' + money(a.TotalRevenue || 0) + '</td>' +
+        '<td>' + (a.Active === false ? '<span class="badge badge-dim">Inactive</span>' : '<span class="badge badge-ok">Active</span>') + '</td>' +
+        '<td><div class="btn-row">' +
+        '<div class="btn btn-sm" onclick="viewAgencyAgents(\'' + a.AgencyID + '\')">Agents</div>' +
+        '<div class="btn btn-sm" onclick="viewAgencyJobs(\'' + a.AgencyID + '\')">Jobs</div>' +
+        (a.Active === false ? '' : '<div class="btn btn-sm btn-danger" onclick="deactivateAgencyAction(\'' + a.AgencyID + '\')">Deactivate</div>') +
+        '</div></td></tr>';
+    }).join('');
+  }
+  function viewAgencyAgents(agencyId) {
+    var agency = STATE.agencies.filter(function (a) { return a.AgencyID === agencyId; })[0];
+    navigate('agents');
+    document.getElementById('ag-search').value = agency ? agency.AgencyName : '';
+    renderAgentsTable();
+  }
+  function viewAgencyJobs(agencyId) { populateJobFilterDropdowns(); document.getElementById('jf-agency').value = agencyId; navigate('jobs'); }
+  function deactivateAgencyAction(agencyId) {
+    if (!confirm('Deactivate this agency?')) return;
+    api('deactivateAgency', agencyId).then(function (updated) {
+      var idx = STATE.agencies.findIndex(function (a) { return a.AgencyID === agencyId; });
+      if (idx > -1) STATE.agencies[idx] = updated;
+      toast('Agency deactivated.');
+      renderAgenciesTable();
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+
+  /* ---------- Packages page ---------- */
+  function loadPackagesView() { renderPackagesTable(); }
+  function renderPackagesTable() {
+    document.getElementById('packages-table-body').innerHTML = STATE.packages.map(function (p) {
+      var includes = [];
+      if (truthy(p.IncludesPhotos)) includes.push('Photos');
+      if (truthy(p.IncludesVideo)) includes.push('Video');
+      if (truthy(p.IncludesFloorPlan)) includes.push('Floor Plan');
+      if (truthy(p.IncludesDrone)) includes.push('Drone');
+      if (truthy(p.IncludesTwilight)) includes.push('Twilight');
+      return '<tr>' +
+        '<td>' + esc(p.PackageName) + '</td>' + '<td>' + money(p.DefaultPriceInclGST) + '</td>' +
+        '<td>' + includes.join(', ') + '</td>' + '<td>' + p.DefaultShootDurationMinutes + ' min</td>' +
+        '<td>' + (p.Active === false ? '<span class="badge badge-dim">Inactive</span>' : '<span class="badge badge-ok">Active</span>') + '</td>' +
+        '<td><div class="btn-row"><div class="btn btn-sm" onclick="openPackageModal(\'' + p.PackageID + '\')">Edit</div>' +
+        (p.Active === false ? '' : '<div class="btn btn-sm btn-danger" onclick="deactivatePackageAction(\'' + p.PackageID + '\')">Deactivate</div>') +
+        '</div></td></tr>';
+    }).join('');
+  }
+  function openPackageModal(packageId) {
+    var pkg = packageId ? STATE.packages.filter(function (p) { return p.PackageID === packageId; })[0] : null;
+    document.getElementById('pkg-modal-title').textContent = pkg ? 'Edit Package' : 'Add Package';
+    document.getElementById('pkg-id').value = pkg ? pkg.PackageID : '';
+    document.getElementById('pkg-name').value = pkg ? pkg.PackageName : '';
+    document.getElementById('pkg-description').value = pkg ? pkg.Description : '';
+    document.getElementById('pkg-price').value = pkg ? pkg.DefaultPriceInclGST : '';
+    document.getElementById('pkg-duration').value = pkg ? pkg.DefaultShootDurationMinutes : 30;
+    document.getElementById('pkg-photos').checked = pkg ? truthy(pkg.IncludesPhotos) : false;
+    document.getElementById('pkg-video').checked = pkg ? truthy(pkg.IncludesVideo) : false;
+    document.getElementById('pkg-floorplan').checked = pkg ? truthy(pkg.IncludesFloorPlan) : false;
+    document.getElementById('pkg-drone').checked = pkg ? truthy(pkg.IncludesDrone) : false;
+    document.getElementById('pkg-twilight').checked = pkg ? truthy(pkg.IncludesTwilight) : false;
+    document.getElementById('pkg-active').checked = pkg ? pkg.Active !== false : true;
+    openModal('modal-package');
+  }
+  function submitPackage() {
+    var id = val('pkg-id');
+    var data = {
+      PackageName: val('pkg-name'), Description: val('pkg-description'),
+      DefaultPriceInclGST: Number(val('pkg-price')), DefaultShootDurationMinutes: Number(val('pkg-duration')),
+      IncludesPhotos: document.getElementById('pkg-photos').checked,
+      IncludesVideo: document.getElementById('pkg-video').checked,
+      IncludesFloorPlan: document.getElementById('pkg-floorplan').checked,
+      IncludesDrone: document.getElementById('pkg-drone').checked,
+      IncludesTwilight: document.getElementById('pkg-twilight').checked,
+      Active: document.getElementById('pkg-active').checked
+    };
+    if (!data.PackageName) { toast('Package name is required.', true); return; }
+    var call = id ? api('updatePackage', id, data) : api('addPackage', data);
+    call.then(function (result) {
+      if (id) { var idx = STATE.packages.findIndex(function (p) { return p.PackageID === id; }); if (idx > -1) STATE.packages[idx] = result; }
+      else STATE.packages.push(result);
+      toast('Package saved.');
+      closeModal('modal-package');
+      renderPackagesTable();
+      populatePackageSelect();
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+  function deactivatePackageAction(id) {
+    if (!confirm('Deactivate this package?')) return;
+    api('deactivatePackage', id).then(function (updated) {
+      var idx = STATE.packages.findIndex(function (p) { return p.PackageID === id; });
+      if (idx > -1) STATE.packages[idx] = updated;
+      toast('Package deactivated.');
+      renderPackagesTable();
+      populatePackageSelect();
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+
+  /* ---------- Reports page ---------- */
+  function onReportPresetChange() {
+    var custom = val('rp-preset') === 'custom';
+    document.getElementById('rp-from').style.display = custom ? 'block' : 'none';
+    document.getElementById('rp-to').style.display = custom ? 'block' : 'none';
+  }
+  function loadReportsView() {
+    api('getReportData', { preset: val('rp-preset'), from: val('rp-from'), to: val('rp-to') })
+      .then(function (r) { STATE.reportData = r; renderReport(r); })
+      .catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+  function renderReport(r) {
+    var cards = [
+      { label: 'Total Jobs', value: r.totalJobs },
+      { label: 'Total Sales (incl GST)', value: money(r.totalSalesInclGST) },
+      { label: 'Sales (ex GST)', value: money(r.salesExGST) },
+      { label: 'GST Collected', value: money(r.gstCollected) },
+      { label: 'Total Invoiced', value: money(r.totalInvoiced) },
+      { label: 'Total Paid', value: money(r.totalPaid) },
+      { label: 'Total Unpaid', value: money(r.totalUnpaid) }
+    ];
+    document.getElementById('report-cards').innerHTML = cards.map(function (c) {
+      return '<div class="card stat-card"><div class="label">' + c.label + '</div><div class="value small">' + c.value + '</div></div>';
+    }).join('');
+    document.getElementById('report-by-month').innerHTML = r.revenueByMonth.map(function (m) { return '<tr><td>' + m.month + '</td><td>' + money(m.revenue) + '</td></tr>'; }).join('') || '<tr><td colspan="2">No data.</td></tr>';
+    document.getElementById('report-by-package').innerHTML = r.revenueByPackage.map(function (p) { return '<tr><td>' + esc(p.key) + '</td><td>' + p.count + '</td><td>' + money(p.revenue) + '</td></tr>'; }).join('') || '<tr><td colspan="3">No data.</td></tr>';
+    document.getElementById('report-by-agent').innerHTML = r.revenueByAgent.map(function (p) { return '<tr><td>' + esc(p.key) + '</td><td>' + p.count + '</td><td>' + money(p.revenue) + '</td></tr>'; }).join('') || '<tr><td colspan="3">No data.</td></tr>';
+    document.getElementById('report-by-agency').innerHTML = r.revenueByAgency.map(function (p) { return '<tr><td>' + esc(p.key) + '</td><td>' + p.count + '</td><td>' + money(p.revenue) + '</td></tr>'; }).join('') || '<tr><td colspan="3">No data.</td></tr>';
+    document.getElementById('report-outstanding').innerHTML = r.outstandingInvoices.map(function (j) { return '<tr><td><a href="#" onclick="viewJob(\'' + j.JobID + '\');return false;">' + j.JobID + '</a> ' + esc(j.PropertyAddress) + '</td><td>' + esc(j.AgentName) + '</td><td>' + fmtDate(j.DueDate) + '</td><td>' + money(j.BalanceDue) + '</td></tr>'; }).join('') || '<tr><td colspan="4">None.</td></tr>';
+    document.getElementById('report-overdue').innerHTML = r.overdueInvoices.map(function (j) { return '<tr><td><a href="#" onclick="viewJob(\'' + j.JobID + '\');return false;">' + j.JobID + '</a> ' + esc(j.PropertyAddress) + '</td><td>' + esc(j.AgentName) + '</td><td>' + fmtDate(j.DueDate) + '</td><td>' + money(j.BalanceDue) + '</td></tr>'; }).join('') || '<tr><td colspan="4">None.</td></tr>';
+  }
+  function exportReport() {
+    api('exportReportCSV', { preset: val('rp-preset'), from: val('rp-from'), to: val('rp-to') }).then(function (csv) {
+      var blob = new Blob([csv], { type: 'text/csv' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'pk-visuals-report.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }).catch(function (e) { toast('Export failed: ' + errMsg(e), true); });
+  }
+
+  /* ---------- Settings page ---------- */
+  function loadSettingsView() {
+    api('getSettings').then(function (s) { STATE.settings = s; fillSettingsForm(s); }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+    api('getEmailTemplates').then(function (t) { STATE.emailTemplates = t; loadEmailTemplateIntoEditor(); }).catch(function () {});
+  }
+  function fillSettingsForm(s) {
+    Object.keys(s).forEach(function (k) { var el = document.getElementById('st-' + k); if (el) el.value = s[k]; });
+  }
+  function submitSettings() {
+    var keys = ['BusinessName', 'BusinessEmail', 'AdminEmail', 'GSTNumber', 'DriveParentFolderID', 'CalendarID', 'InvoicePrefix', 'JobPrefix', 'PaymentTermsDays', 'BankAccountName', 'BankAccountNumber', 'GooglePlacesApiKey'];
+    var data = {};
+    keys.forEach(function (k) { data[k] = val('st-' + k); });
+    api('saveSettings', data).then(function (saved) {
+      STATE.settings = saved;
+      toast('Settings saved.');
+      maybeInitPlaces();
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+  function loadEmailTemplateIntoEditor() {
+    var tpl = (STATE.emailTemplates || []).filter(function (t) { return t.TemplateName === val('et-select'); })[0];
+    document.getElementById('et-subject').value = tpl ? tpl.Subject : '';
+    document.getElementById('et-body').value = tpl ? tpl.BodyPlainText : '';
+  }
+  function submitEmailTemplate() {
+    api('saveEmailTemplate', val('et-select'), { Subject: val('et-subject'), BodyPlainText: val('et-body') }).then(function (templates) {
+      STATE.emailTemplates = templates;
+      toast('Template saved.');
+    }).catch(function (e) { toast('Failed: ' + errMsg(e), true); });
+  }
+  function openSpreadsheet() { api('getSpreadsheetUrl').then(function (url) { window.open(url, '_blank'); }); }
+
+  /* ---------- Google Places (optional) ---------- */
+  function maybeInitPlaces() {
+    var key = STATE.settings.GooglePlacesApiKey;
+    if (!key || window.__placesLoaded) return;
+    window.__placesLoaded = true;
+    window.initPlacesAutocomplete = function () {
+      var input = document.getElementById('nj-address');
+      var autocomplete = new google.maps.places.Autocomplete(input, { componentRestrictions: { country: 'nz' }, fields: ['address_components', 'formatted_address', 'geometry', 'place_id'] });
+      autocomplete.addListener('place_changed', function () {
+        var place = autocomplete.getPlace();
+        if (!place || !place.address_components) return;
+        var comps = {};
+        place.address_components.forEach(function (c) { c.types.forEach(function (t) { comps[t] = c.long_name; }); });
+        document.getElementById('nj-street').value = [comps.street_number, comps.route].filter(Boolean).join(' ');
+        document.getElementById('nj-suburb').value = comps.sublocality || comps.locality || '';
+        document.getElementById('nj-city').value = comps.locality || comps.administrative_area_level_1 || '';
+        document.getElementById('nj-postcode').value = comps.postal_code || '';
+        document.getElementById('nj-address').value = place.formatted_address || input.value;
+        if (place.place_id) document.getElementById('nj-maps-link').value = 'https://www.google.com/maps/place/?q=place_id:' + place.place_id;
+        else if (place.geometry && place.geometry.location) document.getElementById('nj-maps-link').value = 'https://www.google.com/maps/search/?api=1&query=' + place.geometry.location.lat() + ',' + place.geometry.location.lng();
+      });
+    };
+    var script = document.createElement('script');
+    script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&libraries=places&callback=initPlacesAutocomplete';
+    script.async = true;
+    document.body.appendChild(script);
+  }
+</script>

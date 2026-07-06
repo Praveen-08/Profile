@@ -1,0 +1,43 @@
+<div class="view" id="view-settings">
+  <div class="panel" style="max-width:640px;">
+    <h2 style="margin-top:0;">Business Settings</h2>
+    <label>Business Name</label><input id="st-BusinessName">
+    <label>Business Email</label><input id="st-BusinessEmail">
+    <label>Admin Email</label><input id="st-AdminEmail">
+    <label>GST Number</label><input id="st-GSTNumber">
+    <label>Drive Parent Folder ID</label><input id="st-DriveParentFolderID">
+    <label>Calendar ID</label><input id="st-CalendarID">
+    <div class="field-row">
+      <div><label>Invoice Prefix</label><input id="st-InvoicePrefix"></div>
+      <div><label>Job Prefix</label><input id="st-JobPrefix"></div>
+    </div>
+    <label>Payment Terms (days)</label><input id="st-PaymentTermsDays" type="number">
+    <label>Bank Account Name</label><input id="st-BankAccountName">
+    <label>Bank Account Number</label><input id="st-BankAccountNumber">
+    <label>Google Places API Key</label><input id="st-GooglePlacesApiKey">
+    <div class="hint">Leave blank to use manual address entry on the New Job screen.</div>
+    <div class="btn-row" style="margin-top:20px;">
+      <div class="btn btn-gold btn-block" onclick="submitSettings()">Save Settings</div>
+    </div>
+    <div class="hint" style="margin-top:14px;">
+      <a href="#" onclick="openSpreadsheet(); return false;">Open the underlying Google Sheet database &rarr;</a>
+    </div>
+  </div>
+
+  <div class="panel" style="max-width:640px;">
+    <h2 style="margin-top:0;">Email Templates</h2>
+    <select id="et-select" onchange="loadEmailTemplateIntoEditor()">
+      <option value="BookingConfirmation">Booking Confirmation</option>
+      <option value="DeliveryEmail">Delivery Email</option>
+      <option value="InvoiceEmail">Invoice Email</option>
+      <option value="PaymentReminder">Payment Reminder</option>
+    </select>
+    <label>Subject</label>
+    <input id="et-subject">
+    <label>Body (plain text — use {{FieldName}} placeholders)</label>
+    <textarea id="et-body" rows="10"></textarea>
+    <div class="btn-row" style="margin-top:16px;">
+      <div class="btn btn-gold btn-block" onclick="submitEmailTemplate()">Save Template</div>
+    </div>
+  </div>
+</div>

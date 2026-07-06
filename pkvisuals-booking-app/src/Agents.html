@@ -1,0 +1,19 @@
+<div class="view" id="view-agents">
+  <div class="panel">
+    <div class="btn-row" style="margin-bottom:16px;">
+      <input id="ag-search" placeholder="Search agents..." style="flex:2;" oninput="renderAgentsTable()">
+      <div class="btn btn-gold" onclick="openModal('modal-add-agent')">+ Add Agent</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Agent</th><th>Agency</th><th>Email</th><th>Phone</th><th>Instagram</th>
+            <th>Total Jobs</th><th>Total Revenue</th><th>Last Job</th><th>Active</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="agents-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>

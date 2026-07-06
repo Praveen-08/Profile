@@ -1,0 +1,37 @@
+<div class="view" id="view-reports">
+  <div class="panel">
+    <div class="filters-bar">
+      <select id="rp-preset" onchange="onReportPresetChange()">
+        <option value="thisMonth">This Month</option>
+        <option value="lastMonth">Last Month</option>
+        <option value="thisQuarter">This Quarter</option>
+        <option value="thisFY">This Financial Year</option>
+        <option value="custom">Custom Range</option>
+      </select>
+      <input id="rp-from" type="date" style="display:none;">
+      <input id="rp-to" type="date" style="display:none;">
+      <div class="btn btn-gold" onclick="loadReportsView()">Run Report</div>
+      <div class="btn" onclick="exportReport()">Export CSV</div>
+    </div>
+
+    <div class="cards-grid" id="report-cards"></div>
+
+    <div class="section-title">Revenue by Month</div>
+    <div class="table-wrap"><table><thead><tr><th>Month</th><th>Revenue (incl GST)</th></tr></thead><tbody id="report-by-month"></tbody></table></div>
+
+    <div class="section-title">Revenue by Package</div>
+    <div class="table-wrap"><table><thead><tr><th>Package</th><th>Jobs</th><th>Revenue</th></tr></thead><tbody id="report-by-package"></tbody></table></div>
+
+    <div class="section-title">Revenue by Agent</div>
+    <div class="table-wrap"><table><thead><tr><th>Agent</th><th>Jobs</th><th>Revenue</th></tr></thead><tbody id="report-by-agent"></tbody></table></div>
+
+    <div class="section-title">Revenue by Agency</div>
+    <div class="table-wrap"><table><thead><tr><th>Agency</th><th>Jobs</th><th>Revenue</th></tr></thead><tbody id="report-by-agency"></tbody></table></div>
+
+    <div class="section-title">Outstanding Invoices</div>
+    <div class="table-wrap"><table><thead><tr><th>Job</th><th>Agent</th><th>Due Date</th><th>Balance</th></tr></thead><tbody id="report-outstanding"></tbody></table></div>
+
+    <div class="section-title">Overdue Invoices</div>
+    <div class="table-wrap"><table><thead><tr><th>Job</th><th>Agent</th><th>Due Date</th><th>Balance</th></tr></thead><tbody id="report-overdue"></tbody></table></div>
+  </div>
+</div>

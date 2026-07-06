@@ -1,0 +1,51 @@
+<div class="view" id="view-new-job">
+  <div class="panel" style="max-width:640px;">
+    <h2 style="margin-top:0;">New Job</h2>
+    <div class="hint">Address + Agent + Package + Date/Time. Everything else is pulled automatically.</div>
+
+    <label>Property Address *</label>
+    <input id="nj-address" placeholder="Start typing an address...">
+    <input type="hidden" id="nj-street">
+    <input type="hidden" id="nj-suburb">
+    <input type="hidden" id="nj-city">
+    <input type="hidden" id="nj-postcode">
+    <input type="hidden" id="nj-maps-link">
+
+    <label>Agent *</label>
+    <div class="combo">
+      <input id="nj-agent-search" placeholder="Search agent name or agency..." autocomplete="off">
+      <div class="combo-list" id="nj-agent-list"></div>
+    </div>
+    <input type="hidden" id="nj-agent-id">
+    <div class="pulled-info" id="nj-agent-info" style="display:none;"></div>
+
+    <label>Package *</label>
+    <select id="nj-package"><option value="">Select a package...</option></select>
+    <div class="pulled-info" id="nj-package-info" style="display:none;"></div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="nj-override-toggle" onchange="toggleOverridePrice()">
+      <label style="margin:0;">Override price for this job</label>
+    </div>
+    <input id="nj-override-price" type="number" step="0.01" placeholder="Total incl GST" style="display:none;">
+
+    <div class="field-row">
+      <div>
+        <label>Shoot Date *</label>
+        <input id="nj-date" type="date">
+      </div>
+      <div>
+        <label>Shoot Time *</label>
+        <input id="nj-start-time" type="time" onchange="recalcEndTime()">
+      </div>
+    </div>
+    <label>End Time (auto-calculated, editable)</label>
+    <input id="nj-end-time" type="time">
+
+    <label>Notes (optional)</label>
+    <textarea id="nj-notes" rows="3"></textarea>
+
+    <div class="btn-row" style="margin-top:20px;">
+      <div class="btn btn-gold btn-block" id="nj-submit-btn" onclick="submitNewJob()">Create Job</div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include('Styles'); ?>
+</head>
+<body>
+  <div id="app">
+    <div id="sidebar-scrim" onclick="closeSidebar()"></div>
+    <div id="sidebar">
+      <div class="brand">PK <span>Visuals</span></div>
+      <div class="nav-item" data-view="dashboard"><span class="nav-icon">&#9679;</span> Dashboard</div>
+      <div class="nav-item" data-view="jobs"><span class="nav-icon">&#128193;</span> Jobs</div>
+      <div class="nav-item" data-view="new-job"><span class="nav-icon">&#10133;</span> New Job</div>
+      <div class="nav-item" data-view="agents"><span class="nav-icon">&#128100;</span> Agents</div>
+      <div class="nav-item" data-view="agencies"><span class="nav-icon">&#127970;</span> Agencies</div>
+      <div class="nav-item" data-view="packages"><span class="nav-icon">&#127909;</span> Packages</div>
+      <div class="nav-item" data-view="reports"><span class="nav-icon">&#128202;</span> Reports</div>
+      <div class="nav-item" data-view="settings"><span class="nav-icon">&#9881;</span> Settings</div>
+    </div>
+
+    <div id="main">
+      <div class="topbar">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div id="hamburger" onclick="openSidebar()">&#9776;</div>
+          <div>
+            <h1 id="page-title">Dashboard</h1>
+            <div class="sub" id="page-sub"></div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <div class="btn btn-gold" onclick="navigate('new-job')">+ New Job</div>
+        </div>
+      </div>
+
+      <?!= include('Dashboard'); ?>
+      <?!= include('Jobs'); ?>
+      <?!= include('JobDetail'); ?>
+      <?!= include('NewJob'); ?>
+      <?!= include('Agents'); ?>
+      <?!= include('Agencies'); ?>
+      <?!= include('Packages'); ?>
+      <?!= include('Reports'); ?>
+      <?!= include('Settings'); ?>
+    </div>
+  </div>
+
+  <div id="toast-wrap"></div>
+
+  <!-- Add Agent Modal -->
+  <div class="modal-backdrop" id="modal-add-agent">
+    <div class="modal">
+      <span class="modal-close" onclick="closeModal('modal-add-agent')">&times;</span>
+      <h2>Add New Agent</h2>
+      <label>Agent Name *</label>
+      <input id="na-name" placeholder="Full name">
+      <label>Email *</label>
+      <input id="na-email" type="email" placeholder="agent@agency.co.nz">
+      <label>Phone</label>
+      <input id="na-phone" placeholder="021 000 0000">
+      <label>Agency *</label>
+      <select id="na-agency"></select>
+      <div class="btn btn-sm" style="margin-top:8px;" onclick="openModal('modal-add-agency')">+ Add New Agency</div>
+      <label>Instagram</label>
+      <input id="na-instagram" placeholder="@handle (optional)">
+      <label>Notes</label>
+      <textarea id="na-notes" rows="2"></textarea>
+      <div class="checkbox-row"><input type="checkbox" id="na-active" checked> <label style="margin:0;">Active</label></div>
+      <div class="btn-row" style="margin-top:18px;">
+        <div class="btn btn-gold btn-block" onclick="submitNewAgent()">Save Agent</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Agency Modal -->
+  <div class="modal-backdrop" id="modal-add-agency">
+    <div class="modal">
+      <span class="modal-close" onclick="closeModal('modal-add-agency')">&times;</span>
+      <h2>Add New Agency</h2>
+      <label>Agency Name *</label>
+      <input id="nc-name" placeholder="Agency name">
+      <label>Office Email</label>
+      <input id="nc-email" type="email">
+      <label>Office Phone</label>
+      <input id="nc-phone">
+      <label>Accounts Email</label>
+      <input id="nc-accounts-email">
+      <label>Office Address</label>
+      <input id="nc-address">
+      <label>Notes</label>
+      <textarea id="nc-notes" rows="2"></textarea>
+      <div class="checkbox-row"><input type="checkbox" id="nc-active" checked> <label style="margin:0;">Active</label></div>
+      <div class="btn-row" style="margin-top:18px;">
+        <div class="btn btn-gold btn-block" onclick="submitNewAgency()">Save Agency</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mark Paid Modal -->
+  <div class="modal-backdrop" id="modal-mark-paid">
+    <div class="modal">
+      <span class="modal-close" onclick="closeModal('modal-mark-paid')">&times;</span>
+      <h2>Mark Payment Received</h2>
+      <label>Payment Date</label>
+      <input id="mp-date" type="date">
+      <label>Amount Received ($) *</label>
+      <input id="mp-amount" type="number" step="0.01">
+      <label>Payment Method</label>
+      <select id="mp-method">
+        <option>Bank Transfer</option>
+        <option>Credit Card</option>
+        <option>Cash</option>
+        <option>Other</option>
+      </select>
+      <label>Reference</label>
+      <input id="mp-reference">
+      <label>Notes</label>
+      <textarea id="mp-notes" rows="2"></textarea>
+      <div class="btn-row" style="margin-top:18px;">
+        <div class="btn btn-gold btn-block" onclick="submitMarkPaid()">Save Payment</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Send Delivery Email Modal -->
+  <div class="modal-backdrop" id="modal-delivery">
+    <div class="modal">
+      <span class="modal-close" onclick="closeModal('modal-delivery')">&times;</span>
+      <h2>Send Delivery Email</h2>
+      <label>Delivery Link</label>
+      <select id="dl-choice" onchange="onDeliveryChoiceChange()">
+        <option value="final">Final Delivery folder (default)</option>
+        <option value="main">Main job folder</option>
+        <option value="custom">Custom link</option>
+      </select>
+      <div id="dl-custom-wrap" style="display:none;">
+        <label>Custom Link</label>
+        <input id="dl-custom" placeholder="https://drive.google.com/..." oninput="updateDeliveryPreview()">
+      </div>
+      <div class="pulled-info" id="dl-preview">Preview will appear here.</div>
+      <div class="btn-row" style="margin-top:18px;">
+        <div class="btn btn-gold btn-block" onclick="submitSendDelivery()">Send Delivery Email</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cancel Job Modal -->
+  <div class="modal-backdrop" id="modal-cancel-job">
+    <div class="modal">
+      <span class="modal-close" onclick="closeModal('modal-cancel-job')">&times;</span>
+      <h2>Cancel Job</h2>
+      <label>Reason</label>
+      <textarea id="cj-reason" rows="3"></textarea>
+      <div class="btn-row" style="margin-top:18px;">
+        <div class="btn btn-danger btn-block" onclick="submitCancelJob()">Confirm Cancel</div>
+      </div>
+    </div>
+  </div>
+
+  <?!= include('JavaScript'); ?>
+</body>
+</html>

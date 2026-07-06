@@ -1,0 +1,27 @@
+<div class="view" id="view-jobs">
+  <div class="panel">
+    <div class="filters-bar">
+      <input id="jf-search" placeholder="Search address, agent, job ID...">
+      <input id="jf-from" type="date">
+      <input id="jf-to" type="date">
+      <select id="jf-status"><option value="">All Statuses</option></select>
+      <select id="jf-payment"><option value="">All Payment Status</option></select>
+      <select id="jf-agent"><option value="">All Agents</option></select>
+      <select id="jf-agency"><option value="">All Agencies</option></select>
+      <div class="btn btn-gold" onclick="loadJobsView()">Filter</div>
+      <div class="btn" onclick="resetJobFilters()">Reset</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Job ID</th><th>Shoot Date</th><th>Address</th><th>Agent</th><th>Agency</th>
+            <th>Package</th><th>Status</th><th>Total</th><th>Payment</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="jobs-table-body"></tbody>
+      </table>
+    </div>
+    <div id="jobs-empty" class="empty-state" style="display:none;">No jobs match these filters.</div>
+  </div>
+</div>
