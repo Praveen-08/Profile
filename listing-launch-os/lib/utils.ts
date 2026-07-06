@@ -1,11 +1,8 @@
 import type { CampaignInput } from "./types";
+import { formatFloorArea, formatLandArea } from "./formatCampaignData";
 
 export function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
-}
-
-function withApprox(value: string): string {
-  return /approx/i.test(value) ? value : `approximately ${value}`;
 }
 
 /** Human-readable one-line summary of the facts we actually have, skipping anything not provided. */
@@ -14,8 +11,10 @@ export function propertyFactsList(input: CampaignInput): string[] {
   if (input.bedrooms) facts.push(`${input.bedrooms} bedroom${input.bedrooms === 1 ? "" : "s"}`);
   if (input.bathrooms) facts.push(`${input.bathrooms} bathroom${input.bathrooms === 1 ? "" : "s"}`);
   if (input.garages) facts.push(`${input.garages} car park${input.garages === 1 ? "" : "s"}`);
-  if (input.landSize) facts.push(`${withApprox(input.landSize)} land`);
-  if (input.floorArea) facts.push(`${withApprox(input.floorArea)} floor area`);
+  const land = formatLandArea(input);
+  if (land) facts.push(`${land} land`);
+  const floor = formatFloorArea(input);
+  if (floor) facts.push(`${floor} floor area`);
   return facts;
 }
 

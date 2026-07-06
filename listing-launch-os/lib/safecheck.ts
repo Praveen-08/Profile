@@ -1,6 +1,6 @@
 import type { CampaignInput } from "./types";
 import { sectionMeta } from "./sections";
-import { COMMON_TYPO_FIXES } from "./formatCampaignData";
+import { COMMON_TYPO_FIXES, extractAreaNumber } from "./formatCampaignData";
 
 export type RiskLevel = "low" | "medium" | "high";
 
@@ -248,6 +248,34 @@ function findUnsupportedAmenities(text: string, input: CampaignInput): string[] 
   return Array.from(found);
 }
 
+/**
+ * Flags land/floor area mentioned with exact wording ("450m²", no
+ * "approximately") when the campaign's area wording is "exact" but that
+ * specific figure hasn't been marked verified. Never flags "approximately"
+ * wording — that's always safe regardless of the verified flags.
+ */
+function findUnverifiedExactArea(
+  text: string,
+  input: CampaignInput
+): Array<{ label: string; number: string }> {
+  if ((input.areaWording || "approximate") !== "exact") return [];
+
+  const checks: Array<{ raw?: string; verified?: boolean; label: string }> = [
+    { raw: input.landSize, verified: input.landAreaVerified, label: "land" },
+    { raw: input.floorArea, verified: input.floorAreaVerified, label: "floor" },
+  ];
+
+  const found: Array<{ label: string; number: string }> = [];
+  for (const check of checks) {
+    if (!check.raw || check.verified) continue;
+    const number = extractAreaNumber(check.raw);
+    if (!number) continue;
+    const exactMention = new RegExp(`(?<!approximately\\s)\\b${number}\\s*m²`, "i");
+    if (exactMention.test(text)) found.push({ label: check.label, number });
+  }
+  return found;
+}
+
 function findTypos(text: string): Array<{ typo: string; fix: string }> {
   const found: Array<{ typo: string; fix: string }> = [];
   for (const [typo, fix] of Object.entries(COMMON_TYPO_FIXES)) {
@@ -309,13 +337,25 @@ export function runSafeCheck(outputs: Record<string, string>, input: CampaignInp
     }
 
     for (const m of content.matchAll(MISSING_M2_PATTERN)) {
+      const wording = input.areaWording || "approximate";
       issues.push({
         sectionKey,
         sectionLabel,
         riskLevel: "low",
         issue: `Missing m² unit ("${m[0]}")`,
         reason: "Measurements should use the m² symbol consistently, not \"sqm\" or \"sq m\".",
-        saferAlternative: `approximately ${m[1]}m²`,
+        saferAlternative: wording === "exact" ? `${m[1]}m²` : `approximately ${m[1]}m²`,
+      });
+    }
+
+    for (const { label, number } of findUnverifiedExactArea(content, input)) {
+      issues.push({
+        sectionKey,
+        sectionLabel,
+        riskLevel: "medium",
+        issue: `Exact ${label} area wording without verification ("${number}m²")`,
+        reason: `Area wording is set to "exact" but the ${label} area figure hasn't been marked verified — exact figures should only be used once confirmed.`,
+        saferAlternative: `approximately ${number}m²`,
       });
     }
 

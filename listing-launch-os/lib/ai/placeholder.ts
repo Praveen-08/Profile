@@ -24,8 +24,25 @@ function amenitiesLine(input: CampaignInput): string {
   return input.amenities ? ` Close to ${input.amenities}.` : "";
 }
 
+// Regenerating a section calls generatePlaceholder() again with a fresh
+// seed. generatePlaceholder() is fully synchronous (no `await` inside), so
+// setting this module-level seed at the top of that call and reading it
+// from ctaLine()/hookVariants() during the same call is safe — there's no
+// window for another generatePlaceholder() call to interleave and clobber it.
+let activeSeed = 0;
+
+const DEFAULT_CTA_VARIANTS = [
+  "Contact us today to arrange a viewing.",
+  "Get in touch to arrange a viewing.",
+  "Reach out to book a time to view.",
+];
+
+function pickVariant<T>(variants: T[], seed: number): T {
+  return variants[((seed % variants.length) + variants.length) % variants.length];
+}
+
 function ctaLine(input: CampaignInput): string {
-  return input.cta ? input.cta : "Contact us today to arrange a viewing.";
+  return input.cta ? input.cta : pickVariant(DEFAULT_CTA_VARIANTS, activeSeed);
 }
 
 function agentSignoff(input: CampaignInput): string {
@@ -94,7 +111,7 @@ function hookVariants(input: CampaignInput): string[] {
   const buyerLabel = getBuyerLabel(input);
   const propertyLower = input.propertyType.toLowerCase();
 
-  return [
+  const base = [
     feature0 ? `This ${propertyLower} has ${feature0.toLowerCase()}.` : `Here's what stands out about this ${propertyLower}.`,
     amenity0 ? `Minutes from ${amenity0}, right here in ${input.suburb}.` : `${input.suburb} buyers, this one's for you.`,
     `If you're ${buyerLabel}, you'll want to see this.`,
@@ -108,15 +125,24 @@ function hookVariants(input: CampaignInput): string[] {
     input.renovations ? `This one's had ${input.renovations.split(",")[0].trim().toLowerCase()}.` : `Take a closer look inside.`,
     `Here's why this ${input.suburb} ${propertyLower} is turning heads.`,
   ];
+
+  // Rotate so regenerating shifts which hook leads (and which fills each
+  // fixed index used elsewhere), instead of returning the exact same list.
+  const rotate = ((activeSeed % base.length) + base.length) % base.length;
+  return [...base.slice(rotate), ...base.slice(0, rotate)];
 }
 
 const PLACEHOLDER_GENERATORS: Record<string, (input: CampaignInput) => string> = {
   // ---------------------------------------------------------------- Portal Copy
   premium_description: (i) => {
     const fragments = descriptorFragments(i);
-    const opener = `Set in a convenient ${i.suburb} location, ${i.address} offers ${getBuyerAngle(i)}${
-      fragments.length ? ` with ${fragments.join(", ")}` : ""
-    }.`;
+    const fragmentSuffix = fragments.length ? ` with ${fragments.join(", ")}` : "";
+    const openers = [
+      `Set in a convenient ${i.suburb} location, ${i.address} offers ${getBuyerAngle(i)}${fragmentSuffix}.`,
+      `${i.address} in ${i.suburb} offers ${getBuyerAngle(i)}${fragmentSuffix}.`,
+      `Well positioned in ${i.suburb}, ${i.address} presents ${getBuyerAngle(i)}${fragmentSuffix}.`,
+    ];
+    const opener = pickVariant(openers, activeSeed);
     const body = [featuresLine(i).trim(), renovationsLine(i).trim(), amenitiesLine(i).trim()].filter(Boolean).join(" ");
     return [opener, body, ctaLine(i)].filter(Boolean).join("\n\n") + `\n\n— ${agentSignoff(i)}${agentContactLine(i)}`;
   },
@@ -441,11 +467,12 @@ const PLACEHOLDER_GENERATORS: Record<string, (input: CampaignInput) => string> =
     ].join("\n"),
 };
 
-export function generatePlaceholder(sectionKey: string, rawInput: CampaignInput): string {
+export function generatePlaceholder(sectionKey: string, rawInput: CampaignInput, seed: number = Date.now()): string {
   const input = normalizeCampaignInput(rawInput);
   const generator = PLACEHOLDER_GENERATORS[sectionKey];
   if (!generator) {
     return `[Placeholder content for "${sectionKey}" — no template defined yet.]`;
   }
+  activeSeed = seed;
   return applyWordsToAvoid(generator(input), input.wordsToAvoid);
 }

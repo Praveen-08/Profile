@@ -79,6 +79,11 @@ create table if not exists public.campaigns (
   agent_phone text,
   agent_email text,
 
+  -- area wording preference: 'approximate' | 'exact' | 'hide_if_unsure'
+  area_wording text not null default 'approximate',
+  land_area_verified boolean not null default false,
+  floor_area_verified boolean not null default false,
+
   status text not null default 'draft', -- draft | generated | archived
 
   created_at timestamptz not null default now(),
@@ -98,6 +103,9 @@ alter table public.campaigns add column if not exists words_to_avoid text;
 alter table public.campaigns add column if not exists open_home_date_time text;
 alter table public.campaigns add column if not exists agent_phone text;
 alter table public.campaigns add column if not exists agent_email text;
+alter table public.campaigns add column if not exists area_wording text not null default 'approximate';
+alter table public.campaigns add column if not exists land_area_verified boolean not null default false;
+alter table public.campaigns add column if not exists floor_area_verified boolean not null default false;
 
 -- ---------------------------------------------------------------------------
 -- campaign_outputs: one row per generated section, keyed by section_key

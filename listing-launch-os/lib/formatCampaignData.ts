@@ -1,4 +1,4 @@
-import type { CampaignInput } from "./types";
+import { DEFAULT_AREA_WORDING, type AreaWording, type CampaignInput } from "./types";
 
 /**
  * Normalises raw agent-entered text before it's used for generation or
@@ -71,13 +71,45 @@ export function cleanExtraSpaces(text: string): string {
   return text.replace(/[ \t]{2,}/g, " ").replace(/\s+([,.])/g, "$1").trim();
 }
 
-/** Formats a raw measurement ("450", "450m2", "approx 450 sqm") as "approximately 450m²". */
-export function formatMeasurement(raw?: string): string | undefined {
+/** Extracts the plain numeric figure from a raw measurement ("450", "450m2", "approx 450 sqm") -> "450". */
+export function extractAreaNumber(raw?: string): string | undefined {
   if (!raw) return undefined;
   const match = raw.match(/([\d,]+(?:\.\d+)?)/);
-  if (!match) return cleanExtraSpaces(raw);
-  const number = match[1];
+  return match ? match[1] : undefined;
+}
+
+/** Normalises a raw measurement to a bare "450m²" — no wording opinion (see formatArea for that). */
+export function formatMeasurement(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  const number = extractAreaNumber(raw);
+  if (!number) return cleanExtraSpaces(raw);
+  return `${number}m²`;
+}
+
+/**
+ * Formats a land/floor area figure for use in generated copy, respecting
+ * the campaign's area wording preference:
+ * - "approximate": "approximately 450m²"
+ * - "exact": "450m²"
+ * - "hide_if_unsure": only returned if `verified` is true (otherwise
+ *   undefined, so callers omit the area from copy entirely)
+ * Never invents a figure — returns undefined if none was supplied.
+ */
+export function formatArea(raw: string | undefined, wording: AreaWording, verified: boolean): string | undefined {
+  const number = extractAreaNumber(raw);
+  if (!number) return undefined;
+  if (wording === "hide_if_unsure") return verified ? `${number}m²` : undefined;
+  if (wording === "exact") return `${number}m²`;
   return `approximately ${number}m²`;
+}
+
+/** Convenience wrapper that reads areaWording/verified straight off a CampaignInput. */
+export function formatLandArea(input: CampaignInput): string | undefined {
+  return formatArea(input.landSize, input.areaWording || DEFAULT_AREA_WORDING, !!input.landAreaVerified);
+}
+
+export function formatFloorArea(input: CampaignInput): string | undefined {
+  return formatArea(input.floorArea, input.areaWording || DEFAULT_AREA_WORDING, !!input.floorAreaVerified);
 }
 
 const DAY_NAMES: Record<string, string> = {

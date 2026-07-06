@@ -67,6 +67,22 @@ export const OWNERSHIP_TYPE_LABELS: Record<OwnershipType, string> = {
   unknown: "Unknown",
 };
 
+/**
+ * Controls how land/floor area is worded in generated copy. "exact" should
+ * only be used once the figure is verified (see landAreaVerified /
+ * floorAreaVerified) — SafeCheck flags exact wording that isn't backed by a
+ * verified figure.
+ */
+export type AreaWording = "approximate" | "exact" | "hide_if_unsure";
+
+export const AREA_WORDING_LABELS: Record<AreaWording, string> = {
+  approximate: "Approximate",
+  exact: "Exact",
+  hide_if_unsure: "Hide land/floor area if unsure",
+};
+
+export const DEFAULT_AREA_WORDING: AreaWording = "approximate";
+
 export interface PropertyDetails {
   address: string;
   suburb: string;
@@ -99,6 +115,12 @@ export interface CampaignInput extends PropertyDetails {
   openHomeDateTime?: string;
   agentPhone?: string;
   agentEmail?: string;
+
+  // Area wording preference — controls whether land/floor area is worded as
+  // approximate, exact, or hidden entirely when unverified.
+  areaWording?: AreaWording;
+  landAreaVerified?: boolean;
+  floorAreaVerified?: boolean;
 }
 
 export interface Campaign extends CampaignInput {
@@ -165,6 +187,9 @@ export interface CampaignRow {
   open_home_date_time: string | null;
   agent_phone: string | null;
   agent_email: string | null;
+  area_wording: AreaWording | null;
+  land_area_verified: boolean | null;
+  floor_area_verified: boolean | null;
   status: "draft" | "generated" | "archived";
   created_at: string;
   updated_at: string;
@@ -540,6 +565,9 @@ export function campaignFromRow(row: CampaignRow): Campaign {
     openHomeDateTime: row.open_home_date_time ?? undefined,
     agentPhone: row.agent_phone ?? undefined,
     agentEmail: row.agent_email ?? undefined,
+    areaWording: row.area_wording ?? DEFAULT_AREA_WORDING,
+    landAreaVerified: row.land_area_verified ?? false,
+    floorAreaVerified: row.floor_area_verified ?? false,
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

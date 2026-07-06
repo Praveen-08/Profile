@@ -26,6 +26,7 @@ export function OutputSection({
   const [regenerating, setRegenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!editing) setDraft(content);
@@ -34,19 +35,29 @@ export function OutputSection({
   async function handleRegenerate() {
     setRegenerating(true);
     setError(null);
+    setStatusMessage("Regenerating…");
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ campaignId, sections: [sectionKey] }),
       });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || "Regeneration failed.");
-      const newContent = body.outputs?.[sectionKey] ?? content;
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.error || `Regeneration failed with status ${res.status}.`);
+      }
+      const newContent = body.outputs?.[sectionKey];
+      if (newContent === undefined) {
+        throw new Error("Regeneration returned no content for this section.");
+      }
       onContentChange(newContent);
       setDraft(newContent);
+      setStatusMessage("Section regenerated and saved");
+      setTimeout(() => setStatusMessage((current) => (current === "Section regenerated and saved" ? null : current)), 4000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Regeneration failed.");
+      const message = err instanceof Error ? err.message : String(err);
+      setError(`Regenerate failed: ${message}`);
+      setStatusMessage(null);
     } finally {
       setRegenerating(false);
     }
@@ -88,7 +99,15 @@ export function OutputSection({
               {saving ? "Saving…" : "Save"}
             </Button>
           ) : (
-            <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setError(null);
+                setStatusMessage(null);
+                setEditing(true);
+              }}
+            >
               Edit
             </Button>
           )}
@@ -106,7 +125,11 @@ export function OutputSection({
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink/80">{content}</p>
       )}
 
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {error ? (
+        <p className="mt-2 text-xs text-red-600">{error}</p>
+      ) : (
+        statusMessage && <p className="mt-2 text-xs text-emerald-600">{statusMessage}</p>
+      )}
     </Card>
   );
 }

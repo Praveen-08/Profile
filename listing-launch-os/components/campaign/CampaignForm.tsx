@@ -7,10 +7,13 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { createClient } from "@/lib/supabase/client";
 import {
+  AREA_WORDING_LABELS,
+  DEFAULT_AREA_WORDING,
   OWNERSHIP_TYPE_LABELS,
   SALE_METHOD_LABELS,
   TARGET_BUYER_LABELS,
   TONE_LABELS,
+  type AreaWording,
   type CampaignInput,
   type OwnershipType,
   type SaleMethod,
@@ -71,6 +74,9 @@ export function CampaignForm({ defaults }: { defaults: CampaignFormDefaults }) {
     openHomeDateTime: "",
     agentPhone: defaults.agentPhone || "",
     agentEmail: defaults.agentEmail || "",
+    areaWording: DEFAULT_AREA_WORDING,
+    landAreaVerified: false,
+    floorAreaVerified: false,
   });
 
   function update<K extends keyof CampaignInput>(key: K, value: CampaignInput[K]) {
@@ -123,6 +129,9 @@ export function CampaignForm({ defaults }: { defaults: CampaignFormDefaults }) {
         open_home_date_time: form.openHomeDateTime || null,
         agent_phone: form.agentPhone || null,
         agent_email: form.agentEmail || null,
+        area_wording: form.areaWording || DEFAULT_AREA_WORDING,
+        land_area_verified: !!form.landAreaVerified,
+        floor_area_verified: !!form.floorAreaVerified,
       })
       .select()
       .single();
@@ -210,7 +219,7 @@ export function CampaignForm({ defaults }: { defaults: CampaignFormDefaults }) {
           </div>
           <Input
             label="Land size"
-            hint="e.g. 450m² — we'll add 'approximately' automatically"
+            hint="e.g. 450m² — wording (approximate/exact) is set below"
             value={form.landSize}
             onChange={(e) => update("landSize", e.target.value)}
             placeholder="450m²"
@@ -223,6 +232,50 @@ export function CampaignForm({ defaults }: { defaults: CampaignFormDefaults }) {
             placeholder="180m²"
           />
         </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Select
+              label="Area wording"
+              value={form.areaWording || DEFAULT_AREA_WORDING}
+              onChange={(e) => update("areaWording", e.target.value as AreaWording)}
+            >
+              {Object.entries(AREA_WORDING_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+            <span className="mt-1 block text-xs text-ink/50">
+              Use approximate if figures are not confirmed. Use exact only when verified.
+            </span>
+          </div>
+          <div className="flex flex-col justify-center gap-2">
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={!!form.landAreaVerified}
+                onChange={(e) => update("landAreaVerified", e.target.checked)}
+                className="h-4 w-4 rounded border-ink/30 text-gold focus:ring-gold"
+              />
+              Land area verified
+            </label>
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={!!form.floorAreaVerified}
+                onChange={(e) => update("floorAreaVerified", e.target.checked)}
+                className="h-4 w-4 rounded border-ink/30 text-gold focus:ring-gold"
+              />
+              Floor area verified
+            </label>
+          </div>
+        </div>
+        {form.areaWording === "exact" &&
+          ((!!form.landSize && !form.landAreaVerified) || (!!form.floorArea && !form.floorAreaVerified)) && (
+            <p className="text-xs text-amber-600">Use exact area only if verified.</p>
+          )}
+
         <Textarea
           label="Key features"
           hint="Comma-separated — only what's true. Nothing here won't be invented elsewhere."

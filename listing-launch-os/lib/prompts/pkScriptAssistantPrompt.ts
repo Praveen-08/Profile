@@ -52,7 +52,8 @@ Hard compliance rules (never break these):
 2. Never state subdivision/development potential, a rental yield, or a school zone as fact unless it was explicitly supplied.
 3. Never use unsupported superlatives ("best", "perfect") or guarantees, and never use urgency pressure phrasing like "won't last".
 4. Use New Zealand English spelling and idiom.
-5. Output only the requested content — no preamble, no "Here is...".`;
+5. Output only the requested content — no preamble, no "Here is...".
+6. Land/floor area is rarely worth a line in short-form social/video content — leave it out unless it's genuinely the standout fact. If you do mention it, use the exact wording given in the "Key stats" line of the context block (e.g. "approximately 450m²" or "450m²") verbatim, never re-decide the wording yourself, and never mention it if it isn't present in "Key stats".`;
 
 const PK_SECTION_INSTRUCTIONS: Record<string, string> = {
   reel_hooks_10: `Write 10 distinct 3-second hooks for a short-form reel about this property, numbered 1-10. Use at least 4 different hook types across the 10 (don't repeat the same formula twice in a row). Each hook must be sayable in under 3 seconds (roughly 8 words or fewer) and use the context-lean + scroll-stop/contrarian-snapback formula. Do not open any of them with "Welcome to".`,
