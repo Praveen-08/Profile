@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+storage/app.db
+storage/uploads/*
+storage/processed/*
+storage/thumbnails/*
+!storage/uploads/.gitkeep
+!storage/processed/.gitkeep
+!storage/thumbnails/.gitkeep
+.env

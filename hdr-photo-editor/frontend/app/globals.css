@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --muted: 210 16% 93%;
+  --muted-foreground: 215 16% 40%;
+  --primary: 222 47% 11%;
+  --primary-foreground: 210 20% 98%;
+  --accent: 221 83% 53%;
+  --accent-foreground: 210 20% 98%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 210 20% 98%;
+  --border: 214 15% 88%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: 222 47% 8%;
+    --foreground: 210 20% 96%;
+    --card: 222 40% 12%;
+    --card-foreground: 210 20% 96%;
+    --muted: 222 30% 16%;
+    --muted-foreground: 215 16% 65%;
+    --primary: 210 20% 96%;
+    --primary-foreground: 222 47% 11%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 63% 45%;
+    --destructive-foreground: 210 20% 96%;
+    --border: 222 25% 22%;
+  }
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.drag-over {
+  outline: 2px dashed hsl(var(--accent));
+  outline-offset: 2px;
+}
