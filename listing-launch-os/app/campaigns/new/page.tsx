@@ -2,8 +2,13 @@ import { AppNav } from "@/components/app/AppNav";
 import { CampaignForm } from "@/components/campaign/CampaignForm";
 import { CampaignLimitPrompt } from "@/components/plans/CampaignLimitPrompt";
 import { createClient } from "@/lib/supabase/server";
-import { hasReachedCampaignLimit } from "@/lib/plans";
+import { getCampaignUsage } from "@/lib/campaignUsage";
 import type { Tone } from "@/lib/types";
+
+// Plan usage is gated by live Supabase data, never a cached/static render —
+// this must be re-checked on every visit.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function NewCampaignPage() {
   const supabase = createClient();
@@ -11,13 +16,13 @@ export default async function NewCampaignPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: brandVoice }, { count: campaignCount }] = await Promise.all([
+  const [{ data: profile }, { data: brandVoice }, usage] = await Promise.all([
     supabase.from("user_profiles").select("*").eq("user_id", user?.id).maybeSingle(),
     supabase.from("brand_voice_settings").select("*").eq("user_id", user?.id).maybeSingle(),
-    supabase.from("campaigns").select("id", { count: "exact", head: true }).eq("user_id", user?.id ?? ""),
+    user ? getCampaignUsage(supabase, user.id) : Promise.resolve(null),
   ]);
 
-  const limitReached = hasReachedCampaignLimit(profile?.plan, campaignCount ?? 0);
+  const limitReached = usage?.limitReached ?? false;
 
   return (
     <>

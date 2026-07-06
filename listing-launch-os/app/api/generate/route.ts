@@ -1,8 +1,12 @@
 import { generateSections } from "@/lib/ai/generate";
 import { SECTION_KEYS } from "@/lib/sections";
 import { createClient } from "@/lib/supabase/server";
+import { getCampaignUsage } from "@/lib/campaignUsage";
 import { campaignFromRow, type CampaignRow } from "@/lib/types";
 import { NextResponse } from "next/server";
+
+const FREE_LIMIT_MESSAGE =
+  "You've used your free campaign. Upgrade to Starter to create up to 5 campaigns per month, or Pro to unlock meeting playbooks, vendor updates, open-home debriefs, and buyer follow-ups.";
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -33,6 +37,16 @@ export async function POST(request: Request) {
 
   if (fetchError || !row) {
     return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
+  }
+
+  // Server-side enforcement (defense in depth) — the new-campaign page only
+  // gates the form at render time, so this closes the gap if a stale page,
+  // a second tab, or a direct API call tries to generate for a campaign
+  // beyond the plan's limit. Excludes this campaignId so retrying/regenerating
+  // the user's own already-counted campaign is never blocked.
+  const usage = await getCampaignUsage(supabase, user.id, { excludeCampaignId: campaignId });
+  if (usage.limitReached) {
+    return NextResponse.json({ error: FREE_LIMIT_MESSAGE, code: "FREE_LIMIT_REACHED" }, { status: 403 });
   }
 
   const campaign = campaignFromRow(row as CampaignRow);

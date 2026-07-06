@@ -141,6 +141,11 @@ export function CampaignForm({ defaults }: { defaults: CampaignFormDefaults }) {
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
+      if (body.code === "FREE_LIMIT_REACHED") {
+        // Show the full upgrade prompt rather than a generic inline error.
+        router.push("/campaigns/new");
+        return;
+      }
       setError(body.error || "Campaign was created but generation failed. You can retry from the campaign page.");
       router.push(`/campaigns/${campaign.id}?generated=failed`);
       return;

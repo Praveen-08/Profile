@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { createClient } from "@/lib/supabase/server";
 import { getPlan, planHasModule } from "@/lib/plans";
+import { getCampaignUsage } from "@/lib/campaignUsage";
 import {
   campaignFromRow,
   MEETING_TYPE_LABELS,
@@ -17,6 +18,7 @@ import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 interface VendorUpdatePreviewRow {
   id: string;
@@ -56,11 +58,11 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: profileRow } = user
-    ? await supabase.from("user_profiles").select("plan").eq("user_id", user.id).maybeSingle()
-    : { data: null };
-
-  const plan = getPlan(profileRow?.plan);
+  // Plan usage is read fresh from Supabase on every request — never cached
+  // or stored client-side — so it's always accurate after creating/generating
+  // a campaign.
+  const usage = user ? await getCampaignUsage(supabase, user.id) : null;
+  const plan = usage?.plan ?? getPlan(undefined);
   const hasMeetingPlaybookAccess = planHasModule(plan.id, "meeting_playbook");
   const hasVendorUpdateAccess = planHasModule(plan.id, "vendor_update_report");
 
@@ -95,7 +97,8 @@ export default async function DashboardPage() {
   const campaigns = ((campaignRows as CampaignRow[]) || []).map(campaignFromRow);
   const vendorUpdates = (vendorUpdateRows as VendorUpdatePreviewRow[]) || [];
 
-  const freeCampaignUsed = plan.id === "free" && campaigns.length >= plan.campaignLimit;
+  const campaignsUsed = usage?.count ?? campaigns.length;
+  const freeCampaignUsed = plan.id === "free" && (usage?.limitReached ?? false);
 
   const MODULES = [
     { title: "Win the Listing", href: "/meeting-playbooks", locked: !hasMeetingPlaybookAccess, body: "Meeting playbooks, vendor questions, and marketing package recommendations." },
@@ -108,12 +111,13 @@ export default async function DashboardPage() {
       <AppNav active="dashboard" />
       <main className="mx-auto max-w-6xl px-6 py-10">
         <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="text-sm text-ink/60">Current plan:</span>
             <Badge>{plan.name}</Badge>
             {plan.id === "free" && (
               <span className="text-sm text-ink/60">
-                {freeCampaignUsed ? "Free campaign used — upgrade to continue" : "1 free campaign included"}
+                Free plan: {plan.campaignLimit} campaign included · Used: {campaignsUsed} / {plan.campaignLimit}
+                {freeCampaignUsed ? " · Upgrade to continue" : ""}
               </span>
             )}
           </div>
