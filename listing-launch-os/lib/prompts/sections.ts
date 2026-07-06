@@ -21,8 +21,8 @@ const SECTION_INSTRUCTIONS: Record<string, string> = {
   buyer_summary: `Write a short paragraph (40-60 words) explicitly framed around who this property suits and why, using the buyer framing guidance provided (not just the raw buyer selection). End with the CTA.`,
 
   // ---------------------------------------------------------------- Social Posts
-  instagram_caption: `Write an Instagram caption for this listing. Punchy opening line, 3-5 short lines of body copy, a clear CTA, and 6-10 relevant NZ real estate hashtags (mix of suburb, property type, and general real estate tags) on a final line. Visual and concise — this is the shortest, punchiest platform.`,
-
+  // instagram_caption and story_sequence are handled by lib/prompts/pkScriptAssistantPrompt.ts
+  // (PK Script Assistant style) — see PK_SECTION_KEYS in lib/ai/generate.ts.
   facebook_caption: `Write a Facebook post caption for this listing. Slightly longer, warmer, and more informative than Instagram (60-100 words), friendly tone, ends with a clear CTA. No hashtags needed (max 2-3 if natural).`,
 
   linkedin_caption: `Write a LinkedIn post caption announcing this listing, framed for a professional, market-facing network (other agents, local business owners, investors where relevant). 50-90 words, confident and professional, ends with a CTA.`,
@@ -31,28 +31,15 @@ const SECTION_INSTRUCTIONS: Record<string, string> = {
 
   just_listed_post: `Write a "just listed" announcement post for this property. Exciting but professional tone, clearly signals it's a new listing, highlights the standout feature, ends with a CTA to view or enquire.`,
 
-  story_sequence: `Write a short slide-by-slide Instagram/Facebook Story sequence for this listing (4-6 slides). Each slide is one short line of text only (a few words), labelled "Slide 1", "Slide 2", etc. Build from a hook to a CTA.`,
-
   hashtags: `Write a single line of 8-10 relevant NZ real estate hashtags for this listing (suburb, property type, general real estate tags), space-separated, each starting with #.`,
 
   cta_options: `Write 5 alternative call-to-action lines the agent can choose between for this campaign (for use across social posts, emails, or listing copy). Keep each under 12 words. If a preferred CTA was supplied, include a polished version of it as option 1.`,
 
   // ---------------------------------------------------------------- Reels & Video
-  reel_hooks_10: `Write 10 short, distinct opening hooks specifically for reels/short-form video (each one sentence, under 12 words), numbered 1-10. Vary the angle across all 10 (curiosity, lifestyle, feature-led, question, bold statement, buyer-fit, location-led) — no two should follow the same structure, and avoid starting more than one with "Welcome to".`,
-
-  reel_scripts: `Write 3 short property reel scripts, each designed to run under 30 seconds when read aloud. Label them "Script 1", "Script 2", "Script 3", each with a distinct angle (walkthrough, lifestyle/emotional, feature highlight). For each script, include four labelled lines: "Hook:", "Visual:" (camera/shot direction), "Voiceover/on-screen:" (the spoken or overlay line), and "CTA:". Avoid every script opening with "Welcome to" — only use that once at most across the three.`,
-
-  reel_onscreen_text: `Write the on-screen text overlays for a property reel (short punchy phrases, one per screen, 3-8 words each). Provide 8-10 overlay lines in the order they'd appear across a walkthrough video, from opening hook to closing CTA.`,
-
-  voiceover_script: `Write a single continuous voiceover script for a property walkthrough video, timed for approximately 45-60 seconds when read aloud. Warm, professional narration style. End on the CTA.`,
-
-  shot_list: `Write a practical shot list for filming this property's marketing video/reel, as a numbered list. Include exterior establishing shots, key interior rooms/features mentioned, and a closing shot suggestion. 8-14 items. Keep each item to one short line (shot description only, no camera jargon overload).`,
-
-  agent_presenter_script: `Write a short to-camera presenter script for the agent to read while filming themselves in front of or inside the property (not a voiceover-over-b-roll script). Open with the agent introducing themselves and the address, mention 1-2 standout features, and close with a personal invitation to view. Warm, conversational, ~100-130 words.`,
-
-  silent_reel_version: `Write a "silent reel" version of this property video: a sequence of 5-6 short on-screen caption lines designed to tell the full story to someone watching with the sound off, ordered from introduction to CTA. Each line should be able to stand alone as a caption.`,
-
-  thumbnail_text_options: `Write 4 short thumbnail text options for this property's video content (2-4 words each, all-caps style), numbered 1-4. Punchy and scannable, not full sentences.`,
+  // reel_hooks_10, reel_scripts, reel_onscreen_text, voiceover_script, shot_list,
+  // agent_presenter_script, silent_reel_version, and thumbnail_text_options are
+  // handled by lib/prompts/pkScriptAssistantPrompt.ts (PK Script Assistant style)
+  // — see PK_SECTION_KEYS in lib/ai/generate.ts.
 
   // ---------------------------------------------------------------- Open Home
   open_home_post: `Write a social post announcing an upcoming open home for this property. Friendly, inviting tone, clear mention that it's an open home, and a CTA to attend or message for a private viewing. If an open home date/time was supplied, state it clearly and exactly as given. If not, refer to it generally as "this weekend's open home" — do not invent a specific date or time.`,

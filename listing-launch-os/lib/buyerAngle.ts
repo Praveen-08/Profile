@@ -43,5 +43,6 @@ export function getBuyerAngle(input: CampaignInput): string {
 /** Short plural label for use in phrases like "well suited to ___ buyers." */
 export function getBuyerLabel(input: CampaignInput): string {
   if (isUnsupportedFamilyAngle(input)) return BLENDED_STARTER_LABEL;
-  return `${TARGET_BUYER_LABELS[input.targetBuyer].toLowerCase()} buyers`;
+  const label = TARGET_BUYER_LABELS[input.targetBuyer].toLowerCase();
+  return label.endsWith("buyer") ? `${label}s` : `${label} buyers`;
 }

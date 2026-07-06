@@ -2,6 +2,7 @@ import { OWNERSHIP_TYPE_LABELS, SALE_METHOD_LABELS, type CampaignInput } from ".
 import { propertyFactsList } from "../utils";
 import { getBuyerAngle, getBuyerLabel } from "../buyerAngle";
 import { normalizeCampaignInput } from "../formatCampaignData";
+import { pickHookAngle } from "../hookAngle";
 
 /**
  * Free, deterministic, template-based generator used when AI_MODE=placeholder.
@@ -78,6 +79,37 @@ function applyWordsToAvoid(text: string, wordsToAvoid?: string): string {
   return result.replace(/[ \t]{2,}/g, " ").replace(/ +([.,!?])/g, "$1");
 }
 
+/**
+ * 10 varied, PK Script Assistant-style hook lines (short-form video/social
+ * hooks, not brochure copy) — never "Welcome to...", never invents facts,
+ * spans several hook types (feature, location, buyer-insight, ownership,
+ * curiosity/question) so placeholder mode isn't repetitive.
+ */
+function hookVariants(input: CampaignInput): string[] {
+  const facts = propertyFactsList(input);
+  const fact0 = facts[0];
+  const feature0 = input.keyFeatures ? input.keyFeatures.split(",")[0].trim() : null;
+  const amenity0 = input.amenities ? input.amenities.split(",")[0].trim() : null;
+  const ownership = ownershipPhrase(input);
+  const buyerLabel = getBuyerLabel(input);
+  const propertyLower = input.propertyType.toLowerCase();
+
+  return [
+    feature0 ? `This ${propertyLower} has ${feature0.toLowerCase()}.` : `Here's what stands out about this ${propertyLower}.`,
+    amenity0 ? `Minutes from ${amenity0}, right here in ${input.suburb}.` : `${input.suburb} buyers, this one's for you.`,
+    `If you're ${buyerLabel}, you'll want to see this.`,
+    ownership ? `A ${ownership} ${propertyLower} in ${input.suburb}.` : `Not every ${propertyLower} in ${input.suburb} looks like this.`,
+    fact0 ? `${fact0.charAt(0).toUpperCase()}${fact0.slice(1)} — in ${input.suburb}.` : `Here's what ${input.suburb} living looks like.`,
+    `Still scrolling past ${input.suburb} listings? Watch this one.`,
+    input.targetBuyer === "investor"
+      ? `The numbers on this ${input.suburb} ${propertyLower} are worth a look.`
+      : `Three things buyers keep asking about this one.`,
+    amenity0 ? `Close to ${amenity0} and still feels like home.` : `Location does a lot of the talking here.`,
+    input.renovations ? `This one's had ${input.renovations.split(",")[0].trim().toLowerCase()}.` : `Take a closer look inside.`,
+    `Here's why this ${input.suburb} ${propertyLower} is turning heads.`,
+  ];
+}
+
 const PLACEHOLDER_GENERATORS: Record<string, (input: CampaignInput) => string> = {
   // ---------------------------------------------------------------- Portal Copy
   premium_description: (i) => {
@@ -143,7 +175,7 @@ const PLACEHOLDER_GENERATORS: Record<string, (input: CampaignInput) => string> =
 
   // ---------------------------------------------------------------- Social Posts
   instagram_caption: (i) =>
-    `New listing in ${i.suburb} ✨\n${propertyFactsList(i).slice(0, 2).join(" · ") || "space to suit your lifestyle"}${
+    `${hookVariants(i)[0]}\n${propertyFactsList(i).slice(0, 2).join(" · ") || "space to suit your lifestyle"}${
       i.keyFeatures ? `\n${i.keyFeatures}` : ""
     }\n\n${ctaLine(i)}\n\n#${i.suburb.replace(/\s+/g, "")} #NZRealEstate #${i.propertyType.replace(/\s+/g, "")} #JustListed #PropertyNZ #NZHomes #RealEstateNZ`,
 
@@ -173,7 +205,7 @@ const PLACEHOLDER_GENERATORS: Record<string, (input: CampaignInput) => string> =
 
   story_sequence: (i) =>
     [
-      "Slide 1: New listing 👀",
+      `Slide 1: ${hookVariants(i)[1]}`,
       `Slide 2: ${i.address}, ${i.suburb}`,
       `Slide 3: ${propertyFactsList(i)[0] || i.propertyType}`,
       i.keyFeatures ? `Slide 4: ${i.keyFeatures.split(",")[0].trim()}` : `Slide 4: ${i.propertyType} living`,
@@ -204,36 +236,28 @@ const PLACEHOLDER_GENERATORS: Record<string, (input: CampaignInput) => string> =
     ].join("\n"),
 
   // ---------------------------------------------------------------- Reels & Video
-  reel_hooks_10: (i) => {
-    const facts = propertyFactsList(i);
-    return [
-      `1. Here's what ${facts[0] || "this listing"} looks like in ${i.suburb}.`,
-      `2. Thinking about ${i.suburb}? Watch this first.`,
-      `3. ${i.propertyType} shopping in ${i.suburb} — this one's worth a look.`,
-      `4. ${ownershipPhrase(i) ? `A ${ownershipPhrase(i)} ${i.propertyType.toLowerCase()} just listed.` : "Just listed — take a look inside."}`,
-      `5. ${facts[0] ? `${facts[0].charAt(0).toUpperCase()}${facts[0].slice(1)} in ${i.suburb}.` : `Inside this ${i.suburb} ${i.propertyType.toLowerCase()}.`}`,
-      `6. What ${getBuyerLabel(i)} are searching for, right here in ${i.suburb}.`,
-      `7. Three things buyers love about this one.`,
-      `8. Come see why ${i.suburb} keeps coming up in buyer searches.`,
-      `9. ${i.amenities ? `Minutes from ${i.amenities.split(",")[0].trim()}.` : `Well placed in ${i.suburb}.`}`,
-      `10. ${ctaLine(i)}`,
-    ].join("\n");
-  },
+  reel_hooks_10: (i) => hookVariants(i).map((hook, idx) => `${idx + 1}. ${hook}`).join("\n"),
 
-  reel_scripts: (i) =>
-    `Script 1 — Walkthrough\nHook: Here's what ${propertyFactsList(i)[0] || "this home"} looks like in ${i.suburb}.\nVisual: Slow walkthrough from entry to living area.\nVoiceover/on-screen: ${
-      i.keyFeatures || `A well laid out ${i.propertyType.toLowerCase()}`
-    }.\nCTA: ${ctaLine(i)}\n\n` +
-    `Script 2 — Lifestyle\nHook: This is what everyday life could look like in ${i.suburb}.\nVisual: Cut between interior spaces and nearby amenities.\nVoiceover/on-screen: ${
-      i.amenities ? `Close to ${i.amenities}.` : `Everyday convenience in a well-placed location.`
-    }\nCTA: ${ctaLine(i)}\n\n` +
-    `Script 3 — Feature highlight\nHook: One thing buyers keep asking about.\nVisual: Close-up on the standout feature.\nVoiceover/on-screen: ${
-      i.keyFeatures ? i.keyFeatures : `This ${i.propertyType.toLowerCase()} has plenty to offer.`
-    }\nCTA: ${ctaLine(i)}`,
+  reel_scripts: (i) => {
+    const hooks = hookVariants(i);
+    const fact0 = propertyFactsList(i)[0];
+    const feature = i.keyFeatures || `a well laid out ${i.propertyType.toLowerCase()}`;
+    return [
+      `Script 1\nHook: ${hooks[0]}\nMiddle: ${feature}.${
+        fact0 ? ` ${fact0.charAt(0).toUpperCase()}${fact0.slice(1)}.` : ""
+      }\nCTA: ${ctaLine(i)}`,
+      `Script 2\nHook: ${hooks[1]}\nMiddle: ${
+        i.amenities ? `Everyday life here means being close to ${i.amenities}.` : `Everyday convenience in a well-placed location.`
+      }${i.renovations ? ` It's also had ${i.renovations.toLowerCase()}.` : ""}\nCTA: ${ctaLine(i)}`,
+      `Script 3\nHook: ${hooks[6]}\nMiddle: ${
+        i.keyFeatures ? `Buyers keep asking about ${i.keyFeatures.toLowerCase()}.` : `This ${i.propertyType.toLowerCase()} has plenty to offer.`
+      }\nCTA: ${ctaLine(i)}`,
+    ].join("\n\n");
+  },
 
   reel_onscreen_text: (i) =>
     [
-      `${i.suburb} living`,
+      hookVariants(i)[0],
       `${i.propertyType}`,
       propertyFactsList(i)[0] || "Well placed",
       i.keyFeatures ? i.keyFeatures.split(",")[0].trim() : "Thoughtfully laid out",
@@ -244,13 +268,11 @@ const PLACEHOLDER_GENERATORS: Record<string, (input: CampaignInput) => string> =
     ].join("\n"),
 
   voiceover_script: (i) =>
-    `Welcome to ${i.address} in ${i.suburb}. ${getBuyerAngle(i)}.${featuresLine(i)}${renovationsLine(i)}${amenitiesLine(
-      i
-    )} ${ctaLine(i)}`,
+    `${hookVariants(i)[4]} ${getBuyerAngle(i)}.${featuresLine(i)}${renovationsLine(i)}${amenitiesLine(i)} ${ctaLine(i)}`,
 
   shot_list: (i) =>
     [
-      "1. Exterior establishing shot (street view)",
+      "1. Opening hook shot — exterior establishing shot (street view)",
       "2. Front entrance / doorway",
       "3. Living area, wide shot",
       "4. Kitchen, wide and detail shots",
@@ -259,27 +281,41 @@ const PLACEHOLDER_GENERATORS: Record<string, (input: CampaignInput) => string> =
       i.garages ? "7. Garage / car parking" : "7. Outdoor parking area",
       "8. Outdoor / garden area",
       i.amenities ? "9. Nearby amenity or street context shot" : "9. Neighbourhood context shot",
-      "10. Closing exterior shot at golden hour",
+      "10. Closing CTA shot at golden hour",
     ].join("\n"),
 
   agent_presenter_script: (i) =>
     `Hi, I'm ${i.agentName || "your agent"}${i.agencyName ? ` from ${i.agencyName}` : ""}, and I'm here at ${i.address} in ${i.suburb}.\n\n` +
-    `${getBuyerAngle(i).charAt(0).toUpperCase()}${getBuyerAngle(i).slice(1)}.${featuresLine(i)}\n\n` +
+    `${hookVariants(i)[2]}${featuresLine(i)}\n\n` +
     `${ctaLine(i)} — I'd love to show you through.`,
 
   silent_reel_version: (i) =>
     [
-      `Welcome to ${i.address}, ${i.suburb}`,
+      hookVariants(i)[3],
       i.keyFeatures ? i.keyFeatures.split(",")[0].trim() : `A well laid out ${i.propertyType.toLowerCase()}`,
       propertyFactsList(i)[0] || "Take a look inside",
       i.amenities ? `Close to ${i.amenities.split(",")[0].trim()}` : "Well located",
       ctaLine(i),
     ].join("\n"),
 
-  thumbnail_text_options: (i) =>
-    [`NEW LISTING`, `${i.suburb} ${i.propertyType}`, `JUST LISTED`, i.openHomeDateTime ? "OPEN HOME" : "BOOK A VIEWING"].join(
-      "\n"
-    ),
+  thumbnail_text_options: (i) => {
+    const angle = pickHookAngle(i);
+    const fact0 = propertyFactsList(i)[0];
+    const angleText: Record<string, string> = {
+      "Feature Hook": i.keyFeatures ? i.keyFeatures.split(",")[0].trim().toUpperCase() : "SEE INSIDE",
+      "Location Hook": `${i.suburb.toUpperCase()} GEM`,
+      "Scarcity Hook": "RARE FIND",
+      "Buyer Insight Hook": "YOUR NEXT HOME?",
+      "Investor Hook": "NUMBERS INSIDE",
+      "Luxury Hook": "STEP INSIDE",
+    };
+    return [
+      `1. ${angleText[angle.type]}`,
+      `2. ${i.suburb.toUpperCase()} LISTING`,
+      `3. ${fact0 ? fact0.toUpperCase() : "JUST LISTED"}`,
+      `4. ${i.openHomeDateTime ? "OPEN HOME" : "BOOK A VIEWING"}`,
+    ].join("\n");
+  },
 
   // ---------------------------------------------------------------- Open Home
   open_home_post: (i) =>

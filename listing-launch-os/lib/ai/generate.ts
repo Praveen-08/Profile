@@ -2,6 +2,7 @@ import type { AgentMeetingPlaybookFormData, CampaignInput, VendorUpdateContext }
 import { getSectionPrompt } from "../prompts/sections";
 import { getVendorUpdateSectionPrompt } from "../prompts/vendorUpdate";
 import { agentMeetingPlaybookPrompt } from "../prompts/agentMeetingPlaybook";
+import { PK_SECTION_KEYS, pkScriptAssistantPrompt } from "../prompts/pkScriptAssistantPrompt";
 import { generatePlaceholder } from "./placeholder";
 import { generateVendorUpdatePlaceholder } from "./vendorUpdatePlaceholder";
 import { generateMeetingPlaybookPlaceholder } from "./agentMeetingPlaybookPlaceholder";
@@ -20,7 +21,11 @@ export async function generateSection(sectionKey: string, input: CampaignInput):
     return generatePlaceholder(sectionKey, input);
   }
 
-  const { system, user } = getSectionPrompt(sectionKey, input);
+  // The 10 reel/social sections use the PK Script Assistant style (short-form
+  // video scriptwriting technique) instead of the general listing-copy prompt.
+  const { system, user } = PK_SECTION_KEYS.includes(sectionKey)
+    ? pkScriptAssistantPrompt(sectionKey, input)
+    : getSectionPrompt(sectionKey, input);
   return generateWithClaude(system, user);
 }
 
@@ -32,6 +37,17 @@ export async function generateSections(
     sectionKeys.map(async (key) => [key, await generateSection(key, input)] as const)
   );
   return Object.fromEntries(results);
+}
+
+/**
+ * Reusable entry point for the PK-style Reels & Video / Social Posts
+ * outputs (10 sections). Generation for these keys already routes through
+ * generateSection/generateSections automatically (see above), so this is a
+ * convenience wrapper for generating just that set — e.g. a future "redo
+ * all reels & social" action — without touching the rest of the pack.
+ */
+export async function generatePkStyleSocialAndReels(input: CampaignInput): Promise<Record<string, string>> {
+  return generateSections(PK_SECTION_KEYS, input);
 }
 
 export async function generateVendorUpdateSection(sectionKey: string, input: VendorUpdateContext): Promise<string> {
