@@ -1,0 +1,63 @@
+# Render Blueprint for the HDR photo editor backend.
+#
+# In the Render dashboard: New -> Blueprint -> connect this repo -> when asked
+# for the blueprint file location, enter "hdr-photo-editor/render.yaml"
+# (this repo has other unrelated apps at its root, so the blueprint isn't at
+# the repo root).
+#
+# After the blueprint deploys, set HDR_CORS_ORIGINS on hdr-photo-editor-api to
+# your Vercel frontend URL (see hdr-photo-editor/frontend/README section in
+# the root README for the Vercel side of this).
+#
+# Notes / things that may need adjusting depending on your current Render
+# plan options:
+# - Free-tier services spin down after inactivity (cold start delay) and use
+#   ephemeral disk -- uploaded/processed photos are lost on restart/redeploy.
+#   For persistent storage, add a Render Disk to hdr-photo-editor-api mounted
+#   at the backend's storage/ directory, which requires a paid instance type.
+# - Background workers may require a paid plan on some Render account tiers;
+#   bump `plan` below if the free tier rejects the worker service.
+
+services:
+  - type: web
+    name: hdr-photo-editor-api
+    runtime: python
+    plan: free
+    rootDir: hdr-photo-editor/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: hdr-photo-editor-redis
+          property: connectionString
+      - key: HDR_CORS_ORIGINS
+        value: http://localhost:3000
+        # ^ update this in the Render dashboard to your real Vercel URL once
+        # the frontend is deployed, e.g.:
+        # https://your-app.vercel.app,http://localhost:3000
+
+  - type: worker
+    name: hdr-photo-editor-worker
+    runtime: python
+    plan: free
+    rootDir: hdr-photo-editor/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.worker
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: hdr-photo-editor-redis
+          property: connectionString
+
+  - type: redis
+    name: hdr-photo-editor-redis
+    plan: free
+    ipAllowList: []
