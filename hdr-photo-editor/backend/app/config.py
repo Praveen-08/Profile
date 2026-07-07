@@ -21,10 +21,17 @@ class Settings(BaseSettings):
     # Default auto-grouping time range, in seconds.
     default_group_range_seconds: float = 3.0
 
-    cors_origins: list[str] = ["http://localhost:3000"]
+    # Comma-separated list (not JSON) so it's easy to paste into a host's
+    # dashboard env var UI, e.g. "https://my-app.vercel.app,http://localhost:3000"
+    # Set via HDR_CORS_ORIGINS.
+    cors_origins: str = "http://localhost:3000"
 
     class Config:
         env_prefix = "HDR_"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 settings = Settings()

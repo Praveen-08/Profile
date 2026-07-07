@@ -147,6 +147,43 @@ Tests cover the pure grouping algorithm (range-based clustering, darkest→brigh
 sorting, HDR Ready/Single Edit/Needs Review classification) and the manual
 split/merge/move operations against a real (in-memory) database.
 
+## Deploying a live/public instance
+
+This repo has other apps in it with their own Vercel projects already wired up
+(e.g. `listing-launch-os`) — those are unrelated. The HDR editor needs its own,
+separate Vercel project (for the frontend) plus a real backend host, since the
+backend is a stateful Python service (SQLite, local file storage, an RQ worker),
+not something Vercel's serverless functions are built for.
+
+### Backend → Render
+
+A Blueprint is included at `hdr-photo-editor/render.yaml` covering the API web
+service, the RQ worker, and a Redis instance.
+
+1. In the Render dashboard: **New → Blueprint**, connect the `Praveen-08/Profile`
+   repo.
+2. When asked for the blueprint file location, enter `hdr-photo-editor/render.yaml`
+   (it's not at the repo root, since this repo has other unrelated apps in it).
+3. Deploy. You'll get a URL like `https://hdr-photo-editor-api.onrender.com`.
+4. Note the free-tier tradeoffs called out in the blueprint's comments: cold
+   starts after inactivity, and ephemeral disk (uploaded/processed photos are
+   lost on restart/redeploy unless you add a paid Render Disk).
+
+### Frontend → Vercel
+
+1. https://vercel.com/new → import `Praveen-08/Profile` **again** (a second,
+   separate project) → set **Root Directory** to `hdr-photo-editor/frontend`.
+2. Add environment variable `NEXT_PUBLIC_API_BASE_URL` = your Render backend URL
+   from above (e.g. `https://hdr-photo-editor-api.onrender.com`). This is a
+   build-time variable for Next.js, so it must be set before/at deploy.
+3. Deploy.
+
+### Wire them together
+
+Back in Render, update the `HDR_CORS_ORIGINS` env var on `hdr-photo-editor-api`
+to your Vercel URL (comma-separate multiple origins if needed), then redeploy
+the API service so CORS allows requests from the deployed frontend.
+
 ## Notes on the current MVP
 
 - **Storage** is local disk under `backend/storage/` (uploads, processed output,
