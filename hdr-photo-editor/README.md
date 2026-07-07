@@ -10,7 +10,8 @@ The entire product surface is: upload → review groups → process → compare 
 
 ## How it works
 
-1. **Upload** — drop every bracketed exposure from the shoot (JPEG/PNG/TIFF).
+1. **Upload** — drop every bracketed exposure from the shoot: JPEG/PNG/TIFF or
+   camera RAW (CR2/CR3/NEF/ARW/RAF/RW2/ORF/DNG/PEF/SRW).
 2. **Auto grouping** — the backend reads each photo's EXIF (capture time, shutter
    speed, ISO, aperture, exposure compensation, camera model) and clusters photos
    whose capture times fall within a configurable window (default 3s). Within each
@@ -193,3 +194,12 @@ the API service so CORS allows requests from the deployed frontend.
   e.g. to point at Postgres).
 - The auto-edit pipeline is intentionally global/soft (curves and masks, not local
   contrast) — that's a deliberate trade-off to avoid halos, per the product spec.
+- **RAW support** decodes via `rawpy` (LibRaw) with `use_camera_wb=True` and
+  `no_auto_bright=True` so exposure differences between bracket shots are
+  preserved for HDR fusion instead of being auto-normalized away. EXIF for RAW
+  files goes through `exifread` rather than `piexif`, since vendor RAW
+  containers don't parse reliably with a JPEG/TIFF-focused library. This has
+  been verified against real logic (extension detection, tag parsing, path
+  dispatch) but not against a real camera RAW file in this dev environment —
+  test it with one of your own bracket RAW files and flag anything that looks
+  off.

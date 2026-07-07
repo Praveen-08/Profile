@@ -4,7 +4,11 @@ import * as React from "react";
 import { UploadCloud, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const ACCEPTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".tif", ".tiff"];
+const ACCEPTED_EXTENSIONS = [
+  ".jpg", ".jpeg", ".png", ".tif", ".tiff",
+  // Camera RAW
+  ".cr2", ".cr3", ".nef", ".arw", ".raf", ".rw2", ".orf", ".dng", ".pef", ".srw",
+];
 
 function isAccepted(file: File): boolean {
   const lower = file.name.toLowerCase();
@@ -51,7 +55,8 @@ export function UploadDropzone({
         <UploadCloud className="h-8 w-8 text-muted-foreground" />
         <p className="text-sm font-medium">Drag and drop bracketed photos here</p>
         <p className="text-xs text-muted-foreground">
-          JPEG, PNG, or TIFF straight from your camera (EXIF capture time required for auto-grouping)
+          JPEG, PNG, TIFF, or camera RAW (CR2/CR3/NEF/ARW/RAF/RW2/ORF/DNG/PEF/SRW) — EXIF
+          capture time required for auto-grouping
         </p>
         <button
           type="button"

@@ -14,9 +14,12 @@ import cv2
 import numpy as np
 
 from app.image_processing.auto_edit import apply_real_estate_auto_edit
+from app.image_processing.raw_decode import decode_raw_to_bgr, is_raw
 
 
 def load_image(path: str) -> np.ndarray:
+    if is_raw(path):
+        return decode_raw_to_bgr(path)
     img = cv2.imread(path, cv2.IMREAD_COLOR)
     if img is None:
         raise ValueError(f"Could not read image: {path}")

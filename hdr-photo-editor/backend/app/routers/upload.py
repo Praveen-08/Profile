@@ -5,6 +5,7 @@ from app.config import settings
 from app.database import get_db
 from app.exif_utils import extract_exif
 from app.grouping import apply_auto_grouping
+from app.image_processing.raw_decode import RAW_EXTENSIONS
 from app.models import Photo, Project
 from app.schemas import GroupOut, ProjectOut
 from app.storage import generate_thumbnail, save_upload
@@ -12,7 +13,7 @@ from app.serializers import serialize_group
 
 router = APIRouter(prefix="/api/projects", tags=["upload"])
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tif", ".tiff"}
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tif", ".tiff"} | RAW_EXTENSIONS
 
 
 @router.post("", response_model=ProjectOut)
