@@ -236,6 +236,7 @@ export type HookArchetype = z.infer<typeof HookArchetypeSchema>;
 /** Where a Brand Kit's watermark sits, out of the way of the framing safe area. */
 export const WatermarkPositionSchema = z.enum(["TOP_LEFT", "TOP_RIGHT", "BOTTOM_LEFT", "BOTTOM_RIGHT", "CENTER"]);
 export type WatermarkPosition = z.infer<typeof WatermarkPositionSchema>;
+export const WATERMARK_POSITIONS = WatermarkPositionSchema.options;
 
 /**
  * Smart Regenerate directives (Premium Experience phase): each maps to a

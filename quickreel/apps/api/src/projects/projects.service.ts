@@ -29,7 +29,7 @@ export class ProjectsService {
     private readonly queue: QueueService,
   ) {}
 
-  private async getOwnedProject(userId: string, projectId: string) {
+  async getOwnedProject(userId: string, projectId: string) {
     const project = await this.prisma.client.project.findUnique({ where: { id: projectId } });
     if (!project) throw new NotFoundException("Project not found");
     if (project.userId !== userId) throw new ForbiddenException("You do not have access to this project");
@@ -63,9 +63,15 @@ export class ProjectsService {
       where: { id: projectId },
       include: {
         images: { orderBy: [{ orderIndex: "asc" }, { uploadedAt: "asc" }] },
-        style: true,
-        musicTrack: true,
-        renders: { orderBy: { createdAt: "desc" }, take: 5 },
+        versions: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            style: true,
+            musicTrack: true,
+            brandKit: true,
+            renders: { orderBy: { createdAt: "desc" }, take: 1 },
+          },
+        },
       },
     });
     if (!project) throw new NotFoundException("Project not found");
@@ -73,9 +79,15 @@ export class ProjectsService {
     return {
       ...project,
       images: project.images.map((img) => ({ ...img, url: this.storage.adapter.getObjectUrl(img.storageKey) })),
-      renders: project.renders.map((r) => ({
-        ...r,
-        outputUrl: r.outputStorageKey ? this.storage.adapter.getObjectUrl(r.outputStorageKey) : null,
+      versions: project.versions.map((v) => ({
+        ...v,
+        latestRender: v.renders[0]
+          ? {
+              ...v.renders[0],
+              outputUrl: v.renders[0].outputStorageKey ? this.storage.adapter.getObjectUrl(v.renders[0].outputStorageKey) : null,
+            }
+          : null,
+        renders: undefined,
       })),
     };
   }
@@ -118,6 +130,7 @@ export class ProjectsService {
         originalFilename: dto.originalFilename,
         width: dto.width,
         height: dto.height,
+        fileSizeBytes: dto.fileSizeBytes,
         orderIndex: existingCount,
       },
     });
@@ -149,65 +162,30 @@ export class ProjectsService {
     return { queue: QUEUE_NAMES.ANALYSIS, jobId };
   }
 
-  async createRender(userId: string, projectId: string) {
-    const project = await this.getOwnedProject(userId, projectId);
-    if (!project.reelLengthSec || !project.styleId || !project.musicTrackId) {
-      throw new BadRequestException("Select a reel length, style, and music track before generating");
-    }
-    if (project.status !== "READY" && project.status !== "COMPLETE" && project.status !== "FAILED") {
-      throw new BadRequestException(`Project is not ready to render (status: ${project.status})`);
-    }
-
-    const render = await this.prisma.client.render.create({ data: { projectId, status: "QUEUED" } });
-    const jobId = await this.queue.enqueueRender({ projectId, renderId: render.id });
-    await this.prisma.client.render.update({ where: { id: render.id }, data: { bullJobId: jobId } });
-    await this.prisma.client.project.update({ where: { id: projectId }, data: { status: "QUEUED" } });
-
-    return render;
-  }
-
-  async latestRender(userId: string, projectId: string) {
-    await this.getOwnedProject(userId, projectId);
-    const render = await this.prisma.client.render.findFirst({
-      where: { projectId },
-      orderBy: { createdAt: "desc" },
-    });
-    if (!render) throw new NotFoundException("No renders yet for this project");
-    return {
-      ...render,
-      outputUrl: render.outputStorageKey ? this.storage.adapter.getObjectUrl(render.outputStorageKey) : null,
-    };
-  }
-
-  async listRenders(userId: string, projectId: string) {
-    await this.getOwnedProject(userId, projectId);
-    return this.prisma.client.render.findMany({ where: { projectId }, orderBy: { createdAt: "desc" } });
-  }
-
   /**
    * Timeline-editing preview: what movement would each clip get *right now*,
-   * before any render exists. Uses the exact same seeded selection
-   * (packages/camera-engine) apps/worker's resolve-edl.ts uses at render
-   * time, seeded off projectId rather than renderId specifically so this
-   * preview and the eventual render agree — see resolve-edl.ts's comment
-   * on that seed choice.
+   * before any render exists, for a given version's style. Uses the exact
+   * same seeded selection (packages/camera-engine) apps/worker's
+   * resolve-edl.ts uses at render time, seeded off projectId rather than
+   * renderId specifically so this preview and the eventual render agree —
+   * see resolve-edl.ts's comment on that seed choice. cameraMoveOverride is
+   * project-wide (stored on ProjectImage), so it applies the same way
+   * across every version of the project.
    */
-  async getCameraMovesPreview(userId: string, projectId: string) {
+  async getCameraMovesPreview(userId: string, projectId: string, styleSlug: string) {
     await this.getOwnedProject(userId, projectId);
-    const project = await this.prisma.client.project.findUnique({
-      where: { id: projectId },
-      include: { style: true, images: { where: { isDuplicate: false }, orderBy: { orderIndex: "asc" } } },
+    const images = await this.prisma.client.projectImage.findMany({
+      where: { projectId, isDuplicate: false },
+      orderBy: { orderIndex: "asc" },
     });
-    if (!project) throw new NotFoundException("Project not found");
-    if (!project.style) throw new BadRequestException("Select a style before previewing camera movements");
 
-    const styleConfig = getStyleBySlug(project.style.slug);
-    if (!styleConfig) throw new BadRequestException(`No style-engine config for slug "${project.style.slug}"`);
+    const styleConfig = getStyleBySlug(styleSlug);
+    if (!styleConfig) throw new BadRequestException(`No style-engine config for slug "${styleSlug}"`);
 
     const rng = createSeededRng(`${projectId}:camera`);
     const usageCounts = createUsageCounts();
 
-    return project.images
+    return images
       .filter((img) => img.roomType !== null)
       .map((img) => {
         const override = img.cameraMoveOverride as CameraMoveType | null;

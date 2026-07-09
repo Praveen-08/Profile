@@ -63,26 +63,6 @@ export class ProjectsController {
     return this.projects.analyze(user.id, id);
   }
 
-  @Post(":id/renders")
-  createRender(@CurrentUser() user: RequestUser, @Param("id") id: string) {
-    return this.projects.createRender(user.id, id);
-  }
-
-  @Get(":id/renders")
-  listRenders(@CurrentUser() user: RequestUser, @Param("id") id: string) {
-    return this.projects.listRenders(user.id, id);
-  }
-
-  @Get(":id/renders/latest")
-  latestRender(@CurrentUser() user: RequestUser, @Param("id") id: string) {
-    return this.projects.latestRender(user.id, id);
-  }
-
-  @Get(":id/camera-moves-preview")
-  getCameraMovesPreview(@CurrentUser() user: RequestUser, @Param("id") id: string) {
-    return this.projects.getCameraMovesPreview(user.id, id);
-  }
-
   @Patch(":id/images/:imageId/camera-move")
   setCameraMoveOverride(
     @CurrentUser() user: RequestUser,

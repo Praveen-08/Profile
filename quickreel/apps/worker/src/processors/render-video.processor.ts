@@ -19,6 +19,7 @@ import {
   type RenderVideoJobResult,
 } from "@quickreel/shared";
 import { resolveEDL, type ResolveEdlImageInput } from "../lib/resolve-edl.js";
+import { buildImageUrls } from "../lib/build-image-urls.js";
 
 const storage = createStorageAdapterFromEnv();
 
@@ -119,19 +120,7 @@ export async function renderVideoProcessor(job: Job<RenderVideoJobPayload>): Pro
 
     await prisma.render.update({ where: { id: renderId }, data: { status: "RENDERING", edlJson: edl as unknown as object } });
 
-    const imageUrls: Record<string, string> = {};
-    for (const clip of edl.clips) {
-      imageUrls[clip.imageStorageKey] = storage.getObjectUrl(clip.imageStorageKey);
-      if (clip.depth) {
-        imageUrls[clip.depth.depthMapStorageKey] = storage.getObjectUrl(clip.depth.depthMapStorageKey);
-        imageUrls[clip.depth.foregroundMaskStorageKey] = storage.getObjectUrl(clip.depth.foregroundMaskStorageKey);
-      }
-    }
-    if (edl.brandKit) {
-      for (const key of [edl.brandKit.logoStorageKey, edl.brandKit.outroStorageKey, edl.brandKit.watermarkStorageKey]) {
-        if (key) imageUrls[key] = storage.getObjectUrl(key);
-      }
-    }
+    const imageUrls = buildImageUrls(edl, storage);
     const audioUrl = storage.getObjectUrl(edl.audio.trackStorageKey);
 
     const tmpDir = process.env.RENDER_OUTPUT_TMP_DIR ?? join(tmpdir(), "quickreel-renders");

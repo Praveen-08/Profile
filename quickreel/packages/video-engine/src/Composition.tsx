@@ -2,6 +2,8 @@ import React, { useMemo } from "react";
 import { AbsoluteFill, Audio, Sequence } from "remotion";
 import type { EditDecisionList, TextOverlay } from "@quickreel/shared";
 import { AtmosphericEffectLayer } from "./components/AtmosphericEffectLayer.js";
+import { BrandOutroLayer } from "./components/BrandOutroLayer.js";
+import { BrandWatermarkLayer } from "./components/BrandWatermarkLayer.js";
 import { ClipLayer } from "./components/ClipLayer.js";
 import { TextOverlayLayer } from "./components/TextOverlayLayer.js";
 import { msToFrames } from "./timing.js";
@@ -48,6 +50,12 @@ export function QuickReelComposition({ edl, imageUrls, audioUrl }: QuickReelComp
     return [...byId.values()];
   }, [edl.clips]);
 
+  const lastClip = edl.clips[edl.clips.length - 1];
+  const clipsEndMs = lastClip ? lastClip.endMs : 0;
+  const hasOutro = Boolean(edl.brandKit?.outroStorageKey) && edl.totalDurationMs > clipsEndMs;
+  const logoUrl = edl.brandKit?.logoStorageKey ? imageUrls[edl.brandKit.logoStorageKey] : undefined;
+  const outroImageUrl = edl.brandKit?.outroStorageKey ? imageUrls[edl.brandKit.outroStorageKey] : undefined;
+
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
       {edl.clips.map((clip) => {
@@ -82,6 +90,23 @@ export function QuickReelComposition({ edl, imageUrls, audioUrl }: QuickReelComp
           </Sequence>
         );
       })}
+
+      {/* Watermark spans only the photo clips, not the outro — the outro card already shows the brand full-screen, so a small corner mark there would be redundant. */}
+      {edl.brandKit && (logoUrl || edl.brandKit.agencyName) && (
+        <Sequence from={0} durationInFrames={msToFrames(clipsEndMs, edl.fps)} layout="none">
+          <BrandWatermarkLayer brandKit={edl.brandKit} logoUrl={logoUrl} />
+        </Sequence>
+      )}
+
+      {hasOutro && edl.brandKit && (
+        <Sequence
+          from={msToFrames(clipsEndMs, edl.fps)}
+          durationInFrames={msToFrames(edl.totalDurationMs - clipsEndMs, edl.fps)}
+          layout="none"
+        >
+          <BrandOutroLayer brandKit={edl.brandKit} logoUrl={logoUrl} outroImageUrl={outroImageUrl} />
+        </Sequence>
+      )}
 
       <Audio
         src={audioUrl}

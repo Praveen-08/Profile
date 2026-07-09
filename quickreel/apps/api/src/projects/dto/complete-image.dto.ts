@@ -16,4 +16,9 @@ export class CompleteImageDto {
   @IsInt()
   @Min(1)
   height?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  fileSizeBytes?: number;
 }

@@ -1,5 +1,4 @@
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from "class-validator";
-import { REEL_LENGTH_OPTIONS } from "@quickreel/shared";
+import { IsInt, IsOptional, IsString, Max, Min } from "class-validator";
 
 export class UpdateProjectDto {
   @IsOptional()
@@ -21,20 +20,4 @@ export class UpdateProjectDto {
   @Min(0)
   @Max(20)
   bathCount?: number;
-
-  @IsOptional()
-  @IsIn(REEL_LENGTH_OPTIONS)
-  reelLengthSec?: number;
-
-  @IsOptional()
-  @IsUUID()
-  styleId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  musicTrackId?: string;
-
-  @IsOptional()
-  @IsString()
-  hookArchetype?: string;
 }

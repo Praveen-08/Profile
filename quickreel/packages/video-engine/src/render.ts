@@ -29,6 +29,12 @@ export interface RenderReelOptions {
    * is representative of the final render, just lower fidelity.
    */
   quality?: "preview" | "final";
+  /**
+   * Overrides the quality-derived scale factor entirely — e.g. `2` for a 4K
+   * export (2160x3840) re-render of the same 1080x1920-authored
+   * composition. See apps/worker's export-render processor.
+   */
+  resolutionScale?: number;
   /** Parallel Chromium frame-rendering workers — real, direct performance lever, tune to available CPU cores. */
   concurrency?: number;
   /** GPU-accelerated GL backend for deployments with a real GPU; omit for software rendering (the only option available in a plain CPU container like the one this repo was developed in). */
@@ -101,6 +107,7 @@ export async function renderReel(options: RenderReelOptions): Promise<RenderReel
   });
 
   const isPreview = options.quality === "preview";
+  const scale = options.resolutionScale ?? (isPreview ? 0.5 : 1);
 
   await renderMedia({
     composition,
@@ -110,7 +117,7 @@ export async function renderReel(options: RenderReelOptions): Promise<RenderReel
     inputProps,
     browserExecutable: options.chromiumExecutablePath,
     crf: isPreview ? 30 : 20,
-    scale: isPreview ? 0.5 : 1,
+    scale,
     concurrency: options.concurrency,
     imageFormat: "jpeg",
     chromiumOptions: options.glBackend ? { gl: options.glBackend } : undefined,
