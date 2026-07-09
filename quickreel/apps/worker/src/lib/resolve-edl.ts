@@ -1,8 +1,10 @@
 import {
+  BRAND_OUTRO_DURATION_MS,
   createSeededRng,
   CURRENT_EDL_VERSION,
   EditDecisionListSchema,
   type BeatGrid,
+  type BrandKitConfig,
   type CameraMoveType,
   type EDLClip,
   type EditDecisionList,
@@ -52,6 +54,8 @@ export interface ResolveEdlInput {
   musicTrackId: string;
   musicTrackStorageKey: string;
   project: OverlayProjectFields;
+  /** Null when the version has no brand kit assigned. */
+  brandKit: BrandKitConfig | null;
 }
 
 /**
@@ -174,6 +178,10 @@ export function resolveEDL(input: ResolveEdlInput): EditDecisionList {
   const overlays = buildTextOverlays(clipTimings, input.project, input.style);
   const clips: EDLClip[] = assignOverlaysToClips(clipsWithoutText, overlays);
 
+  // The outro clip (when a brand kit sets one) plays after the music-synced portion of the reel,
+  // so it extends total composition duration rather than stealing time from the beat-synced clips.
+  const outroDurationMs = input.brandKit?.outroStorageKey ? BRAND_OUTRO_DURATION_MS : 0;
+
   const edl: EditDecisionList = {
     version: CURRENT_EDL_VERSION,
     projectId: input.projectId,
@@ -181,13 +189,14 @@ export function resolveEDL(input: ResolveEdlInput): EditDecisionList {
     compositionWidth: 1080,
     compositionHeight: 1920,
     fps: 30,
-    totalDurationMs: targetTotalMs,
+    totalDurationMs: targetTotalMs + outroDurationMs,
     styleSlug: input.style.slug,
     hookArchetype: resolvedHookArchetype,
     musicTrackId: input.musicTrackId,
     beatGrid: input.beatGrid,
     clips,
     audio: { trackStorageKey: input.musicTrackStorageKey, startOffsetMs: 0 },
+    brandKit: input.brandKit,
   };
 
   return EditDecisionListSchema.parse(edl);

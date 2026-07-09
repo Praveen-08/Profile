@@ -61,6 +61,7 @@ const PLACEHOLDER_EDL: EditDecisionList = {
     },
   ],
   audio: { trackStorageKey: "placeholder.wav", startOffsetMs: 0 },
+  brandKit: null,
 };
 
 const PLACEHOLDER_PROPS: QuickReelCompositionProps = {

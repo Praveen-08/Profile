@@ -3,6 +3,8 @@ import {
   QUEUE_NAMES,
   type AnalyzeProjectJobPayload,
   type AnalyzeProjectJobResult,
+  type ExportRenderJobPayload,
+  type ExportRenderJobResult,
   type RenderVideoJobPayload,
   type RenderVideoJobResult,
 } from "@quickreel/shared";
@@ -44,4 +46,19 @@ export function createRenderWorker(
   concurrency = 1,
 ): Worker<RenderVideoJobPayload, RenderVideoJobResult> {
   return new Worker(QUEUE_NAMES.RENDER, processor, { connection: getRedisConnection(), concurrency });
+}
+
+export function createExportQueue(): Queue<ExportRenderJobPayload, ExportRenderJobResult> {
+  return new Queue(QUEUE_NAMES.EXPORT, {
+    connection: getRedisConnection(),
+    defaultJobOptions: DEFAULT_JOB_OPTIONS,
+  });
+}
+
+/** Same CPU/memory profile as the primary render — a 4K export re-renders through Chromium at scale=2. */
+export function createExportWorker(
+  processor: Processor<ExportRenderJobPayload, ExportRenderJobResult>,
+  concurrency = 1,
+): Worker<ExportRenderJobPayload, ExportRenderJobResult> {
+  return new Worker(QUEUE_NAMES.EXPORT, processor, { connection: getRedisConnection(), concurrency });
 }

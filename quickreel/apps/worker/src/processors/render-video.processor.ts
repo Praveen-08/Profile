@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,10 +6,12 @@ import { prisma } from "@quickreel/database";
 import { createStorageAdapterFromEnv } from "@quickreel/storage";
 import { getStyleBySlug } from "@quickreel/style-engine";
 import { detectBeatGrid } from "@quickreel/beat-engine";
+import { scoreReel } from "@quickreel/scoring-engine";
 import { renderReel, type ChromiumGlBackend } from "@quickreel/video-engine";
 import {
   BeatGridSchema,
   CURRENT_BEAT_ANALYSIS_VERSION,
+  type BrandKitConfig,
   type CameraMoveType,
   type HookArchetype,
   type ReelLengthSec,
@@ -30,8 +31,9 @@ async function markFailed(renderId: string, projectId: string, error: unknown): 
 
 /**
  * Orchestrates the full AI Director Engine into an EDL and drives Remotion:
- * resolve style/music -> ensure a cached (or freshly analyzed) BeatGrid ->
- * resolveEDL() -> renderMedia() -> upload the MP4 -> mark complete.
+ * resolve the render's ProjectVersion (style/music/hook/reel length/brand
+ * kit) -> ensure a cached (or freshly analyzed) BeatGrid -> resolveEDL() ->
+ * renderMedia() -> upload the MP4 -> score the reel -> mark complete.
  */
 export async function renderVideoProcessor(job: Job<RenderVideoJobPayload>): Promise<RenderVideoJobResult> {
   const { projectId, renderId } = job.data;
@@ -39,21 +41,26 @@ export async function renderVideoProcessor(job: Job<RenderVideoJobPayload>): Pro
   await prisma.render.update({ where: { id: renderId }, data: { status: "RESOLVING_EDL", startedAt: new Date() } });
 
   try {
-    const project = await prisma.project.findUniqueOrThrow({
-      where: { id: projectId },
+    const render = await prisma.render.findUniqueOrThrow({
+      where: { id: renderId },
       include: {
-        images: { where: { isDuplicate: false }, orderBy: { orderIndex: "asc" } },
-        style: true,
-        musicTrack: true,
+        version: { include: { style: true, musicTrack: true, brandKit: true } },
+        project: {
+          include: {
+            images: { where: { isDuplicate: false }, orderBy: { orderIndex: "asc" } },
+          },
+        },
       },
     });
 
-    if (!project.style || !project.musicTrack || !project.reelLengthSec) {
-      throw new Error("Project is missing a style, music track, or reel length");
+    const { version, project } = render;
+
+    if (!version.style || !version.musicTrack || !version.reelLengthSec) {
+      throw new Error("Version is missing a style, music track, or reel length");
     }
 
-    const styleConfig = getStyleBySlug(project.style.slug);
-    if (!styleConfig) throw new Error(`No style-engine config for slug "${project.style.slug}"`);
+    const styleConfig = getStyleBySlug(version.style.slug);
+    if (!styleConfig) throw new Error(`No style-engine config for slug "${version.style.slug}"`);
 
     const orderedImages: ResolveEdlImageInput[] = project.images
       .filter((img): img is typeof img & { roomType: NonNullable<typeof img.roomType> } => img.roomType !== null)
@@ -73,24 +80,41 @@ export async function renderVideoProcessor(job: Job<RenderVideoJobPayload>): Pro
       throw new Error("Project has no analyzed images — run analysis before rendering");
     }
 
-    const beatGrid = await ensureBeatGrid(project.musicTrack);
+    const beatGrid = await ensureBeatGrid(version.musicTrack);
+
+    const brandKit: BrandKitConfig | null = version.brandKit
+      ? {
+          agencyName: version.brandKit.agencyName,
+          logoStorageKey: version.brandKit.logoStorageKey,
+          primaryColor: version.brandKit.primaryColor,
+          secondaryColor: version.brandKit.secondaryColor,
+          fontFamily: version.brandKit.fontFamily,
+          outroStorageKey: version.brandKit.outroStorageKey,
+          watermarkStorageKey: version.brandKit.watermarkStorageKey,
+          watermarkPosition: version.brandKit.watermarkPosition,
+          contactPhone: version.brandKit.contactPhone,
+          contactEmail: version.brandKit.contactEmail,
+          contactWebsite: version.brandKit.contactWebsite,
+        }
+      : null;
 
     const edl = resolveEDL({
       projectId: project.id,
       renderId,
-      reelLengthSec: project.reelLengthSec as ReelLengthSec,
+      reelLengthSec: version.reelLengthSec as ReelLengthSec,
       style: styleConfig,
-      hookArchetypeOverride: (project.hookArchetype as HookArchetype | null) ?? null,
+      hookArchetypeOverride: (version.hookArchetype as HookArchetype | null) ?? null,
       orderedImages,
       beatGrid,
-      musicTrackId: project.musicTrack.id,
-      musicTrackStorageKey: project.musicTrack.storageKey,
+      musicTrackId: version.musicTrack.id,
+      musicTrackStorageKey: version.musicTrack.storageKey,
       project: {
         title: project.title,
         address: project.address,
         bedCount: project.bedCount,
         bathCount: project.bathCount,
       },
+      brandKit,
     });
 
     await prisma.render.update({ where: { id: renderId }, data: { status: "RENDERING", edlJson: edl as unknown as object } });
@@ -101,6 +125,11 @@ export async function renderVideoProcessor(job: Job<RenderVideoJobPayload>): Pro
       if (clip.depth) {
         imageUrls[clip.depth.depthMapStorageKey] = storage.getObjectUrl(clip.depth.depthMapStorageKey);
         imageUrls[clip.depth.foregroundMaskStorageKey] = storage.getObjectUrl(clip.depth.foregroundMaskStorageKey);
+      }
+    }
+    if (edl.brandKit) {
+      for (const key of [edl.brandKit.logoStorageKey, edl.brandKit.outroStorageKey, edl.brandKit.watermarkStorageKey]) {
+        if (key) imageUrls[key] = storage.getObjectUrl(key);
       }
     }
     const audioUrl = storage.getObjectUrl(edl.audio.trackStorageKey);
@@ -129,10 +158,19 @@ export async function renderVideoProcessor(job: Job<RenderVideoJobPayload>): Pro
     await storage.putObject(outputStorageKey, outputBuffer, "video/mp4");
     await rm(localOutputPath, { force: true });
 
+    const score = scoreReel({ edl, beatGrid, style: styleConfig });
+
     const outputDurationSec = edl.totalDurationMs / 1000;
     await prisma.render.update({
       where: { id: renderId },
-      data: { status: "COMPLETE", outputStorageKey, outputDurationSec, completedAt: new Date() },
+      data: {
+        status: "COMPLETE",
+        outputStorageKey,
+        outputFileSizeBytes: outputBuffer.length,
+        outputDurationSec,
+        scoreJson: score as unknown as object,
+        completedAt: new Date(),
+      },
     });
     await prisma.project.update({ where: { id: projectId }, data: { status: "COMPLETE" } });
 

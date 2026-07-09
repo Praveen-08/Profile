@@ -26,6 +26,7 @@
     "@quickreel/beat-engine": "workspace:*",
     "@quickreel/style-engine": "workspace:*",
     "@quickreel/video-engine": "workspace:*",
+    "@quickreel/scoring-engine": "workspace:*",
     "bullmq": "^5.15.0"
   },
   "devDependencies": {

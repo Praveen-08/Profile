@@ -8,8 +8,9 @@ import {
   TextOverlayKindSchema,
   TransitionTypeSchema,
 } from "./enums.js";
+import { BrandKitConfigSchema } from "./premium.js";
 
-export const CURRENT_EDL_VERSION = "edl-v2";
+export const CURRENT_EDL_VERSION = "edl-v3";
 
 export const CameraMoveSchema = z.object({
   type: CameraMoveTypeSchema,
@@ -115,6 +116,8 @@ export const EditDecisionListSchema = z.object({
       .array(z.object({ tMs: z.number().nonnegative(), gain: z.number().min(0).max(1) }))
       .optional(),
   }),
+  /** Null when the version has no brand kit assigned — video-engine renders no watermark/outro in that case. */
+  brandKit: BrandKitConfigSchema.nullable(),
 });
 export type EditDecisionList = z.infer<typeof EditDecisionListSchema>;
 

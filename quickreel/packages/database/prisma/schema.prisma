@@ -6,6 +6,12 @@
 // directly — every read/write goes through apps/api, which filters by
 // req.user.id from the verified Supabase JWT. RLS is therefore not the
 // enforcement boundary in this schema; NestJS's SupabaseAuthGuard is.
+//
+// Premium Experience / Version Engine note: a Project is the durable
+// container for uploaded photos (never re-uploaded). Every render
+// configuration — style, music, hook, reel length, brand kit — lives on a
+// ProjectVersion, so "make a Luxury cut and an Instagram cut of the same
+// listing" is just two ProjectVersion rows sharing one Project's images.
 
 generator client {
   provider = "prisma-client-js"
@@ -110,39 +116,74 @@ enum CameraMoveType {
   DRONE_ORBIT
 }
 
+enum WatermarkPosition {
+  TOP_LEFT
+  TOP_RIGHT
+  BOTTOM_LEFT
+  BOTTOM_RIGHT
+  CENTER
+}
+
+// Mirrors packages/shared/src/premium.ts's SmartRegenerateDirectiveSchema.
+enum SmartRegenerateDirective {
+  MAKE_FASTER
+  MORE_CINEMATIC
+  LUXURY
+  MINIMAL
+  MORE_EMOTIONAL
+  HIGHER_ENERGY
+}
+
+enum ExportPlatform {
+  INSTAGRAM_REEL
+  TIKTOK
+  FACEBOOK_REEL
+  YOUTUBE_SHORTS
+}
+
+enum ExportResolution {
+  HD_1080P
+  UHD_4K
+}
+
+enum ExportStatus {
+  QUEUED
+  PROCESSING
+  COMPLETE
+  FAILED
+}
+
 model Profile {
-  id          String    @id @db.Uuid
+  id          String     @id @db.Uuid
   email       String
   fullName    String?
   companyName String?
   avatarUrl   String?
-  planTier    PlanTier  @default(FREE)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  planTier    PlanTier   @default(FREE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   projects    Project[]
+  brandKits   BrandKit[]
 
   @@map("profiles")
 }
 
 model Project {
-  id            String        @id @default(uuid()) @db.Uuid
-  userId        String        @db.Uuid
-  profile       Profile       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title         String?
-  address       String?
-  bedCount      Int?
-  bathCount     Int?
-  status        ProjectStatus @default(DRAFT)
-  reelLengthSec Int?
-  styleId       String?       @db.Uuid
-  style         Style?        @relation(fields: [styleId], references: [id])
-  musicTrackId  String?       @db.Uuid
-  musicTrack    MusicTrack?   @relation(fields: [musicTrackId], references: [id])
-  hookArchetype String?
-  images        ProjectImage[]
-  renders       Render[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id         String          @id @default(uuid()) @db.Uuid
+  userId     String          @db.Uuid
+  profile    Profile         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String?
+  address    String?
+  bedCount   Int?
+  bathCount  Int?
+  status     ProjectStatus   @default(DRAFT)
+  images     ProjectImage[]
+  versions   ProjectVersion[]
+  renders    Render[]
+  comments   Comment[]
+  shareLinks ShareLink[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 
   @@index([userId])
   @@map("projects")
@@ -156,6 +197,7 @@ model ProjectImage {
   originalFilename String
   width            Int?
   height           Int?
+  fileSizeBytes    Int?
   orderIndex       Int?
   roomType         RoomType?
   roomConfidence   Float?
@@ -173,6 +215,7 @@ model ProjectImage {
   depthMapStorageKey       String?
   foregroundMaskStorageKey String?
   // Set by the timeline-editing "replace movement" action; null means the AI decides at render time.
+  // Deliberately project-wide rather than per-version — see packages/database/README.md "Version Engine scope" note.
   cameraMoveOverride       CameraMoveType?
   uploadedAt       DateTime       @default(now())
 
@@ -181,21 +224,21 @@ model ProjectImage {
 }
 
 model Style {
-  id           String    @id @default(uuid()) @db.Uuid
-  slug         String    @unique
+  id           String           @id @default(uuid()) @db.Uuid
+  slug         String           @unique
   name         String
   description  String?
   thumbnailUrl String?
-  sortOrder    Int       @default(0)
-  isActive     Boolean   @default(true)
-  projects     Project[]
+  sortOrder    Int              @default(0)
+  isActive     Boolean          @default(true)
+  versions     ProjectVersion[]
 
   @@map("styles")
 }
 
 model MusicTrack {
-  id              String    @id @default(uuid()) @db.Uuid
-  slug            String    @unique
+  id              String           @id @default(uuid()) @db.Uuid
+  slug            String           @unique
   vibe            MusicVibe
   title           String
   storageKey      String
@@ -210,27 +253,162 @@ model MusicTrack {
   durationSec     Float
   beatGridJson    Json?
   beatGridVersion String?
-  isActive        Boolean   @default(true)
-  projects        Project[]
+  isActive        Boolean          @default(true)
+  versions        ProjectVersion[]
 
   @@index([vibe])
   @@map("music_tracks")
 }
 
-model Render {
-  id                String       @id @default(uuid()) @db.Uuid
-  projectId         String       @db.Uuid
-  project           Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  bullJobId         String?
-  status            RenderStatus @default(QUEUED)
-  edlJson           Json?
-  outputStorageKey  String?
-  outputDurationSec Float?
-  errorMessage      String?
-  startedAt         DateTime?
-  completedAt       DateTime?
-  createdAt         DateTime     @default(now())
+// Each user's saved identity (logo, colors, fonts, outro, watermark, contact
+// details), applied automatically to any ProjectVersion that references it —
+// see apps/worker's resolve-edl.ts and packages/video-engine's brand-kit
+// rendering (persistent watermark overlay + appended outro clip).
+model BrandKit {
+  id                  String            @id @default(uuid()) @db.Uuid
+  userId              String            @db.Uuid
+  profile             Profile           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String            @default("Default")
+  isDefault           Boolean           @default(true)
+  agencyName          String?
+  logoStorageKey      String?
+  primaryColor        String?
+  secondaryColor      String?
+  fontFamily          String?
+  outroStorageKey     String?
+  watermarkStorageKey String?
+  watermarkPosition   WatermarkPosition @default(BOTTOM_RIGHT)
+  contactPhone        String?
+  contactEmail        String?
+  contactWebsite       String?
+  versions            ProjectVersion[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([userId])
+  @@map("brand_kits")
+}
+
+// The Version Engine: one project's photos, unlimited render configurations.
+// A version never re-touches ProjectImage rows — it only points at a style,
+// a music track, an optional hook override, a reel length, and an optional
+// brand kit. `parentVersionId`/`regenerateDirective` record lineage when a
+// version was produced by "Duplicate" or Smart Regenerate rather than
+// created from scratch, so Render History can show where it came from.
+model ProjectVersion {
+  id                  String                    @id @default(uuid()) @db.Uuid
+  projectId           String                    @db.Uuid
+  project             Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name                String
+  reelLengthSec       Int?
+  styleId             String?                   @db.Uuid
+  style               Style?                    @relation(fields: [styleId], references: [id])
+  musicTrackId        String?                   @db.Uuid
+  musicTrack          MusicTrack?               @relation(fields: [musicTrackId], references: [id])
+  hookArchetype       String?
+  brandKitId          String?                   @db.Uuid
+  brandKit            BrandKit?                 @relation(fields: [brandKitId], references: [id])
+  parentVersionId     String?                   @db.Uuid
+  parentVersion       ProjectVersion?           @relation("VersionLineage", fields: [parentVersionId], references: [id])
+  childVersions       ProjectVersion[]          @relation("VersionLineage")
+  regenerateDirective SmartRegenerateDirective?
+  renders             Render[]
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
 
   @@index([projectId])
+  @@map("project_versions")
+}
+
+model Render {
+  id                   String         @id @default(uuid()) @db.Uuid
+  // Denormalized from version.projectId at creation time — lets render-history/
+  // storage queries join straight to Project without an extra hop through
+  // ProjectVersion, and keeps the FK cascade correct if a version is ever deleted
+  // independently of its project.
+  projectId            String         @db.Uuid
+  project              Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versionId            String         @db.Uuid
+  version              ProjectVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  bullJobId            String?
+  status               RenderStatus   @default(QUEUED)
+  edlJson              Json?
+  outputStorageKey     String?
+  outputFileSizeBytes  Int?
+  outputDurationSec    Float?
+  // AI Reel Score — see packages/scoring-engine. Deterministic heuristics over
+  // the EDL/beat grid/style, not a trained retention-prediction model; see
+  // that package's README for the honest gap.
+  scoreJson            Json?
+  errorMessage         String?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  createdAt            DateTime       @default(now())
+  exports              RenderExport[]
+  comments             Comment[]
+  shareLinks           ShareLink[]
+
+  @@index([projectId])
+  @@index([versionId])
   @@map("renders")
+}
+
+// A platform/resolution-specific transcode of a completed Render. Instagram
+// Reel / TikTok / Facebook Reel / YouTube Shorts share the same 1080x1920
+// master at 1080p — this table exists mainly to carry a labeled per-platform
+// download and to make 4K (a real re-render at scale=2) an explicit async job
+// rather than blocking the primary render.
+model RenderExport {
+  id               String            @id @default(uuid()) @db.Uuid
+  renderId         String            @db.Uuid
+  render           Render            @relation(fields: [renderId], references: [id], onDelete: Cascade)
+  platform         ExportPlatform
+  resolution       ExportResolution
+  status           ExportStatus      @default(QUEUED)
+  outputStorageKey String?
+  errorMessage     String?
+  createdAt        DateTime          @default(now())
+  completedAt      DateTime?
+
+  @@index([renderId])
+  @@map("render_exports")
+}
+
+// Attached to a Project generally, or pinned to a specific Render for
+// client-review context. `authorUserId` is null for comments left by a
+// guest through a ShareLink (no QuickReel account required to approve/
+// comment on a share page).
+model Comment {
+  id           String   @id @default(uuid()) @db.Uuid
+  projectId    String   @db.Uuid
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  renderId     String?  @db.Uuid
+  render       Render?  @relation(fields: [renderId], references: [id], onDelete: Cascade)
+  authorUserId String?  @db.Uuid
+  authorName   String
+  body         String
+  createdAt    DateTime @default(now())
+
+  @@index([projectId])
+  @@index([renderId])
+  @@map("comments")
+}
+
+// A public, unauthenticated preview/approval page for one Render — the
+// token is the only credential (no login required for a client to view,
+// approve, or comment).
+model ShareLink {
+  id             String    @id @default(uuid()) @db.Uuid
+  projectId      String    @db.Uuid
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  renderId       String    @db.Uuid
+  render         Render    @relation(fields: [renderId], references: [id], onDelete: Cascade)
+  token          String    @unique
+  approvedAt     DateTime?
+  approvedByName String?
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([projectId])
+  @@map("share_links")
 }

@@ -232,3 +232,58 @@ export const HookArchetypeSchema = z.enum([
   "FAST_MONTAGE",
 ]);
 export type HookArchetype = z.infer<typeof HookArchetypeSchema>;
+
+/** Where a Brand Kit's watermark sits, out of the way of the framing safe area. */
+export const WatermarkPositionSchema = z.enum(["TOP_LEFT", "TOP_RIGHT", "BOTTOM_LEFT", "BOTTOM_RIGHT", "CENTER"]);
+export type WatermarkPosition = z.infer<typeof WatermarkPositionSchema>;
+
+/**
+ * Smart Regenerate directives (Premium Experience phase): each maps to a
+ * concrete, deterministic config delta (packages/style-engine style swap,
+ * reel-length change, cut-speed bias) applied to a cloned ProjectVersion —
+ * see apps/worker's smart-regenerate.ts for the mapping. Not a
+ * frame-level EDL patch; a full re-render, which the render pipeline is
+ * already fast enough to make invisible to the user.
+ */
+export const SmartRegenerateDirectiveSchema = z.enum([
+  "MAKE_FASTER",
+  "MORE_CINEMATIC",
+  "LUXURY",
+  "MINIMAL",
+  "MORE_EMOTIONAL",
+  "HIGHER_ENERGY",
+]);
+export type SmartRegenerateDirective = z.infer<typeof SmartRegenerateDirectiveSchema>;
+export const SMART_REGENERATE_DIRECTIVES = SmartRegenerateDirectiveSchema.options;
+export const SMART_REGENERATE_DIRECTIVE_LABELS: Record<SmartRegenerateDirective, string> = {
+  MAKE_FASTER: "Make Faster",
+  MORE_CINEMATIC: "More Cinematic",
+  LUXURY: "Luxury",
+  MINIMAL: "Minimal",
+  MORE_EMOTIONAL: "More Emotional",
+  HIGHER_ENERGY: "Higher Energy",
+};
+
+/**
+ * All four export platforms render identically (1080x1920, same codec) at
+ * a given resolution in this product — the enum exists to drive a
+ * platform-labeled download and filename, not a different encode per
+ * platform. See packages/database's RenderExport doc comment.
+ */
+export const ExportPlatformSchema = z.enum(["INSTAGRAM_REEL", "TIKTOK", "FACEBOOK_REEL", "YOUTUBE_SHORTS"]);
+export type ExportPlatform = z.infer<typeof ExportPlatformSchema>;
+export const EXPORT_PLATFORMS = ExportPlatformSchema.options;
+export const EXPORT_PLATFORM_LABELS: Record<ExportPlatform, string> = {
+  INSTAGRAM_REEL: "Instagram Reel",
+  TIKTOK: "TikTok",
+  FACEBOOK_REEL: "Facebook Reel",
+  YOUTUBE_SHORTS: "YouTube Shorts",
+};
+
+export const ExportResolutionSchema = z.enum(["HD_1080P", "UHD_4K"]);
+export type ExportResolution = z.infer<typeof ExportResolutionSchema>;
+export const EXPORT_RESOLUTIONS = ExportResolutionSchema.options;
+export const EXPORT_RESOLUTION_LABELS: Record<ExportResolution, string> = {
+  HD_1080P: "1080p",
+  UHD_4K: "4K",
+};

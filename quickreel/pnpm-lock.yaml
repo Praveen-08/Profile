@@ -163,6 +163,9 @@ importers:
       '@quickreel/queue':
         specifier: workspace:*
         version: link:../../packages/queue
+      '@quickreel/scoring-engine':
+        specifier: workspace:*
+        version: link:../../packages/scoring-engine
       '@quickreel/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -321,6 +324,19 @@ importers:
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
+
+  packages/scoring-engine:
+    dependencies:
+      '@quickreel/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(@types/node@20.19.43)(terser@5.49.0)
 
   packages/shared:
     dependencies:
