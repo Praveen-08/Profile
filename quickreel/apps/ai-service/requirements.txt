@@ -1,0 +1,17 @@
+fastapi==0.115.0
+uvicorn[standard]==0.31.0
+librosa==0.10.2.post1
+numpy==1.26.4
+soundfile==0.12.1
+httpx==0.27.2
+pydantic==2.9.2
+python-dotenv==1.2.2
+pillow>=10.0.0
+# No version pin: PyPI's default `torch`/`transformers` wheels are large
+# (bundle CUDA support even for CPU-only use) but are what's reachable from
+# network-restricted environments where download.pytorch.org is blocked.
+# In an environment with normal network access, prefer:
+#   pip install --index-url https://download.pytorch.org/whl/cpu torch
+# for a much smaller CPU-only wheel.
+torch
+transformers

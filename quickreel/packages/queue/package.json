@@ -1,0 +1,22 @@
+{
+  "name": "@quickreel/queue",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@quickreel/shared": "workspace:*",
+    "bullmq": "^5.15.0",
+    "ioredis": "5.10.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

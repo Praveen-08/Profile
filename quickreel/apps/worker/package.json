@@ -1,0 +1,37 @@
+{
+  "name": "@quickreel/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/main.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "dotenv -e ../../.env -- tsx watch src/main.ts",
+    "start": "dotenv -e ../../.env -- node dist/main.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@quickreel/database": "workspace:*",
+    "@quickreel/shared": "workspace:*",
+    "@quickreel/storage": "workspace:*",
+    "@quickreel/queue": "workspace:*",
+    "@quickreel/vision": "workspace:*",
+    "@quickreel/story-engine": "workspace:*",
+    "@quickreel/atmospheric-engine": "workspace:*",
+    "@quickreel/camera-engine": "workspace:*",
+    "@quickreel/transition-engine": "workspace:*",
+    "@quickreel/hook-engine": "workspace:*",
+    "@quickreel/timing-engine": "workspace:*",
+    "@quickreel/music-engine": "workspace:*",
+    "@quickreel/beat-engine": "workspace:*",
+    "@quickreel/style-engine": "workspace:*",
+    "@quickreel/video-engine": "workspace:*",
+    "@quickreel/scoring-engine": "workspace:*",
+    "bullmq": "^5.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.10",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+.turbo/
+*.tsbuildinfo
+generated/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Local data (storage adapter, render tmp, postgres volumes if bind-mounted)
+.data/
+
+# Python
+apps/ai-service/.venv/
+apps/ai-service/__pycache__/
+**/__pycache__/
+*.pyc
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Prisma
+packages/database/generated/
