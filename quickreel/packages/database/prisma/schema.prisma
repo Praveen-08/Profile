@@ -1,0 +1,201 @@
+// QuickReel AI — primary datastore.
+//
+// `auth.users` is owned entirely by Supabase and is NOT modeled here. A
+// Postgres trigger (see migrations/xxxx_handle_new_user) provisions the
+// matching `profiles` row on signup. apps/web never queries Postgres
+// directly — every read/write goes through apps/api, which filters by
+// req.user.id from the verified Supabase JWT. RLS is therefore not the
+// enforcement boundary in this schema; NestJS's SupabaseAuthGuard is.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProjectStatus {
+  DRAFT
+  UPLOADING
+  ANALYZING
+  READY
+  QUEUED
+  RENDERING
+  COMPLETE
+  FAILED
+}
+
+enum RoomType {
+  EXTERIOR_FRONT
+  EXTERIOR_REAR
+  EXTERIOR_GENERAL
+  DRONE
+  LIVING_ROOM
+  KITCHEN
+  DINING
+  MASTER_BEDROOM
+  BEDROOM
+  BATHROOM
+  ENSUITE
+  LAUNDRY
+  HALLWAY
+  OFFICE
+  OUTDOOR
+  POOL
+  DECK
+  VIEWS
+  TWILIGHT
+  NIGHT
+  UNKNOWN
+}
+
+enum MusicVibe {
+  LUXURY_PIANO
+  EPIC_CINEMATIC
+  MODERN_ELECTRONIC
+  CORPORATE
+  DEEP_HOUSE
+  ACOUSTIC
+  LIFESTYLE
+  AMBIENT
+  HIGH_ENERGY
+  MOTIVATIONAL
+}
+
+enum RenderStatus {
+  QUEUED
+  RESOLVING_EDL
+  RENDERING
+  MUXING
+  UPLOADING
+  COMPLETE
+  FAILED
+}
+
+// Reserved for future billing; unused by any code path this milestone.
+enum PlanTier {
+  FREE
+}
+
+model Profile {
+  id          String    @id @db.Uuid
+  email       String
+  fullName    String?
+  companyName String?
+  avatarUrl   String?
+  planTier    PlanTier  @default(FREE)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  projects    Project[]
+
+  @@map("profiles")
+}
+
+model Project {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @db.Uuid
+  profile       Profile       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String?
+  address       String?
+  bedCount      Int?
+  bathCount     Int?
+  status        ProjectStatus @default(DRAFT)
+  reelLengthSec Int?
+  styleId       String?       @db.Uuid
+  style         Style?        @relation(fields: [styleId], references: [id])
+  musicTrackId  String?       @db.Uuid
+  musicTrack    MusicTrack?   @relation(fields: [musicTrackId], references: [id])
+  hookArchetype String?
+  images        ProjectImage[]
+  renders       Render[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId])
+  @@map("projects")
+}
+
+model ProjectImage {
+  id               String         @id @default(uuid()) @db.Uuid
+  projectId        String         @db.Uuid
+  project          Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  storageKey       String
+  originalFilename String
+  width            Int?
+  height           Int?
+  orderIndex       Int?
+  roomType         RoomType?
+  roomConfidence   Float?
+  qualityScore     Float?
+  perceptualHash   String?
+  isDuplicate      Boolean        @default(false)
+  duplicateOfId    String?        @db.Uuid
+  duplicateOf      ProjectImage?  @relation("DupOf", fields: [duplicateOfId], references: [id])
+  duplicates       ProjectImage[] @relation("DupOf")
+  isHero           Boolean        @default(false)
+  isSecondHero     Boolean        @default(false)
+  heroScore        Float?
+  analysisJson     Json?
+  uploadedAt       DateTime       @default(now())
+
+  @@index([projectId])
+  @@map("project_images")
+}
+
+model Style {
+  id           String    @id @default(uuid()) @db.Uuid
+  slug         String    @unique
+  name         String
+  description  String?
+  thumbnailUrl String?
+  sortOrder    Int       @default(0)
+  isActive     Boolean   @default(true)
+  projects     Project[]
+
+  @@map("styles")
+}
+
+model MusicTrack {
+  id              String    @id @default(uuid()) @db.Uuid
+  slug            String    @unique
+  vibe            MusicVibe
+  title           String
+  storageKey      String
+  genre           String?
+  mood            String?
+  bpm             Float
+  energy          Float
+  buildUpSec      Float?
+  dropSec         Float?
+  manualDropSec   Float?
+  outroSec        Float?
+  durationSec     Float
+  beatGridJson    Json?
+  beatGridVersion String?
+  isActive        Boolean   @default(true)
+  projects        Project[]
+
+  @@index([vibe])
+  @@map("music_tracks")
+}
+
+model Render {
+  id                String       @id @default(uuid()) @db.Uuid
+  projectId         String       @db.Uuid
+  project           Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  bullJobId         String?
+  status            RenderStatus @default(QUEUED)
+  edlJson           Json?
+  outputStorageKey  String?
+  outputDurationSec Float?
+  errorMessage      String?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime     @default(now())
+
+  @@index([projectId])
+  @@map("renders")
+}
