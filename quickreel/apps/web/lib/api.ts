@@ -94,6 +94,20 @@ export interface RenderSummary {
   completedAt: string | null;
 }
 
+export interface CameraMovementSummary {
+  type: string;
+  label: string;
+  description: string;
+  preferredRoomTypes: string[];
+}
+
+export interface CameraMovePreviewEntry {
+  imageId: string;
+  roomType: string;
+  movementType: string;
+  isOverride: boolean;
+}
+
 export const api = {
   listStyles: (token?: string) => apiFetch<StyleSummary[]>("/styles", token),
   listMusicTracks: (token: string | undefined, vibe?: string) =>
@@ -144,4 +158,13 @@ export const api = {
     apiFetch<RenderSummary>(`/projects/${projectId}/renders`, token, { method: "POST" }),
   getLatestRender: (token: string, projectId: string) =>
     apiFetch<RenderSummary>(`/projects/${projectId}/renders/latest`, token),
+
+  listCameraMovements: (token?: string) => apiFetch<CameraMovementSummary[]>("/camera-movements", token),
+  getCameraMovesPreview: (token: string, projectId: string) =>
+    apiFetch<CameraMovePreviewEntry[]>(`/projects/${projectId}/camera-moves-preview`, token),
+  setCameraMoveOverride: (token: string, projectId: string, imageId: string, cameraMoveOverride: string | null) =>
+    apiFetch<ProjectImageSummary>(`/projects/${projectId}/images/${imageId}/camera-move`, token, {
+      method: "PATCH",
+      body: JSON.stringify({ cameraMoveOverride }),
+    }),
 };

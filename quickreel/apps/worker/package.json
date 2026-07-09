@@ -17,6 +17,7 @@
     "@quickreel/queue": "workspace:*",
     "@quickreel/vision": "workspace:*",
     "@quickreel/story-engine": "workspace:*",
+    "@quickreel/atmospheric-engine": "workspace:*",
     "@quickreel/camera-engine": "workspace:*",
     "@quickreel/transition-engine": "workspace:*",
     "@quickreel/hook-engine": "workspace:*",

@@ -29,6 +29,9 @@ importers:
       '@nestjs/platform-express':
         specifier: ^10.4.4
         version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)
+      '@quickreel/camera-engine':
+        specifier: workspace:*
+        version: link:../../packages/camera-engine
       '@quickreel/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -41,6 +44,9 @@ importers:
       '@quickreel/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@quickreel/style-engine':
+        specifier: workspace:*
+        version: link:../../packages/style-engine
       bullmq:
         specifier: ^5.15.0
         version: 5.79.3
@@ -136,6 +142,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@quickreel/atmospheric-engine':
+        specifier: workspace:*
+        version: link:../../packages/atmospheric-engine
       '@quickreel/beat-engine':
         specifier: workspace:*
         version: link:../../packages/beat-engine
@@ -191,6 +200,19 @@ importers:
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
+
+  packages/atmospheric-engine:
+    dependencies:
+      '@quickreel/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(@types/node@20.19.43)(terser@5.49.0)
 
   packages/beat-engine:
     dependencies:

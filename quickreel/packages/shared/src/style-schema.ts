@@ -67,5 +67,7 @@ export const StyleConfigSchema = z.object({
   motionIntensity: z.number().min(0).max(1),
   /** Preferred hook archetypes for this style, in priority order. */
   preferredHookArchetypes: z.array(z.string()).min(1),
+  /** "Luxury only" per product spec — packages/atmospheric-engine never selects an effect when false. */
+  atmosphericEffectsEnabled: z.boolean(),
 });
 export type StyleConfig = z.infer<typeof StyleConfigSchema>;

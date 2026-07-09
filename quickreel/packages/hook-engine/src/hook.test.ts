@@ -37,6 +37,7 @@ function makeStyle(preferredHookArchetypes: string[]): StyleConfig {
     musicBehavior: { syncCutsToDownbeatOnly: true, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 2 },
     motionIntensity: 0.8,
     preferredHookArchetypes,
+    atmosphericEffectsEnabled: true,
   };
 }
 

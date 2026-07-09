@@ -80,6 +80,36 @@ enum PlanTier {
   FREE
 }
 
+// Mirrors packages/shared/src/enums.ts's CameraMoveTypeSchema — used only for
+// the timeline-editing "replace/lock movement" override, not for AI-decided
+// moves (those are computed fresh in apps/worker's resolve-edl.ts and never
+// persisted independently of the render they belong to).
+enum CameraMoveType {
+  SLOW_PUSH
+  SLOW_PULL
+  PAN_LEFT
+  PAN_RIGHT
+  TRUCK_LEFT
+  TRUCK_RIGHT
+  PEDESTAL_UP
+  PEDESTAL_DOWN
+  ARC
+  ORBIT
+  PARALLAX
+  FOREGROUND_REVEAL
+  DEPTH_PUSH
+  PERSPECTIVE_SHIFT
+  TILT
+  HERO_PUSH
+  REVEAL
+  CRANE_RISE
+  CORNER_REVEAL
+  MICRO_CAMERA_DRIFT
+  DRONE_RISE
+  DRONE_DESCEND
+  DRONE_ORBIT
+}
+
 model Profile {
   id          String    @id @db.Uuid
   email       String
@@ -139,6 +169,11 @@ model ProjectImage {
   isSecondHero     Boolean        @default(false)
   heroScore        Float?
   analysisJson     Json?
+  // Null when depth estimation didn't run or failed for this image (see apps/ai-service's honest-gap note on model download in restricted sandboxes).
+  depthMapStorageKey       String?
+  foregroundMaskStorageKey String?
+  // Set by the timeline-editing "replace movement" action; null means the AI decides at render time.
+  cameraMoveOverride       CameraMoveType?
   uploadedAt       DateTime       @default(now())
 
   @@index([projectId])

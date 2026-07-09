@@ -1,13 +1,15 @@
 import { z } from "zod";
 import { BeatGridSchema } from "./beat-grid.js";
+import { EasingCurveSchema } from "./easing.js";
 import {
+  AtmosphericEffectTypeSchema,
   CameraMoveTypeSchema,
   RoomTypeSchema,
   TextOverlayKindSchema,
   TransitionTypeSchema,
 } from "./enums.js";
 
-export const CURRENT_EDL_VERSION = "edl-v1";
+export const CURRENT_EDL_VERSION = "edl-v2";
 
 export const CameraMoveSchema = z.object({
   type: CameraMoveTypeSchema,
@@ -15,7 +17,7 @@ export const CameraMoveSchema = z.object({
   endScale: z.number().min(1).max(3),
   startFocalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }),
   endFocalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }),
-  easing: z.enum(["linear", "easeInOut", "easeOutCubic", "easeInCubic"]),
+  easing: EasingCurveSchema,
   /** 0..1 style-driven multiplier applied to the movement's base amplitude. */
   intensity: z.number().min(0).max(1),
 });
@@ -24,9 +26,28 @@ export type CameraMove = z.infer<typeof CameraMoveSchema>;
 export const TransitionSpecSchema = z.object({
   type: TransitionTypeSchema,
   durationMs: z.number().positive(),
-  easing: z.enum(["linear", "easeInOut", "easeOutCubic", "easeInCubic"]),
+  easing: EasingCurveSchema,
 });
 export type TransitionSpec = z.infer<typeof TransitionSpecSchema>;
+
+/**
+ * Cached, per-image monocular depth output (packages/vision +
+ * apps/ai-service) — a depth map plus a smoothed foreground matte derived
+ * from it. Present only when depth estimation succeeded for this image;
+ * video-engine falls back to single-layer camera motion when absent.
+ */
+export const DepthLayersSchema = z.object({
+  depthMapStorageKey: z.string(),
+  foregroundMaskStorageKey: z.string(),
+});
+export type DepthLayers = z.infer<typeof DepthLayersSchema>;
+
+export const AtmosphericEffectSchema = z.object({
+  type: AtmosphericEffectTypeSchema,
+  /** 0..1, deliberately capped low upstream — "extremely subtle, never overuse." */
+  intensity: z.number().min(0).max(1),
+});
+export type AtmosphericEffect = z.infer<typeof AtmosphericEffectSchema>;
 
 export const TextOverlaySchema = z.object({
   id: z.string(),
@@ -60,6 +81,9 @@ export const EDLClipSchema = z.object({
   transitionIn: TransitionSpecSchema,
   transitionOut: TransitionSpecSchema,
   textOverlays: z.array(TextOverlaySchema),
+  /** Null when depth estimation didn't run or failed for this image — video-engine renders single-layer motion in that case. */
+  depth: DepthLayersSchema.nullable(),
+  atmosphericEffect: AtmosphericEffectSchema.nullable(),
 });
 export type EDLClip = z.infer<typeof EDLClipSchema>;
 

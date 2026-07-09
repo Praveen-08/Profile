@@ -77,6 +77,36 @@ export function getTransitionStyle(
       // A true match cut: near-instant, no visible effect — continuity comes from the camera moves themselves.
       return direction === "in" ? { ...IDENTITY, opacity: p > 0.5 ? 1 : 0 } : { ...IDENTITY, opacity: p > 0.5 ? 0 : 1 };
 
+    case "MOTION_MATCH":
+      // Like MOTION_BLUR but shorter/lighter — the incoming clip should feel like it's continuing
+      // the outgoing clip's own camera motion, not starting a new one.
+      return direction === "in"
+        ? { opacity: p, transform: `translateX(${(1 - p) * 18}%) scale(${1 + (1 - p) * 0.03})`, filter: `blur(${(1 - p) * 6}px)` }
+        : { opacity: 1 - p, transform: `translateX(${-p * 18}%) scale(${1 - p * 0.01})`, filter: `blur(${p * 6}px)` };
+
+    case "PERSPECTIVE_MATCH": {
+      // Subtle 3D tilt implying the two frames' vanishing points are aligning through the cut.
+      const rotateY = direction === "in" ? (1 - p) * 6 : -p * 6;
+      const scale = direction === "in" ? 0.96 + p * 0.04 : 1 - p * 0.02;
+      return {
+        opacity: direction === "in" ? p : 1 - p,
+        transform: `perspective(1000px) rotateY(${rotateY}deg) scale(${scale})`,
+        filter: "",
+      };
+    }
+
+    case "REFLECTION_WIPE":
+      // A brightness sheen sweeps through the cut, evoking a reflection passing across water or glass.
+      return direction === "in"
+        ? { opacity: p, transform: `translateY(${(1 - p) * 6}%)`, filter: `brightness(${1 + Math.sin(p * Math.PI) * 0.5})` }
+        : { opacity: 1 - p, transform: `translateY(${-p * 6}%)`, filter: `brightness(${1 + Math.sin(p * Math.PI) * 0.5})` };
+
+    case "GLASS_TRANSITION":
+      // Frosted-glass blur with a faint desaturation, clearing as the incoming clip settles in.
+      return direction === "in"
+        ? { opacity: p, transform: `scale(${1.02 - p * 0.02})`, filter: `blur(${(1 - p) * 16}px) saturate(${60 + p * 40}%)` }
+        : { opacity: 1 - p, transform: `scale(${1 + p * 0.02})`, filter: `blur(${p * 16}px) saturate(${100 - p * 40}%)` };
+
     default:
       return IDENTITY;
   }

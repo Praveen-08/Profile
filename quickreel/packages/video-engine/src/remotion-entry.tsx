@@ -56,6 +56,8 @@ const PLACEHOLDER_EDL: EditDecisionList = {
       transitionIn: { type: "LUXURY_FADE", durationMs: 600, easing: "easeInOut" },
       transitionOut: { type: "LUXURY_FADE", durationMs: 600, easing: "easeInOut" },
       textOverlays: [],
+      depth: null,
+      atmosphericEffect: null,
     },
   ],
   audio: { trackStorageKey: "placeholder.wav", startOffsetMs: 0 },

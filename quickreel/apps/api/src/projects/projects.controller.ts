@@ -4,6 +4,7 @@ import { SupabaseAuthGuard } from "../auth/supabase-auth.guard.js";
 import { CompleteImageDto } from "./dto/complete-image.dto.js";
 import { CreateProjectDto } from "./dto/create-project.dto.js";
 import { PresignImageDto } from "./dto/presign-image.dto.js";
+import { UpdateCameraMoveDto } from "./dto/update-camera-move.dto.js";
 import { UpdateProjectDto } from "./dto/update-project.dto.js";
 import { ProjectsService } from "./projects.service.js";
 
@@ -75,5 +76,20 @@ export class ProjectsController {
   @Get(":id/renders/latest")
   latestRender(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.projects.latestRender(user.id, id);
+  }
+
+  @Get(":id/camera-moves-preview")
+  getCameraMovesPreview(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.projects.getCameraMovesPreview(user.id, id);
+  }
+
+  @Patch(":id/images/:imageId/camera-move")
+  setCameraMoveOverride(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Param("imageId") imageId: string,
+    @Body() dto: UpdateCameraMoveDto,
+  ) {
+    return this.projects.setCameraMoveOverride(user.id, id, imageId, dto);
   }
 }

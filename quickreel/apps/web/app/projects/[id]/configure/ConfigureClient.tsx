@@ -1,24 +1,29 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { Loader2, Sparkles } from "lucide-react";
 import {
   MUSIC_VIBES,
   MUSIC_VIBE_LABELS,
   REEL_LENGTH_OPTIONS,
-  ROOM_TYPE_LABELS,
   type MusicVibe,
   type ReelLengthSec,
-  type RoomType,
 } from "@quickreel/shared";
-import { api, type MusicTrackSummary, type ProjectDetail, type StyleSummary } from "@/lib/api";
+import {
+  api,
+  type CameraMovePreviewEntry,
+  type CameraMovementSummary,
+  type MusicTrackSummary,
+  type ProjectDetail,
+  type StyleSummary,
+} from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { TimelineClip } from "./TimelineClip";
 
 const HOOK_ARCHETYPE_LABELS: Record<string, string> = {
   BEST_EXTERIOR_QUICK_ZOOM: "Best Exterior, Quick Zoom",
@@ -46,11 +51,32 @@ export function ConfigureClient({
   const [hookArchetype, setHookArchetype] = useState(project.hookArchetype ?? "");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [movements, setMovements] = useState<CameraMovementSummary[]>([]);
+  const [moveSelections, setMoveSelections] = useState<CameraMovePreviewEntry[]>([]);
 
   useEffect(() => {
     if (!vibe) return;
     api.listMusicTracks(token, vibe).then(setTracks);
   }, [vibe, token]);
+
+  useEffect(() => {
+    api.listCameraMovements(token).then(setMovements);
+  }, [token]);
+
+  const refreshCameraMoves = useCallback(() => {
+    if (!styleId) return;
+    api.getCameraMovesPreview(token, project.id).then(setMoveSelections).catch(() => setMoveSelections([]));
+  }, [token, project.id, styleId]);
+
+  useEffect(() => {
+    refreshCameraMoves();
+  }, [refreshCameraMoves]);
+
+  const movementByImageId = useMemo(
+    () => new Map(moveSelections.map((entry) => [entry.imageId, entry])),
+    [moveSelections],
+  );
+  const movementLabelByType = useMemo(() => new Map(movements.map((m) => [m.type, m.label])), [movements]);
 
   const orderedImages = useMemo(
     () => [...project.images].filter((i) => !i.isDuplicate).sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)),
@@ -195,25 +221,40 @@ export function ConfigureClient({
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
           Story Timeline · {orderedImages.length} clips
         </h2>
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {orderedImages.map((image, index) => (
-            <motion.div
-              key={image.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: index * 0.02 }}
-              className="relative h-28 w-20 flex-shrink-0 overflow-hidden rounded-lg border border-border"
-            >
-              <Image src={image.url} alt="" fill className="object-cover" unoptimized />
-              {image.isHero && (
-                <span className="absolute left-1 top-1 rounded bg-accent px-1 text-[9px] font-bold text-black">HERO</span>
-              )}
-              <span className="absolute inset-x-0 bottom-0 truncate bg-black/70 px-1 py-0.5 text-[9px] text-white">
-                {image.roomType ? ROOM_TYPE_LABELS[image.roomType as RoomType] : "—"}
-              </span>
-            </motion.div>
-          ))}
-        </div>
+        <p className="mb-3 text-xs text-muted">
+          Every clip shows the camera movement the AI assigned. Click a movement to replace it — replacing locks it in
+          for future renders, even after you change other settings.
+        </p>
+        {!styleId ? (
+          <p className="text-sm text-muted">Pick a style above to see (and edit) each clip&apos;s camera movement.</p>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {orderedImages.map((image, index) => {
+              const selection = movementByImageId.get(image.id);
+              const movementLabel = selection
+                ? (movementLabelByType.get(selection.movementType) ?? selection.movementType)
+                : "…";
+              return (
+                <motion.div
+                  key={image.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: index * 0.02 }}
+                >
+                  <TimelineClip
+                    token={token}
+                    projectId={project.id}
+                    image={image}
+                    movementLabel={movementLabel}
+                    isOverride={selection?.isOverride ?? false}
+                    movements={movements}
+                    onChanged={refreshCameraMoves}
+                  />
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <Card className="flex items-center justify-between p-6">

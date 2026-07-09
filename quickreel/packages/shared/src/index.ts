@@ -1,4 +1,5 @@
 export * from "./enums.js";
+export * from "./easing.js";
 export * from "./beat-grid.js";
 export * from "./edl.js";
 export * from "./style-schema.js";

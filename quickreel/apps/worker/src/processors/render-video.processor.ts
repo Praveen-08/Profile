@@ -7,10 +7,11 @@ import { prisma } from "@quickreel/database";
 import { createStorageAdapterFromEnv } from "@quickreel/storage";
 import { getStyleBySlug } from "@quickreel/style-engine";
 import { detectBeatGrid } from "@quickreel/beat-engine";
-import { renderReel } from "@quickreel/video-engine";
+import { renderReel, type ChromiumGlBackend } from "@quickreel/video-engine";
 import {
   BeatGridSchema,
   CURRENT_BEAT_ANALYSIS_VERSION,
+  type CameraMoveType,
   type HookArchetype,
   type ReelLengthSec,
   type RenderVideoJobPayload,
@@ -63,6 +64,9 @@ export async function renderVideoProcessor(job: Job<RenderVideoJobPayload>): Pro
         qualityScore: img.qualityScore ?? 0.5,
         isHero: img.isHero,
         isSecondHero: img.isSecondHero,
+        depthMapStorageKey: img.depthMapStorageKey,
+        foregroundMaskStorageKey: img.foregroundMaskStorageKey,
+        cameraMoveOverride: img.cameraMoveOverride as CameraMoveType | null,
       }));
 
     if (orderedImages.length === 0) {
@@ -94,6 +98,10 @@ export async function renderVideoProcessor(job: Job<RenderVideoJobPayload>): Pro
     const imageUrls: Record<string, string> = {};
     for (const clip of edl.clips) {
       imageUrls[clip.imageStorageKey] = storage.getObjectUrl(clip.imageStorageKey);
+      if (clip.depth) {
+        imageUrls[clip.depth.depthMapStorageKey] = storage.getObjectUrl(clip.depth.depthMapStorageKey);
+        imageUrls[clip.depth.foregroundMaskStorageKey] = storage.getObjectUrl(clip.depth.foregroundMaskStorageKey);
+      }
     }
     const audioUrl = storage.getObjectUrl(edl.audio.trackStorageKey);
 
@@ -107,6 +115,8 @@ export async function renderVideoProcessor(job: Job<RenderVideoJobPayload>): Pro
       audioUrl,
       outputPath: localOutputPath,
       chromiumExecutablePath: process.env.REMOTION_CHROMIUM_EXECUTABLE_PATH,
+      concurrency: process.env.RENDER_CONCURRENCY ? Number(process.env.RENDER_CONCURRENCY) : undefined,
+      glBackend: (process.env.RENDER_GL_BACKEND as ChromiumGlBackend | undefined) || undefined,
       onProgress: ({ renderedFrames, totalFrames }) => {
         job.updateProgress(totalFrames > 0 ? Math.round((renderedFrames / totalFrames) * 100) : 0).catch(() => undefined);
       },

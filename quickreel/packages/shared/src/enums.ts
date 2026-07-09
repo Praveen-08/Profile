@@ -90,9 +90,14 @@ export const MUSIC_VIBE_LABELS: Record<MusicVibe, string> = {
 };
 
 /**
- * The full ~18-movement camera catalog (packages/camera-engine). Every
- * style references a subset of these by weight per room type — never
- * hardcoded per-style branching.
+ * The full ~22-movement camera catalog (packages/camera-engine) — the
+ * Cinematic Motion Engine's vocabulary. Every style references a subset of
+ * these by weight per room type — never hardcoded per-style branching.
+ * CRANE_RISE/CORNER_REVEAL/MICRO_CAMERA_DRIFT/DRONE_RISE/DRONE_DESCEND/
+ * DRONE_ORBIT were added, and the single DRONE_SIMULATION was split into
+ * the three DRONE_* variants, in the Cinematic Motion Engine pass — no
+ * production renders existed yet, so this was a clean rename rather than a
+ * migration.
  */
 export const CameraMoveTypeSchema = z.enum([
   "SLOW_PUSH",
@@ -111,15 +116,22 @@ export const CameraMoveTypeSchema = z.enum([
   "PERSPECTIVE_SHIFT",
   "TILT",
   "HERO_PUSH",
-  "DRONE_SIMULATION",
-  "REVEAL_MOTION",
+  "REVEAL",
+  "CRANE_RISE",
+  "CORNER_REVEAL",
+  "MICRO_CAMERA_DRIFT",
+  "DRONE_RISE",
+  "DRONE_DESCEND",
+  "DRONE_ORBIT",
 ]);
 export type CameraMoveType = z.infer<typeof CameraMoveTypeSchema>;
 export const CAMERA_MOVE_TYPES = CameraMoveTypeSchema.options;
 
 /**
- * The 12-transition palette (packages/transition-engine). Kept intentionally
- * small and elegant per product spec — "avoid cheesy effects."
+ * The 16-transition palette (packages/transition-engine). Kept intentionally
+ * small and elegant per product spec — "avoid cheesy effects, movie
+ * quality only." MOTION_MATCH/PERSPECTIVE_MATCH/REFLECTION_WIPE/
+ * GLASS_TRANSITION were added in the Cinematic Motion Engine pass.
  */
 export const TransitionTypeSchema = z.enum([
   "LUXURY_FADE",
@@ -134,9 +146,31 @@ export const TransitionTypeSchema = z.enum([
   "WHITE_FLASH",
   "BLUR",
   "CAMERA_MATCH",
+  "MOTION_MATCH",
+  "PERSPECTIVE_MATCH",
+  "REFLECTION_WIPE",
+  "GLASS_TRANSITION",
 ]);
 export type TransitionType = z.infer<typeof TransitionTypeSchema>;
 export const TRANSITION_TYPES = TransitionTypeSchema.options;
+
+/**
+ * Extremely subtle, style-gated ("luxury only") procedural overlay effects
+ * — packages/atmospheric-engine picks at most one per clip, never more.
+ * Purely CSS/canvas overlays composited above the untouched source photo;
+ * they never alter the photograph itself.
+ */
+export const AtmosphericEffectTypeSchema = z.enum([
+  "CLOUD_DRIFT",
+  "LENS_FLARE",
+  "SOFT_SUN_RAYS",
+  "REFLECTION_SHIMMER",
+  "DUST_HAZE",
+  "WINDOW_GLOW",
+  "EXTERIOR_LIGHT_FADE",
+]);
+export type AtmosphericEffectType = z.infer<typeof AtmosphericEffectTypeSchema>;
+export const ATMOSPHERIC_EFFECT_TYPES = AtmosphericEffectTypeSchema.options;
 
 export const ReelLengthSecSchema = z.union([z.literal(10), z.literal(15), z.literal(20)]);
 export type ReelLengthSec = z.infer<typeof ReelLengthSecSchema>;

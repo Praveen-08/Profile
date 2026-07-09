@@ -31,6 +31,7 @@ const style: StyleConfig = {
   musicBehavior: { syncCutsToDownbeatOnly: true, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 2 },
   motionIntensity: 0.8,
   preferredHookArchetypes: ["BEST_EXTERIOR_QUICK_ZOOM"],
+  atmosphericEffectsEnabled: true,
 };
 
 describe("selectTransition", () => {

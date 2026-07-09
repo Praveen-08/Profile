@@ -20,6 +20,26 @@ export interface SelectCameraMoveInput {
 }
 
 /**
+ * Builds a full CameraMove from a chosen movement type — shared by the
+ * AI-selected path (selectCameraMove) and the timeline-editing "replace
+ * movement" override path (apps/worker's resolve-edl.ts), so a
+ * user-picked movement renders with exactly the same parameters an
+ * AI-picked one would.
+ */
+export function buildCameraMove(type: CameraMoveType, style: StyleConfig): CameraMove {
+  const def = getMovementDef(type);
+  return {
+    type,
+    startScale: def.scaleRange[0],
+    endScale: def.scaleRange[1],
+    startFocalPoint: def.startFocalPoint,
+    endFocalPoint: def.endFocalPoint,
+    easing: def.defaultEasing,
+    intensity: style.motionIntensity,
+  };
+}
+
+/**
  * Picks a camera movement for one clip: weighted-random within the style's
  * per-room bias table, seeded for reproducibility, with a "never repeat
  * more than twice per reel" constraint. When every biased option has
@@ -46,16 +66,7 @@ export function selectCameraMove(input: SelectCameraMoveInput): CameraMove {
 
   usageCounts[picked] = (usageCounts[picked] ?? 0) + 1;
 
-  const def = getMovementDef(picked);
-  return {
-    type: picked,
-    startScale: def.scaleRange[0],
-    endScale: def.scaleRange[1],
-    startFocalPoint: def.startFocalPoint,
-    endFocalPoint: def.endFocalPoint,
-    easing: def.defaultEasing,
-    intensity: style.motionIntensity,
-  };
+  return buildCameraMove(picked, style);
 }
 
 function leastUsed<T extends { type: CameraMoveType }>(entries: T[], usageCounts: MovementUsageCounts): T[] {

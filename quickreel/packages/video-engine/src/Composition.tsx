@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { AbsoluteFill, Audio, Sequence } from "remotion";
 import type { EditDecisionList, TextOverlay } from "@quickreel/shared";
+import { AtmosphericEffectLayer } from "./components/AtmosphericEffectLayer.js";
 import { ClipLayer } from "./components/ClipLayer.js";
 import { TextOverlayLayer } from "./components/TextOverlayLayer.js";
 import { msToFrames } from "./timing.js";
@@ -49,16 +50,28 @@ export function QuickReelComposition({ edl, imageUrls, audioUrl }: QuickReelComp
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
-      {edl.clips.map((clip) => (
-        <Sequence
-          key={clip.imageId + clip.clipIndex}
-          from={msToFrames(clip.startMs, edl.fps)}
-          durationInFrames={Math.max(1, msToFrames(clip.durationMs, edl.fps))}
-          layout="none"
-        >
-          <ClipLayer clip={clip} fps={edl.fps} imageUrl={imageUrls[clip.imageStorageKey] ?? clip.imageStorageKey} />
-        </Sequence>
-      ))}
+      {edl.clips.map((clip) => {
+        const durationInFrames = Math.max(1, msToFrames(clip.durationMs, edl.fps));
+        return (
+          <Sequence
+            key={clip.imageId + clip.clipIndex}
+            from={msToFrames(clip.startMs, edl.fps)}
+            durationInFrames={durationInFrames}
+            layout="none"
+          >
+            <ClipLayer
+              clip={clip}
+              fps={edl.fps}
+              imageUrl={imageUrls[clip.imageStorageKey] ?? clip.imageStorageKey}
+              depthMapUrl={clip.depth ? imageUrls[clip.depth.depthMapStorageKey] : undefined}
+              foregroundMaskUrl={clip.depth ? imageUrls[clip.depth.foregroundMaskStorageKey] : undefined}
+            />
+            {clip.atmosphericEffect && (
+              <AtmosphericEffectLayer effect={clip.atmosphericEffect} durationInFrames={durationInFrames} />
+            )}
+          </Sequence>
+        );
+      })}
 
       {uniqueOverlays.map((overlay) => {
         const from = msToFrames(overlay.startMs, edl.fps);

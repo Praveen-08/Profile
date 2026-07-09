@@ -24,7 +24,7 @@ import {
 } from "./presets/typography.js";
 import { FAST_CUT_SPEED, MEDIUM_CUT_SPEED, SLOW_CUT_SPEED, VERY_FAST_CUT_SPEED } from "./presets/cut-speed.js";
 
-const CALM_DEFAULT_MOVES = [{ type: "SLOW_PUSH" as const, weight: 0.6 }, { type: "REVEAL_MOTION" as const, weight: 0.4 }];
+const CALM_DEFAULT_MOVES = [{ type: "SLOW_PUSH" as const, weight: 0.6 }, { type: "REVEAL" as const, weight: 0.4 }];
 const DYNAMIC_DEFAULT_MOVES = [{ type: "TRUCK_LEFT" as const, weight: 0.5 }, { type: "TRUCK_RIGHT" as const, weight: 0.5 }];
 const ENERGETIC_DEFAULT_MOVES = [
   { type: "PAN_LEFT" as const, weight: 0.3 },
@@ -52,6 +52,7 @@ export const LUXURY_CINEMATIC = style({
   musicBehavior: { syncCutsToDownbeatOnly: false, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 3 },
   motionIntensity: 0.55,
   preferredHookArchetypes: ["TWILIGHT_REVEAL", "BEST_EXTERIOR_QUICK_ZOOM", "LUXURY_INTERIOR_FIRST"],
+  atmosphericEffectsEnabled: true,
 });
 
 export const MODERN_LUXURY = style({
@@ -66,6 +67,7 @@ export const MODERN_LUXURY = style({
   musicBehavior: { syncCutsToDownbeatOnly: true, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 3 },
   motionIntensity: 0.6,
   preferredHookArchetypes: ["BEST_EXTERIOR_QUICK_ZOOM", "LUXURY_INTERIOR_FIRST", "DRONE_FIRST"],
+  atmosphericEffectsEnabled: true,
 });
 
 export const MINIMAL = style({
@@ -80,6 +82,7 @@ export const MINIMAL = style({
   musicBehavior: { syncCutsToDownbeatOnly: false, alignHeroRevealToDrop: false, outroHoldOnLogoBeats: 4 },
   motionIntensity: 0.35,
   preferredHookArchetypes: ["LUXURY_INTERIOR_FIRST", "BEST_EXTERIOR_QUICK_ZOOM"],
+  atmosphericEffectsEnabled: false,
 });
 
 export const FAST_PACE = style({
@@ -94,6 +97,7 @@ export const FAST_PACE = style({
   musicBehavior: { syncCutsToDownbeatOnly: true, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 2 },
   motionIntensity: 0.85,
   preferredHookArchetypes: ["FAST_MONTAGE", "BEST_EXTERIOR_QUICK_ZOOM"],
+  atmosphericEffectsEnabled: false,
 });
 
 export const INSTAGRAM_VIRAL = style({
@@ -108,6 +112,7 @@ export const INSTAGRAM_VIRAL = style({
   musicBehavior: { syncCutsToDownbeatOnly: true, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 2 },
   motionIntensity: 0.9,
   preferredHookArchetypes: ["FAST_MONTAGE", "DRONE_FIRST", "BEST_EXTERIOR_QUICK_ZOOM"],
+  atmosphericEffectsEnabled: false,
 });
 
 export const TIKTOK = style({
@@ -122,6 +127,7 @@ export const TIKTOK = style({
   musicBehavior: { syncCutsToDownbeatOnly: true, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 2 },
   motionIntensity: 0.92,
   preferredHookArchetypes: ["FAST_MONTAGE", "BEST_EXTERIOR_QUICK_ZOOM"],
+  atmosphericEffectsEnabled: false,
 });
 
 export const LUXURY_TWILIGHT = style({
@@ -136,6 +142,7 @@ export const LUXURY_TWILIGHT = style({
   musicBehavior: { syncCutsToDownbeatOnly: false, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 4 },
   motionIntensity: 0.5,
   preferredHookArchetypes: ["TWILIGHT_REVEAL", "BEST_EXTERIOR_QUICK_ZOOM"],
+  atmosphericEffectsEnabled: true,
 });
 
 export const ARCHITECTURAL = style({
@@ -150,6 +157,7 @@ export const ARCHITECTURAL = style({
   musicBehavior: { syncCutsToDownbeatOnly: false, alignHeroRevealToDrop: false, outroHoldOnLogoBeats: 3 },
   motionIntensity: 0.5,
   preferredHookArchetypes: ["BEST_EXTERIOR_QUICK_ZOOM", "DRONE_FIRST", "LUXURY_INTERIOR_FIRST"],
+  atmosphericEffectsEnabled: false,
 });
 
 export const BUILDER_SHOWCASE = style({
@@ -164,6 +172,7 @@ export const BUILDER_SHOWCASE = style({
   musicBehavior: { syncCutsToDownbeatOnly: true, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 2 },
   motionIntensity: 0.7,
   preferredHookArchetypes: ["DRONE_FIRST", "BEST_EXTERIOR_QUICK_ZOOM", "FAST_MONTAGE"],
+  atmosphericEffectsEnabled: false,
 });
 
 export const PRESTIGE = style({
@@ -178,6 +187,7 @@ export const PRESTIGE = style({
   musicBehavior: { syncCutsToDownbeatOnly: false, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 3 },
   motionIntensity: 0.5,
   preferredHookArchetypes: ["TWILIGHT_REVEAL", "LUXURY_INTERIOR_FIRST", "BEST_EXTERIOR_QUICK_ZOOM"],
+  atmosphericEffectsEnabled: true,
 });
 
 export const LIFESTYLE = style({
@@ -192,6 +202,7 @@ export const LIFESTYLE = style({
   musicBehavior: { syncCutsToDownbeatOnly: true, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 2 },
   motionIntensity: 0.65,
   preferredHookArchetypes: ["LUXURY_INTERIOR_FIRST", "FAST_MONTAGE", "BEST_EXTERIOR_QUICK_ZOOM"],
+  atmosphericEffectsEnabled: false,
 });
 
 export const COASTAL = style({
@@ -206,6 +217,7 @@ export const COASTAL = style({
   musicBehavior: { syncCutsToDownbeatOnly: false, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 3 },
   motionIntensity: 0.6,
   preferredHookArchetypes: ["BEST_EXTERIOR_QUICK_ZOOM", "DRONE_FIRST", "TWILIGHT_REVEAL"],
+  atmosphericEffectsEnabled: true,
 });
 
 export const ELEGANT = style({
@@ -220,6 +232,7 @@ export const ELEGANT = style({
   musicBehavior: { syncCutsToDownbeatOnly: false, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 3 },
   motionIntensity: 0.5,
   preferredHookArchetypes: ["TWILIGHT_REVEAL", "LUXURY_INTERIOR_FIRST", "BEST_EXTERIOR_QUICK_ZOOM"],
+  atmosphericEffectsEnabled: true,
 });
 
 export const PREMIUM_AGENCY = style({
@@ -234,6 +247,7 @@ export const PREMIUM_AGENCY = style({
   musicBehavior: { syncCutsToDownbeatOnly: true, alignHeroRevealToDrop: true, outroHoldOnLogoBeats: 3 },
   motionIntensity: 0.55,
   preferredHookArchetypes: ["BEST_EXTERIOR_QUICK_ZOOM", "TWILIGHT_REVEAL", "DRONE_FIRST"],
+  atmosphericEffectsEnabled: true,
 });
 
 export const NETFLIX_DOCUMENTARY = style({
@@ -248,6 +262,7 @@ export const NETFLIX_DOCUMENTARY = style({
   musicBehavior: { syncCutsToDownbeatOnly: false, alignHeroRevealToDrop: false, outroHoldOnLogoBeats: 4 },
   motionIntensity: 0.45,
   preferredHookArchetypes: ["LUXURY_INTERIOR_FIRST", "BEST_EXTERIOR_QUICK_ZOOM"],
+  atmosphericEffectsEnabled: false,
 });
 
 export const APPLE_STYLE = style({
@@ -262,6 +277,7 @@ export const APPLE_STYLE = style({
   musicBehavior: { syncCutsToDownbeatOnly: false, alignHeroRevealToDrop: false, outroHoldOnLogoBeats: 3 },
   motionIntensity: 0.45,
   preferredHookArchetypes: ["LUXURY_INTERIOR_FIRST", "BEST_EXTERIOR_QUICK_ZOOM"],
+  atmosphericEffectsEnabled: false,
 });
 
 export const CORPORATE = style({
@@ -276,6 +292,7 @@ export const CORPORATE = style({
   musicBehavior: { syncCutsToDownbeatOnly: true, alignHeroRevealToDrop: false, outroHoldOnLogoBeats: 3 },
   motionIntensity: 0.5,
   preferredHookArchetypes: ["BEST_EXTERIOR_QUICK_ZOOM", "LUXURY_INTERIOR_FIRST"],
+  atmosphericEffectsEnabled: false,
 });
 
 export const STYLE_CATALOG: StyleConfig[] = [

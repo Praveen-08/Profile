@@ -3,6 +3,7 @@ import {
   CURRENT_EDL_VERSION,
   EditDecisionListSchema,
   type BeatGrid,
+  type CameraMoveType,
   type EDLClip,
   type EditDecisionList,
   type HookArchetype,
@@ -12,7 +13,7 @@ import {
   type TransitionSpec,
   type TransitionType,
 } from "@quickreel/shared";
-import { createUsageCounts, selectCameraMove } from "@quickreel/camera-engine";
+import { buildCameraMove, createUsageCounts, selectCameraMove } from "@quickreel/camera-engine";
 import {
   createTransitionUsageCounts,
   LOGO_POSITION,
@@ -22,6 +23,7 @@ import {
 import { buildFeasibleHookPlans, getHookPlanByArchetype, rankHookPlans, applyHookToStoryOrder, type HookCandidateImage } from "@quickreel/hook-engine";
 import { allocateBeats, selectImagesForReel, type TimingCandidateImage } from "@quickreel/timing-engine";
 import { computeClipBoundaries } from "@quickreel/beat-engine";
+import { selectAtmosphericEffect } from "@quickreel/atmospheric-engine";
 import { assignOverlaysToClips, buildTextOverlays, type OverlayProjectFields } from "./text-overlays.js";
 
 export interface ResolveEdlImageInput {
@@ -31,6 +33,11 @@ export interface ResolveEdlImageInput {
   qualityScore: number;
   isHero: boolean;
   isSecondHero: boolean;
+  /** Both present only when depth estimation succeeded for this image — see apps/ai-service's honest-gap note. */
+  depthMapStorageKey: string | null;
+  foregroundMaskStorageKey: string | null;
+  /** Set via the timeline-editing "replace movement" action; null means the AI decides. */
+  cameraMoveOverride: CameraMoveType | null;
 }
 
 export interface ResolveEdlInput {
@@ -114,12 +121,38 @@ export function resolveEDL(input: ResolveEdlInput): EditDecisionList {
     boundarySpecs.push(spec);
   }
 
-  const cameraRng = createSeededRng(`${input.renderId}:camera`);
+  // Seeded off projectId (not renderId): camera movement selection is stable for the life of
+  // the project, so apps/api's timeline-preview endpoint (computed before any render exists)
+  // shows exactly what the eventual render will use, rather than a seed that only exists once
+  // a render row has been created.
+  const cameraRng = createSeededRng(`${input.projectId}:camera`);
   const cameraUsage = createUsageCounts();
+  const atmosphericRng = createSeededRng(`${input.renderId}:atmospheric`);
 
   const clipsWithoutText: Omit<EDLClip, "textOverlays">[] = clipTimings.map((timing, index) => {
     const img = byId.get(timing.imageId)!;
-    const camera = selectCameraMove({ roomType: timing.roomType, style: input.style, rng: cameraRng, usageCounts: cameraUsage });
+
+    // A user-locked/replaced movement still counts toward the per-reel repeat cap bookkeeping —
+    // otherwise a manual override could silently let a movement exceed the "never repeat more
+    // than twice" constraint for the AI-decided clips around it.
+    const camera = img.cameraMoveOverride
+      ? (() => {
+          cameraUsage[img.cameraMoveOverride!] = (cameraUsage[img.cameraMoveOverride!] ?? 0) + 1;
+          return buildCameraMove(img.cameraMoveOverride!, input.style);
+        })()
+      : selectCameraMove({ roomType: timing.roomType, style: input.style, rng: cameraRng, usageCounts: cameraUsage });
+
+    const depth =
+      img.depthMapStorageKey && img.foregroundMaskStorageKey
+        ? { depthMapStorageKey: img.depthMapStorageKey, foregroundMaskStorageKey: img.foregroundMaskStorageKey }
+        : null;
+
+    const atmosphericEffect = selectAtmosphericEffect({
+      roomType: timing.roomType,
+      style: input.style,
+      rng: atmosphericRng,
+    });
+
     return {
       clipIndex: index,
       imageId: img.imageId,
@@ -133,6 +166,8 @@ export function resolveEDL(input: ResolveEdlInput): EditDecisionList {
       camera,
       transitionIn: boundarySpecs[index]!,
       transitionOut: boundarySpecs[index + 1]!,
+      depth,
+      atmosphericEffect,
     };
   });
 

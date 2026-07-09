@@ -1,7 +1,7 @@
 import type { Job } from "bullmq";
 import { prisma } from "@quickreel/database";
 import { createStorageAdapterFromEnv } from "@quickreel/storage";
-import { createVisionAdapter } from "@quickreel/vision";
+import { createVisionAdapter, generateForegroundMask, requestDepthMap } from "@quickreel/vision";
 import { buildStory, type StoryCandidateImage } from "@quickreel/story-engine";
 import type { AnalyzeProjectJobPayload, AnalyzeProjectJobResult } from "@quickreel/shared";
 
@@ -12,6 +12,8 @@ const vision = createVisionAdapter({
 });
 
 const ANALYSIS_CONCURRENCY = 4;
+/** Depth inference is CPU/memory-heavier than the sharp-based vision metrics — lower concurrency. */
+const DEPTH_CONCURRENCY = 2;
 
 async function mapWithConcurrency<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const results: R[] = new Array(items.length);
@@ -90,6 +92,31 @@ export async function analyzeProjectProcessor(job: Job<AnalyzeProjectJobPayload>
       }),
     ),
   );
+
+  // Depth estimation only for images that survived dedup — no point spending ML inference on
+  // shots that won't appear in the final reel. Failures here are non-fatal: video-engine falls
+  // back to single-layer camera motion for any clip without depth data.
+  const survivingImages = images.filter((img) => storyPlan.orderedImageIds.includes(img.id));
+  await mapWithConcurrency(survivingImages, DEPTH_CONCURRENCY, async (image) => {
+    try {
+      const aiServiceUrl = process.env.AI_SERVICE_URL ?? "http://localhost:8000";
+      const imageUrl = storage.getObjectUrl(image.storageKey);
+      const depthPng = await requestDepthMap(imageUrl, aiServiceUrl);
+      const maskPng = await generateForegroundMask(depthPng);
+
+      const depthMapStorageKey = `projects/${projectId}/images/${image.id}-depth.png`;
+      const foregroundMaskStorageKey = `projects/${projectId}/images/${image.id}-fgmask.png`;
+      await storage.putObject(depthMapStorageKey, depthPng, "image/png");
+      await storage.putObject(foregroundMaskStorageKey, maskPng, "image/png");
+
+      await prisma.projectImage.update({
+        where: { id: image.id },
+        data: { depthMapStorageKey, foregroundMaskStorageKey },
+      });
+    } catch (err) {
+      console.warn(`Depth estimation failed for image ${image.id}, continuing without parallax layers:`, err);
+    }
+  });
 
   await prisma.project.update({ where: { id: projectId }, data: { status: "READY" } });
 

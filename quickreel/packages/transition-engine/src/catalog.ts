@@ -1,4 +1,4 @@
-import type { TransitionType } from "@quickreel/shared";
+import type { EasingCurve, TransitionType } from "@quickreel/shared";
 
 export interface TransitionDef {
   type: TransitionType;
@@ -6,13 +6,15 @@ export interface TransitionDef {
   description: string;
   /** [min, max] sensible duration in ms — style config's maxDurationMs clamps within this. */
   durationRangeMs: [number, number];
-  defaultEasing: "linear" | "easeInOut" | "easeOutCubic" | "easeInCubic";
+  defaultEasing: EasingCurve;
 }
 
 /**
- * The 12-transition palette. Deliberately restrained per product spec:
- * "keep transitions elegant, avoid cheesy effects" — no spins, no cube
- * rotations, nothing that reads as a PowerPoint template.
+ * The 16-transition palette — "movie quality only." Deliberately restrained
+ * per product spec: "keep transitions elegant, avoid cheesy effects, never
+ * cheesy" — no spins, no cube rotations, nothing that reads as a
+ * PowerPoint template. MOTION_MATCH/PERSPECTIVE_MATCH/REFLECTION_WIPE/
+ * GLASS_TRANSITION were added in the Cinematic Motion Engine pass.
  */
 export const TRANSITION_CATALOG: Record<TransitionType, TransitionDef> = {
   LUXURY_FADE: {
@@ -20,14 +22,14 @@ export const TRANSITION_CATALOG: Record<TransitionType, TransitionDef> = {
     label: "Luxury Fade",
     description: "Slow cross-dissolve through a soft black hold — the signature closing transition.",
     durationRangeMs: [500, 900],
-    defaultEasing: "easeInOut",
+    defaultEasing: "cinematicEaseInOut",
   },
   FILM_DISSOLVE: {
     type: "FILM_DISSOLVE",
     label: "Film Dissolve",
     description: "Classic cross-dissolve between two frames.",
     durationRangeMs: [350, 600],
-    defaultEasing: "easeInOut",
+    defaultEasing: "cinematicEaseInOut",
   },
   LIGHT_LEAK: {
     type: "LIGHT_LEAK",
@@ -62,21 +64,21 @@ export const TRANSITION_CATALOG: Record<TransitionType, TransitionDef> = {
     label: "Push",
     description: "The incoming frame pushes the outgoing frame off-screen.",
     durationRangeMs: [280, 450],
-    defaultEasing: "easeInOut",
+    defaultEasing: "cinematicEaseInOut",
   },
   SLIDE: {
     type: "SLIDE",
     label: "Slide",
     description: "The incoming frame slides in over the outgoing frame.",
     durationRangeMs: [250, 400],
-    defaultEasing: "easeInOut",
+    defaultEasing: "cinematicEaseInOut",
   },
   PARALLAX_TRANSITION: {
     type: "PARALLAX_TRANSITION",
     label: "Parallax",
     description: "Frames shift at different depths/speeds, echoing the parallax camera move.",
     durationRangeMs: [300, 500],
-    defaultEasing: "easeInOut",
+    defaultEasing: "cinematicEaseInOut",
   },
   WHITE_FLASH: {
     type: "WHITE_FLASH",
@@ -90,7 +92,7 @@ export const TRANSITION_CATALOG: Record<TransitionType, TransitionDef> = {
     label: "Blur",
     description: "Soft defocus dissolve — gentle, unobtrusive.",
     durationRangeMs: [300, 500],
-    defaultEasing: "easeInOut",
+    defaultEasing: "cinematicEaseInOut",
   },
   CAMERA_MATCH: {
     type: "CAMERA_MATCH",
@@ -98,6 +100,34 @@ export const TRANSITION_CATALOG: Record<TransitionType, TransitionDef> = {
     description: "Cut timed so the outgoing and incoming camera moves feel continuous — a true match cut.",
     durationRangeMs: [0, 120],
     defaultEasing: "linear",
+  },
+  MOTION_MATCH: {
+    type: "MOTION_MATCH",
+    label: "Motion Match",
+    description: "The incoming clip continues the outgoing clip's camera direction — a directional blur bridges the two so the motion itself never seems to stop.",
+    durationRangeMs: [150, 300],
+    defaultEasing: "momentumOut",
+  },
+  PERSPECTIVE_MATCH: {
+    type: "PERSPECTIVE_MATCH",
+    label: "Perspective Match",
+    description: "A subtle scale-and-skew blend aligns the two frames' vanishing points before the cut.",
+    durationRangeMs: [300, 550],
+    defaultEasing: "cinematicEaseInOut",
+  },
+  REFLECTION_WIPE: {
+    type: "REFLECTION_WIPE",
+    label: "Reflection Wipe",
+    description: "A mirrored sheen sweeps across the frame, echoing a reflection off water or glass.",
+    durationRangeMs: [350, 600],
+    defaultEasing: "momentumOut",
+  },
+  GLASS_TRANSITION: {
+    type: "GLASS_TRANSITION",
+    label: "Glass Transition",
+    description: "A frosted-glass blur with a faint chromatic offset, like looking through a pane as it clears.",
+    durationRangeMs: [300, 550],
+    defaultEasing: "gentleDrift",
   },
 };
 
