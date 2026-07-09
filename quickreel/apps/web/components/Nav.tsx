@@ -21,6 +21,9 @@ export function Nav({ email }: { email?: string }) {
         QuickReel <span className="text-accent">AI</span>
       </Link>
       <div className="flex items-center gap-4">
+        <Link href="/brand-kit" className="text-sm text-muted hover:text-foreground">
+          Brand Kit
+        </Link>
         {email && <span className="text-sm text-muted">{email}</span>}
         <Button variant="ghost" size="sm" onClick={signOut}>
           Sign out

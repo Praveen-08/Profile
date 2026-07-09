@@ -1,20 +1,23 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { api } from "@/lib/api";
 import { Nav } from "@/components/Nav";
-import { RenderStatusClient } from "./RenderStatusClient";
+import { BrandKitClient } from "./BrandKitClient";
 
-export default async function RenderPage({ params }: { params: { id: string } }) {
+export default async function BrandKitPage() {
   const supabase = createClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session) redirect("/login");
 
+  const brandKits = await api.listBrandKits(session.access_token).catch(() => []);
+
   return (
     <main className="min-h-screen">
       <Nav email={session.user.email} />
-      <div className="mx-auto flex max-w-2xl flex-col items-center px-6 py-20 text-center">
-        <RenderStatusClient token={session.access_token} projectId={params.id} />
+      <div className="mx-auto max-w-3xl px-6 py-10">
+        <BrandKitClient token={session.access_token} initialBrandKits={brandKits} />
       </div>
     </main>
   );

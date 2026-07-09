@@ -13,11 +13,13 @@ import {
 } from "@quickreel/shared";
 import {
   api,
+  type BrandKitSummary,
   type CameraMovePreviewEntry,
   type CameraMovementSummary,
   type MusicTrackSummary,
   type ProjectDetail,
   type StyleSummary,
+  type VersionSummary,
 } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,19 +38,25 @@ const HOOK_ARCHETYPE_LABELS: Record<string, string> = {
 export function ConfigureClient({
   token,
   project,
+  version,
   styles,
+  brandKits,
 }: {
   token: string;
   project: ProjectDetail;
+  version: VersionSummary;
   styles: StyleSummary[];
+  brandKits: BrandKitSummary[];
 }) {
   const router = useRouter();
-  const [reelLengthSec, setReelLengthSec] = useState<ReelLengthSec>((project.reelLengthSec as ReelLengthSec) ?? 15);
-  const [styleId, setStyleId] = useState(project.styleId ?? styles[0]?.id ?? "");
-  const [vibe, setVibe] = useState<MusicVibe | null>((project.musicTrack?.vibe as MusicVibe) ?? null);
+  const [versionName, setVersionName] = useState(version.name);
+  const [reelLengthSec, setReelLengthSec] = useState<ReelLengthSec>((version.reelLengthSec as ReelLengthSec) ?? 15);
+  const [styleId, setStyleId] = useState(version.styleId ?? styles[0]?.id ?? "");
+  const [vibe, setVibe] = useState<MusicVibe | null>((version.musicTrack?.vibe as MusicVibe) ?? null);
   const [tracks, setTracks] = useState<MusicTrackSummary[]>([]);
-  const [trackId, setTrackId] = useState(project.musicTrackId ?? "");
-  const [hookArchetype, setHookArchetype] = useState(project.hookArchetype ?? "");
+  const [trackId, setTrackId] = useState(version.musicTrackId ?? "");
+  const [hookArchetype, setHookArchetype] = useState(version.hookArchetype ?? "");
+  const [brandKitId, setBrandKitId] = useState(version.brandKitId ?? "");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [movements, setMovements] = useState<CameraMovementSummary[]>([]);
@@ -65,8 +73,8 @@ export function ConfigureClient({
 
   const refreshCameraMoves = useCallback(() => {
     if (!styleId) return;
-    api.getCameraMovesPreview(token, project.id).then(setMoveSelections).catch(() => setMoveSelections([]));
-  }, [token, project.id, styleId]);
+    api.getCameraMovesPreview(token, project.id, version.id).then(setMoveSelections).catch(() => setMoveSelections([]));
+  }, [token, project.id, version.id, styleId]);
 
   useEffect(() => {
     refreshCameraMoves();
@@ -91,14 +99,16 @@ export function ConfigureClient({
     setError(null);
     setGenerating(true);
     try {
-      await api.updateProject(token, project.id, {
+      await api.updateVersion(token, project.id, version.id, {
+        name: versionName,
         reelLengthSec,
         styleId,
         musicTrackId: trackId,
         hookArchetype: hookArchetype || undefined,
+        brandKitId: brandKitId || null,
       });
-      await api.createRender(token, project.id);
-      router.push(`/projects/${project.id}/render`);
+      await api.createRender(token, project.id, version.id);
+      router.push(`/projects/${project.id}/versions/${version.id}/render`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start render");
       setGenerating(false);
@@ -108,7 +118,11 @@ export function ConfigureClient({
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="font-serif text-3xl font-semibold">AI Preview</h1>
+        <input
+          value={versionName}
+          onChange={(e) => setVersionName(e.target.value)}
+          className="w-full bg-transparent font-serif text-3xl font-semibold outline-none focus:underline"
+        />
         <p className="mt-1 text-muted">Review the story order, pick a style and music vibe, then generate.</p>
       </div>
 
@@ -216,6 +230,36 @@ export function ConfigureClient({
           ))}
         </div>
       </section>
+
+      {brandKits.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Brand Kit</h2>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setBrandKitId("")}
+              className={cn(
+                "rounded-full border px-4 py-1.5 text-sm transition-colors",
+                brandKitId === "" ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface text-muted hover:border-accent/40",
+              )}
+            >
+              None
+            </button>
+            {brandKits.map((kit) => (
+              <button
+                key={kit.id}
+                onClick={() => setBrandKitId(kit.id)}
+                className={cn(
+                  "rounded-full border px-4 py-1.5 text-sm transition-colors",
+                  brandKitId === kit.id ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface text-muted hover:border-accent/40",
+                )}
+              >
+                {kit.name}
+                {kit.isDefault && " · default"}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">

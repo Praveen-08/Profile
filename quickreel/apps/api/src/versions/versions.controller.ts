@@ -3,6 +3,7 @@ import { CurrentUser } from "../auth/current-user.decorator.js";
 import { SupabaseAuthGuard } from "../auth/supabase-auth.guard.js";
 import { CreateVersionDto } from "./dto/create-version.dto.js";
 import { DuplicateVersionDto } from "./dto/duplicate-version.dto.js";
+import { SmartRegenerateDto } from "./dto/smart-regenerate.dto.js";
 import { UpdateVersionDto } from "./dto/update-version.dto.js";
 import { VersionsService } from "./versions.service.js";
 
@@ -55,6 +56,16 @@ export class VersionsController {
     @Body() dto: DuplicateVersionDto,
   ) {
     return this.versions.duplicate(user.id, projectId, versionId, dto);
+  }
+
+  @Post(":versionId/smart-regenerate")
+  smartRegenerate(
+    @CurrentUser() user: RequestUser,
+    @Param("projectId") projectId: string,
+    @Param("versionId") versionId: string,
+    @Body() dto: SmartRegenerateDto,
+  ) {
+    return this.versions.smartRegenerate(user.id, projectId, versionId, dto);
   }
 
   @Get(":versionId/camera-moves-preview")

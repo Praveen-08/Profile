@@ -46,5 +46,31 @@ export async function uploadProjectImage(
     originalFilename: file.name,
     width: dimensions?.width,
     height: dimensions?.height,
+    fileSizeBytes: file.size,
   });
+}
+
+/** Same presign -> direct PUT -> complete flow, for a Brand Kit's logo/outro/watermark assets. */
+export async function uploadBrandAsset(
+  token: string,
+  brandKitId: string,
+  kind: "logo" | "outro" | "watermark",
+  file: File,
+) {
+  const { storageKey, upload } = await api.presignBrandAsset(token, brandKitId, kind, file.name, file.type);
+
+  const putResponse = await fetch(upload.url, {
+    method: upload.method,
+    headers: {
+      ...upload.headers,
+      "Content-Type": file.type,
+      ...(upload.url.includes("/local-storage/") ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: file,
+  });
+  if (!putResponse.ok) {
+    throw new Error(`Upload failed for "${file.name}" (${putResponse.status})`);
+  }
+
+  return api.completeBrandAsset(token, brandKitId, kind, storageKey);
 }

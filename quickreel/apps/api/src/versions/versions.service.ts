@@ -1,5 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { QUEUE_NAMES } from "@quickreel/shared";
+import {
+  QUEUE_NAMES,
+  SMART_REGENERATE_DIRECTIVE_LABELS,
+  type ReelLengthSec,
+  type SmartRegenerateDirective,
+} from "@quickreel/shared";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { StorageService } from "../storage/storage.service.js";
 import { QueueService } from "../queue/queue.service.js";
@@ -7,6 +12,8 @@ import { ProjectsService } from "../projects/projects.service.js";
 import type { CreateVersionDto } from "./dto/create-version.dto.js";
 import type { UpdateVersionDto } from "./dto/update-version.dto.js";
 import type { DuplicateVersionDto } from "./dto/duplicate-version.dto.js";
+import type { SmartRegenerateDto } from "./dto/smart-regenerate.dto.js";
+import { adjustReelLength, DIRECTIVE_STYLE_SLUG } from "./smart-regenerate-deltas.js";
 
 const VERSION_INCLUDE = { style: true, musicTrack: true, brandKit: true } as const;
 
@@ -103,6 +110,46 @@ export class VersionsService {
       },
       include: VERSION_INCLUDE,
     });
+  }
+
+  /**
+   * "Make Faster" / "More Cinematic" / "Luxury" / "Minimal" / "More
+   * Emotional" / "Higher Energy" — clones the source version with a
+   * directive-driven style + reel-length delta (see
+   * smart-regenerate-deltas.ts), then immediately kicks off a render for
+   * the new version so the user doesn't have to separately hit Generate.
+   */
+  async smartRegenerate(userId: string, projectId: string, versionId: string, dto: SmartRegenerateDto) {
+    const source = await this.getOwnedVersion(userId, projectId, versionId);
+    const directive = dto.directive as SmartRegenerateDirective;
+
+    const targetSlug = DIRECTIVE_STYLE_SLUG[directive];
+    const targetStyle = await this.prisma.client.style.findUnique({ where: { slug: targetSlug } });
+    if (!targetStyle) throw new BadRequestException(`No style catalog entry for slug "${targetSlug}"`);
+
+    const reelLengthSec = adjustReelLength(directive, source.reelLengthSec as ReelLengthSec | null);
+
+    const newVersion = await this.prisma.client.projectVersion.create({
+      data: {
+        projectId,
+        name: `${source.name} — ${SMART_REGENERATE_DIRECTIVE_LABELS[directive]}`,
+        reelLengthSec,
+        styleId: targetStyle.id,
+        musicTrackId: source.musicTrackId,
+        hookArchetype: source.hookArchetype,
+        brandKitId: source.brandKitId,
+        parentVersionId: source.id,
+        regenerateDirective: directive,
+      },
+      include: VERSION_INCLUDE,
+    });
+
+    if (!newVersion.musicTrackId) {
+      return { version: newVersion, render: null };
+    }
+
+    const { render } = await this.createRender(userId, projectId, newVersion.id);
+    return { version: newVersion, render };
   }
 
   async getCameraMovesPreview(userId: string, projectId: string, versionId: string) {

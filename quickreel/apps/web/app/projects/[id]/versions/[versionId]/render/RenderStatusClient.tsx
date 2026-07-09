@@ -27,7 +27,15 @@ const STAGE_LABEL: Record<string, string> = {
   FAILED: "Something went wrong.",
 };
 
-export function RenderStatusClient({ token, projectId }: { token: string; projectId: string }) {
+export function RenderStatusClient({
+  token,
+  projectId,
+  versionId,
+}: {
+  token: string;
+  projectId: string;
+  versionId: string;
+}) {
   const router = useRouter();
   const [render, setRender] = useState<RenderSummary | null>(null);
   const [retrying, setRetrying] = useState(false);
@@ -36,11 +44,11 @@ export function RenderStatusClient({ token, projectId }: { token: string; projec
     let cancelled = false;
     async function poll() {
       try {
-        const latest = await api.getLatestRender(token, projectId);
+        const latest = await api.getLatestRender(token, projectId, versionId);
         if (cancelled) return;
         setRender(latest);
         if (latest.status === "COMPLETE") {
-          router.push(`/projects/${projectId}/download`);
+          router.push(`/projects/${projectId}/versions/${versionId}/download`);
           return;
         }
         if (latest.status !== "FAILED") {
@@ -54,11 +62,11 @@ export function RenderStatusClient({ token, projectId }: { token: string; projec
     return () => {
       cancelled = true;
     };
-  }, [token, projectId, router]);
+  }, [token, projectId, versionId, router]);
 
   async function retry() {
     setRetrying(true);
-    await api.createRender(token, projectId);
+    await api.createRender(token, projectId, versionId);
     setRetrying(false);
   }
 
