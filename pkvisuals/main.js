@@ -101,13 +101,24 @@ if (heroVideo) {
 const revealObs = new IntersectionObserver((entries) => {
   entries.forEach(e => {
     if (e.isIntersecting) {
-      e.target.classList.add('visible');
+      e.target.classList.add('is-visible');
+      e.target.classList.add('visible'); // legacy compat
       revealObs.unobserve(e.target);
     }
   });
 }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
 
-document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
+document.querySelectorAll('.reveal, .reveal-up, .reveal-scale, .stagger-item').forEach(el => revealObs.observe(el));
+
+// ── Programmatic stagger on card groups ───────────────────────────────
+['.reels__grid .reel-card', '.pkg-grid .pkg-item', '.agents-grid .agent-card',
+ '.process-steps .process-step', '.testimonials-grid .testimonial-card'].forEach(sel => {
+  document.querySelectorAll(sel).forEach((el, i) => {
+    el.classList.add('stagger-item');
+    el.style.setProperty('--delay', `${i * 80}ms`);
+    revealObs.observe(el);
+  });
+});
 
 // ── Scroll dots ────────────────────────────────────────────────────────
 const scrollDots = document.getElementById('scrollDots');
