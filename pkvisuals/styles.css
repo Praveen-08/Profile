@@ -133,18 +133,16 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 .nav__logo:hover { opacity: 0.8; }
 .nav__logo span { color: var(--gold); font-weight: 400; }
 .nav__logo-img {
-  height: clamp(42px, 5vw, 64px);
+  height: clamp(36px, 4vw, 52px);
   width: auto;
   display: block;
   background: transparent;
   object-fit: contain;
-  mix-blend-mode: screen;
 }
 .footer__logo-img {
   height: 32px;
   width: auto;
   display: block;
-  mix-blend-mode: screen;
   margin-bottom: 8px;
 }
 
