@@ -242,6 +242,40 @@ if (scrollDots) {
   }, { threshold: 0.5 });
 
   document.querySelectorAll('.stat-card').forEach(el => statObs.observe(el));
+
+  // Proof section count-up (.proof-stat elements, reads .proof-stat__num)
+  const proofObs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      proofObs.unobserve(e.target);
+
+      const numEl = e.target.querySelector('.proof-stat__num');
+      if (!numEl || prefersReduced) return;
+
+      // Extract the numeric text node (first text node, before the .proof-sup span)
+      const textNodes = Array.from(numEl.childNodes).filter(n => n.nodeType === 3);
+      if (!textNodes.length) return;
+      const textNode = textNodes[0];
+      const raw = textNode.textContent.trim();
+      const numMatch = raw.match(/^([\d.]+)/);
+      if (!numMatch) return;
+
+      const target = parseFloat(numMatch[1]);
+      const decimals = numMatch[1].includes('.') ? 1 : 0;
+      const dur = 1800;
+      const start = performance.now();
+      function step(now) {
+        const p = Math.min((now - start) / dur, 1);
+        const v = target * silk(p);
+        textNode.textContent = v.toFixed(decimals);
+        if (p < 1) requestAnimationFrame(step);
+        else textNode.textContent = target.toFixed(decimals);
+      }
+      requestAnimationFrame(step);
+    });
+  }, { threshold: 0.5 });
+
+  document.querySelectorAll('.proof-stat').forEach(el => proofObs.observe(el));
 })();
 
 // ── Parallax — work-slide images (desktop only) ───────────────────────
