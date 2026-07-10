@@ -132,6 +132,19 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 }
 .nav__logo:hover { opacity: 0.8; }
 .nav__logo span { color: var(--gold); font-weight: 400; }
+.nav__logo-img {
+  height: 28px;
+  width: auto;
+  display: block;
+  mix-blend-mode: screen;
+}
+.footer__logo-img {
+  height: 32px;
+  width: auto;
+  display: block;
+  mix-blend-mode: screen;
+  margin-bottom: 8px;
+}
 
 .nav__links {
   display: flex;
