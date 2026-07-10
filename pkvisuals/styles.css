@@ -647,7 +647,7 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 }
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(24px, 4vw, 56px);
   align-items: stretch;
   text-align: center;
