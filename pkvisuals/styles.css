@@ -133,7 +133,7 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 .nav__logo:hover { opacity: 0.8; }
 .nav__logo span { color: var(--gold); font-weight: 400; }
 .nav__logo-img {
-  height: clamp(34px, 4vw, 48px);
+  height: clamp(42px, 5vw, 64px);
   width: auto;
   display: block;
   mix-blend-mode: screen;
@@ -808,8 +808,9 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 }
 .pkg-signature-wrap .pkg-item {
   width: 100%;
-  max-width: 600px;
+  max-width: 860px;
   margin: 0 auto;
+  padding: clamp(28px, 3.5vw, 48px) clamp(28px, 4vw, 56px);
 }
 .pkg-item--featured {
   background: var(--black-card);
@@ -1256,17 +1257,15 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
   display: block;
 }
 .footer__contact a:hover { color: var(--gold); }
-.footer__bottom {
-  border-top: 1px solid var(--border);
-  margin-top: clamp(40px, 6vw, 80px);
-  padding-top: 24px;
-  text-align: center;
-}
 .footer__copy {
-  font-size: 13px;
+  font-size: 12px;
   color: rgba(255,255,255,0.38);
   letter-spacing: 0.02em;
+  margin-top: 14px;
+  display: block;
+  text-align: right;
 }
+.footer__bottom { display: none; }
 
 @media (max-width: 768px) {
   .footer { padding: 52px 24px 32px; }
@@ -1279,7 +1278,8 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
   .footer__col--instagram { justify-content: flex-start; }
   .footer__col--contact { align-items: flex-start; }
   .footer__contact a,
-  .footer__contact span { text-align: left; }
+  .footer__contact span,
+  .footer__copy { text-align: left; }
 }
 
 /* ===================================================
