@@ -324,37 +324,62 @@ if (filterBtns.length && workTiles.length) {
 }
 
 // ── Booking form ───────────────────────────────────────────────────────
-const bookForm    = document.getElementById('bookForm');
-const formSuccess = document.getElementById('formSuccess');
-if (bookForm && formSuccess) {
+(function () {
+  const bookForm    = document.getElementById('bookForm');
+  const formSuccess = document.getElementById('formSuccess');
+  const formError   = document.getElementById('formError');
+  const mailtoNote  = document.getElementById('mailtoNote');
+  if (!bookForm) return;
+
+  const isMailto = bookForm.dataset.mailto === 'true';
+
+  // Show the mailto note only if using fallback
+  if (!isMailto && mailtoNote) mailtoNote.style.display = 'none';
+
   bookForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const firstName = bookForm.querySelector('#firstName');
-    const email     = bookForm.querySelector('#email');
-    const address   = bookForm.querySelector('#address');
+    // Validate required fields
+    const required = bookForm.querySelectorAll('[required]');
     let valid = true;
-    [firstName, email, address].forEach(field => {
-      if (field && !field.value.trim()) {
-        field.style.borderColor = 'rgba(201,100,100,0.6)';
-        valid = false;
-      } else if (field) {
-        field.style.borderColor = '';
-      }
+    required.forEach(field => {
+      const empty = !field.value.trim();
+      field.style.borderColor = empty ? 'rgba(201,100,100,0.6)' : '';
+      if (empty) valid = false;
     });
-    if (!valid) return;
+    if (!valid) { e.preventDefault(); return; }
+
+    // If using mailto fallback, let the browser open email client naturally
+    // (don't preventDefault — allow form action to fire)
+    if (isMailto) return;
+
+    // If a real endpoint is set, handle via fetch
+    e.preventDefault();
+    const data = new FormData(bookForm);
+    fetch(bookForm.action, { method: 'POST', body: data, headers: { Accept: 'application/json' } })
+      .then(r => {
+        if (!r.ok) throw new Error('Network error');
+        showSuccess();
+      })
+      .catch(() => {
+        if (formError) formError.style.display = 'block';
+      });
+  });
+
+  function showSuccess() {
     bookForm.style.opacity    = '0';
     bookForm.style.transition = 'opacity 0.4s';
     setTimeout(() => {
-      bookForm.style.display    = 'none';
-      formSuccess.style.display = 'block';
-      formSuccess.style.opacity = '0';
-      requestAnimationFrame(() => {
-        formSuccess.style.transition = 'opacity 0.6s var(--silk, ease)';
-        formSuccess.style.opacity    = '1';
-      });
+      bookForm.style.display = 'none';
+      if (formSuccess) {
+        formSuccess.style.display = 'block';
+        formSuccess.style.opacity = '0';
+        requestAnimationFrame(() => {
+          formSuccess.style.transition = 'opacity 0.6s var(--silk, ease)';
+          formSuccess.style.opacity    = '1';
+        });
+      }
     }, 400);
-  });
-}
+  }
+})();
 
 // ── Selected Work sticky scroll ─────────────────────────────────────────
 (function () {

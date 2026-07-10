@@ -1962,6 +1962,56 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
   margin-bottom: 14px;
 }
 .form-success__text { font-size: 13px; color: var(--white-dim); }
+.form-required { color: var(--gold); font-size: 11px; }
+.form-mailto-note {
+  font-size: 11px;
+  color: var(--white-muted);
+  margin-top: 16px;
+  line-height: 1.6;
+  text-align: center;
+}
+.form-error {
+  display: none;
+  padding: 20px 24px;
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 2px;
+  margin-top: 20px;
+}
+.form-error__text {
+  font-size: 13px;
+  color: var(--white-dim);
+  line-height: 1.7;
+}
+.form-error__text a { color: var(--gold); }
+.book-contact-fallback {
+  margin-top: 52px;
+  padding-top: 36px;
+  border-top: 1px solid var(--border);
+}
+.book-contact-fallback__label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--white-muted);
+  margin-bottom: 18px;
+}
+.book-contact-fallback__phone {
+  display: block;
+  font-family: var(--serif);
+  font-size: clamp(24px, 3vw, 36px);
+  color: var(--gold);
+  margin-bottom: 10px;
+  transition: opacity 0.3s;
+}
+.book-contact-fallback__phone:hover { opacity: 0.75; }
+.book-contact-fallback__email {
+  display: block;
+  font-size: 13px;
+  color: var(--white-dim);
+  transition: color 0.3s;
+}
+.book-contact-fallback__email:hover { color: var(--gold); }
 .book-sidebar { padding-top: 84px; }
 .sidebar-card {
   padding: 40px;
