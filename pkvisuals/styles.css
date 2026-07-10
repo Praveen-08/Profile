@@ -131,7 +131,7 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
   transition: opacity 0.3s;
 }
 .nav__logo:hover { opacity: 0.8; }
-.nav__logo span { color: var(--gold); }
+.nav__logo span { color: var(--gold); font-weight: 400; }
 
 .nav__links {
   display: flex;
