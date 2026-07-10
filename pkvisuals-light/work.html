@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portfolio — PK Visuals</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="nav scrolled" id="nav">
+  <a href="index.html" class="nav__logo">PK<span>.</span>Visuals</a>
+  <ul class="nav__links">
+    <li><a href="work.html">Portfolio</a></li>
+    <li><a href="services.html">Services</a></li>
+    <li><a href="index.html#about">About</a></li>
+    <li class="nav-apply"><a href="book.html">Book Now</a></li>
+  </ul>
+  <button class="nav__burger" id="burger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="nav__drawer" id="drawer">
+  <a href="work.html">Portfolio</a>
+  <a href="services.html">Services</a>
+  <a href="index.html#about">About</a>
+  <a href="book.html">Book Now</a>
+</div>
+
+<div class="page-hero">
+  <h1 class="page-hero__title reveal">Portfolio</h1>
+  <p class="page-hero__sub reveal reveal-d2">500+ properties captured across Auckland. Every shoot telling its own story.</p>
+</div>
+
+<div class="filter-bar">
+  <button class="filter-btn active" data-filter="all">All</button>
+  <button class="filter-btn" data-filter="photography">Photography</button>
+  <button class="filter-btn" data-filter="video">Videography</button>
+  <button class="filter-btn" data-filter="aerial">Aerial</button>
+  <button class="filter-btn" data-filter="floorplan">Floor Plans</button>
+  <button class="filter-btn" data-filter="staging">Virtual Staging</button>
+</div>
+
+<div class="work-grid" id="workGrid">
+
+  <article class="work-tile work-tile--wide reveal" data-category="photography aerial">
+    <div class="work-tile__img">
+      <img src="assets/work-01.jpg" alt="Remuera estate aerial">
+    </div>
+    <div class="work-tile__info">
+      <span class="work-tile__title">Remuera Estate</span>
+      <span class="work-tile__tag">Aerial + Photography</span>
+    </div>
+  </article>
+
+  <article class="work-tile reveal reveal-d2" data-category="video">
+    <div class="work-tile__img">
+      <img src="assets/work-02.jpg" alt="Ponsonby villa video">
+    </div>
+    <div class="work-tile__info">
+      <span class="work-tile__title">Ponsonby Villa</span>
+      <span class="work-tile__tag">Videography</span>
+    </div>
+  </article>
+
+  <article class="work-tile reveal" data-category="photography">
+    <div class="work-tile__img">
+      <img src="assets/work-03.jpg" alt="Herne Bay interior">
+    </div>
+    <div class="work-tile__info">
+      <span class="work-tile__title">Herne Bay Residence</span>
+      <span class="work-tile__tag">Photography</span>
+    </div>
+  </article>
+
+  <article class="work-tile reveal reveal-d2" data-category="staging">
+    <div class="work-tile__img">
+      <img src="assets/work-04.jpg" alt="Virtual staging bedroom">
+    </div>
+    <div class="work-tile__info">
+      <span class="work-tile__title">Virtual Staging</span>
+      <span class="work-tile__tag">Virtual Staging</span>
+    </div>
+  </article>
+
+  <article class="work-tile work-tile--wide reveal" data-category="aerial video">
+    <div class="work-tile__img">
+      <img src="assets/work-05.jpg" alt="Parnell aerial">
+    </div>
+    <div class="work-tile__info">
+      <span class="work-tile__title">Parnell Heights</span>
+      <span class="work-tile__tag">Aerial + Video</span>
+    </div>
+  </article>
+
+  <article class="work-tile reveal" data-category="floorplan">
+    <div class="work-tile__img">
+      <img src="assets/work-06.jpg" alt="Floor plan">
+    </div>
+    <div class="work-tile__info">
+      <span class="work-tile__title">Epsom Family Home</span>
+      <span class="work-tile__tag">Floor Plan</span>
+    </div>
+  </article>
+
+  <article class="work-tile reveal reveal-d2" data-category="photography">
+    <div class="work-tile__img">
+      <img src="assets/work-07.jpg" alt="Twilight exterior">
+    </div>
+    <div class="work-tile__info">
+      <span class="work-tile__title">Twilight Series</span>
+      <span class="work-tile__tag">Photography</span>
+    </div>
+  </article>
+
+  <article class="work-tile reveal reveal-d4" data-category="video aerial">
+    <div class="work-tile__img">
+      <img src="assets/work-08.jpg" alt="Luxury development">
+    </div>
+    <div class="work-tile__info">
+      <span class="work-tile__title">Newmarket Development</span>
+      <span class="work-tile__tag">Aerial + Video</span>
+    </div>
+  </article>
+
+</div>
+
+<section class="availability" style="border-top:1px solid var(--border);">
+  <span class="availability__label reveal">Work with PK Visuals</span>
+  <h2 class="availability__heading reveal reveal-d1">See your property<br>like this.</h2>
+  <p class="availability__sub reveal reveal-d2">Book a shoot and receive your files within 48 hours.</p>
+  <div class="btn-row reveal reveal-d3">
+    <a href="book.html" class="btn-outline">Book Now</a>
+    <a href="services.html" class="btn-outline btn-outline--ghost">Our Services</a>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="footer__brand">PK<span>.</span>Visuals</div>
+  <div class="footer__contact">
+    <a href="tel:0224502382">022 450 2382</a> &nbsp;|&nbsp; <a href="mailto:hello@pkvisuals.com">hello@pkvisuals.com</a><br>
+    Auckland, New Zealand
+  </div>
+  <div class="footer__right">
+    <nav class="footer__nav">
+      <a href="work.html">Portfolio</a>
+      <a href="services.html">Services</a>
+      <a href="book.html">Book</a>
+    </nav>
+    <div class="footer__copy">&copy; 2025 PK Visuals. All rights reserved.</div>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+</body>
+</html>
