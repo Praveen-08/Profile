@@ -1715,7 +1715,7 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
   align-items: center;
 }
 .filter-btn {
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--white-muted);
@@ -1910,7 +1910,7 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 .form-field { margin-bottom: 22px; }
 .form-field label {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--white-muted);
