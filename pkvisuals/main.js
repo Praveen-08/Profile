@@ -400,7 +400,11 @@ if (filterBtns.length && workTiles.length) {
         headers: { Accept: 'application/json' }
       });
       if (res.ok) {
-        window.location.href = '/thank-you/';
+        const container = document.getElementById('formContainer');
+        const success   = document.getElementById('formSuccess');
+        if (container) container.style.display = 'none';
+        if (success)   success.style.display   = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         throw new Error('error');
       }
