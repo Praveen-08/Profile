@@ -126,8 +126,10 @@ function playAllMutedVideos() {
     v.setAttribute('muted', '');
     v.setAttribute('playsinline', '');
     v.setAttribute('webkit-playsinline', '');
-    var p = v.play();
-    if (p && p.catch) p.catch(function () {});
+    if (v.paused) {
+      var p = v.play();
+      if (p && p.catch) p.catch(function () {});
+    }
   });
 }
 if (document.readyState === 'loading') {
@@ -135,8 +137,24 @@ if (document.readyState === 'loading') {
 } else {
   playAllMutedVideos();
 }
-window.addEventListener('touchstart', playAllMutedVideos, { once: true, passive: true });
-window.addEventListener('scroll',     playAllMutedVideos, { once: true, passive: true });
+window.addEventListener('touchstart',    playAllMutedVideos, { once: true, passive: true });
+window.addEventListener('scroll',        playAllMutedVideos, { once: true, passive: true });
+window.addEventListener('pointerdown',   playAllMutedVideos, { once: true, passive: true });
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) playAllMutedVideos();
+});
+// Retry hero video every 2s for up to 10s on slow/restricted devices
+(function () {
+  var heroVid = document.querySelector('.hero__video');
+  if (!heroVid) return;
+  var attempts = 0;
+  var iv = setInterval(function () {
+    if (!heroVid.paused || attempts++ > 5) { clearInterval(iv); return; }
+    heroVid.muted = true;
+    var p = heroVid.play();
+    if (p && p.catch) p.catch(function () {});
+  }, 2000);
+})();
 
 // ── Hide reel fallback image once video plays ──────────────────────────
 document.addEventListener('DOMContentLoaded', function () {

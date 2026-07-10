@@ -132,7 +132,7 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 .nav__logo:hover { opacity: 0.8; }
 .nav__logo span { color: var(--gold); font-weight: 400; }
 .nav__logo-img {
-  height: clamp(36px, 4vw, 52px);
+  height: clamp(44px, 5vw, 64px);
   width: auto;
   display: block;
   background: transparent;
@@ -3220,6 +3220,7 @@ img { max-width: 100%; height: auto; }
 
 /* individual stat block */
 .proof-stat {
+  padding: clamp(16px, 2.5vw, 32px) 0;
   display: flex;
   flex-direction: column;
   align-items: center;
