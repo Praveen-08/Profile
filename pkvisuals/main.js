@@ -323,19 +323,15 @@ if (filterBtns.length && workTiles.length) {
   });
 }
 
-// ── Booking form (Formspree) ────────────────────────────────────────────
+// ── Booking form (Formspree AJAX) ────────────────────────────────────────────
 (function () {
   const bookForm  = document.getElementById('bookForm');
   const formError = document.getElementById('formError');
   if (!bookForm) return;
 
-  // If the endpoint is still a placeholder, warn in console but don't block
-  if (bookForm.action.includes('YOUR_FORM_ID')) {
-    console.warn('PK Visuals: Formspree form ID not set. Update action in book.html.');
-  }
+  bookForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-  bookForm.addEventListener('submit', (e) => {
-    // Client-side validation
     const required = bookForm.querySelectorAll('[required]');
     let valid = true;
     required.forEach(field => {
@@ -343,8 +339,27 @@ if (filterBtns.length && workTiles.length) {
       field.style.borderColor = empty ? 'rgba(201,100,100,0.6)' : '';
       if (empty) valid = false;
     });
-    if (!valid) { e.preventDefault(); return; }
-    // Valid — allow native form POST to Formspree; _next redirects to thank-you.html
+    if (!valid) return;
+
+    const btn = bookForm.querySelector('[type="submit"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+    if (formError) formError.style.display = 'none';
+
+    try {
+      const res = await fetch(bookForm.action, {
+        method: 'POST',
+        body: new FormData(bookForm),
+        headers: { Accept: 'application/json' }
+      });
+      if (res.ok) {
+        window.location.href = 'thank-you.html';
+      } else {
+        throw new Error('error');
+      }
+    } catch {
+      if (formError) formError.style.display = 'block';
+      if (btn) { btn.disabled = false; btn.textContent = 'Send Enquiry'; }
+    }
   });
 })();
 
