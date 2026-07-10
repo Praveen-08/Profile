@@ -528,3 +528,29 @@ document.querySelectorAll('a[href*="#"]').forEach(a => {
 
   document.querySelectorAll('[data-before-after]').forEach(initSlider);
 })();
+
+// ── Hero video mobile autoplay ─────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+  var heroVideo = document.querySelector('.hero-video');
+  if (!heroVideo) return;
+
+  heroVideo.muted = true;
+  heroVideo.defaultMuted = true;
+  heroVideo.playsInline = true;
+  heroVideo.setAttribute('muted', '');
+  heroVideo.setAttribute('playsinline', '');
+  heroVideo.setAttribute('webkit-playsinline', '');
+
+  function tryPlay() {
+    var p = heroVideo.play();
+    if (p && typeof p.catch === 'function') {
+      p.catch(function () {
+        document.body.classList.add('hero-video-fallback');
+      });
+    }
+  }
+
+  tryPlay();
+  window.addEventListener('touchstart', tryPlay, { once: true, passive: true });
+  window.addEventListener('click', tryPlay, { once: true });
+});
