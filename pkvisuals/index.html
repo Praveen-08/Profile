@@ -295,28 +295,37 @@
 
 <!-- TESTIMONIALS -->
 <section class="testimonials" aria-label="Client reviews">
-  <div class="t-carousel reveal">
-    <div class="t-carousel__track" id="tCarouselTrack">
-      <div class="t-slide">
-        <span class="t-slide__stars" aria-label="5 stars">★★★★★</span>
-        <p class="t-slide__quote">"Praveen is an absolute pleasure to work with. He has such a positive and pleasant attitude, and always shows up with a 'let's get it done' mindset."</p>
-        <span class="t-slide__author">Chamalee Wipulaguna</span>
+  <div class="t-carousel reveal" id="tCarousel">
+    <div class="t-carousel__inner">
+      <div class="t-carousel__qdeco" aria-hidden="true">"</div>
+      <div class="t-carousel__track" id="tCarouselTrack">
+        <div class="t-slide t-slide--active">
+          <p class="t-slide__quote">Praveen is an absolute pleasure to work with. He has such a positive and pleasant attitude, and always shows up with a 'let's get it done' mindset.</p>
+          <div class="t-slide__meta">
+            <span class="t-slide__stars" aria-label="5 stars">★★★★★</span>
+            <span class="t-slide__author">Chamalee Wipulaguna</span>
+          </div>
+        </div>
+        <div class="t-slide">
+          <p class="t-slide__quote">I've had the pleasure of working with Praveen Kumar from PK Visuals for my real estate photography, and the experience has been outstanding. Praveen has a sharp eye for detail.</p>
+          <div class="t-slide__meta">
+            <span class="t-slide__stars" aria-label="5 stars">★★★★★</span>
+            <span class="t-slide__author">Madu Kari</span>
+          </div>
+        </div>
+        <div class="t-slide">
+          <p class="t-slide__quote">Excellent photography and service. Highly recommended.</p>
+          <div class="t-slide__meta">
+            <span class="t-slide__stars" aria-label="5 stars">★★★★★</span>
+            <span class="t-slide__author">Kevin Sajith Ratnayake</span>
+          </div>
+        </div>
       </div>
-      <div class="t-slide">
-        <span class="t-slide__stars" aria-label="5 stars">★★★★★</span>
-        <p class="t-slide__quote">"I've had the pleasure of working with Praveen Kumar from PK Visuals for my real estate photography, and the experience has been outstanding. Praveen has a sharp eye for detail."</p>
-        <span class="t-slide__author">Madu Kari</span>
+      <div class="t-carousel__controls">
+        <button class="t-nav" id="tPrev" aria-label="Previous review">&#8592;</button>
+        <span class="t-counter" id="tCounter">01 / 03</span>
+        <button class="t-nav" id="tNext" aria-label="Next review">&#8594;</button>
       </div>
-      <div class="t-slide">
-        <span class="t-slide__stars" aria-label="5 stars">★★★★★</span>
-        <p class="t-slide__quote">"Excellent photography and service. Highly recommended."</p>
-        <span class="t-slide__author">Kevin Sajith Ratnayake</span>
-      </div>
-    </div>
-    <div class="t-carousel__dots" id="tCarouselDots" aria-label="Review navigation">
-      <button class="t-dot t-dot--active" aria-label="Review 1"></button>
-      <button class="t-dot" aria-label="Review 2"></button>
-      <button class="t-dot" aria-label="Review 3"></button>
     </div>
   </div>
 </section>

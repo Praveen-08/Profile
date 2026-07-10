@@ -446,7 +446,9 @@ document.querySelectorAll('a[href*="#"]').forEach(a => {
 // ── Testimonial carousel ──────────────────────────────────────
 (function () {
   const slides = document.querySelectorAll('.t-slide');
-  const dots = document.querySelectorAll('.t-dot');
+  const counter = document.getElementById('tCounter');
+  const prevBtn = document.getElementById('tPrev');
+  const nextBtn = document.getElementById('tNext');
   if (!slides.length) return;
 
   let current = 0;
@@ -454,21 +456,15 @@ document.querySelectorAll('a[href*="#"]').forEach(a => {
 
   function goTo(n) {
     slides[current].classList.remove('t-slide--active');
-    dots[current].classList.remove('t-dot--active');
     current = (n + slides.length) % slides.length;
     slides[current].classList.add('t-slide--active');
-    dots[current].classList.add('t-dot--active');
+    if (counter) counter.textContent = String(current + 1).padStart(2,'0') + ' / ' + String(slides.length).padStart(2,'0');
   }
 
-  slides[0].classList.add('t-slide--active');
+  if (prevBtn) prevBtn.addEventListener('click', () => { clearInterval(timer); goTo(current - 1); timer = setInterval(() => goTo(current + 1), 5500); });
+  if (nextBtn) nextBtn.addEventListener('click', () => { clearInterval(timer); goTo(current + 1); timer = setInterval(() => goTo(current + 1), 5500); });
 
-  dots.forEach((dot, i) => dot.addEventListener('click', () => {
-    clearInterval(timer);
-    goTo(i);
-    timer = setInterval(() => goTo(current + 1), 5000);
-  }));
-
-  timer = setInterval(() => goTo(current + 1), 5000);
+  timer = setInterval(() => goTo(current + 1), 5500);
 })();
 
 // ── Booking date: enforce future dates only ───────────────────
