@@ -197,29 +197,20 @@ if (scrollDots) {
       if (!e.isIntersecting) return;
       statObs.unobserve(e.target);
 
-      const valEl = e.target.querySelector('.stat-item__val');
-      const unitEl = e.target.querySelector('.stat-item__unit');
+      const valEl = e.target.querySelector('.stat-value');
       if (!valEl || prefersReduced) return;
 
-      // Extract numeric content (ignore inner spans)
-      const rawText = Array.from(valEl.childNodes)
-        .filter(n => n.nodeType === 3)
-        .map(n => n.textContent.trim())
-        .join('');
-
+      const rawText = valEl.textContent.trim();
       const numMatch = rawText.match(/^([\d.]+)/);
-      const unit = unitEl ? unitEl.outerHTML : '';
 
       if (numMatch) {
         const target = parseFloat(numMatch[1]);
         const decimals = numMatch[1].includes('.') ? 1 : 0;
-        const suffix = rawText.replace(numMatch[1], '');
-        const dur = prefersReduced ? 0 : 1600;
-        // Temporarily clear and animate
-        valEl.innerHTML = '';
+        const suffix = rawText.slice(numMatch[1].length);
+        const dur = 1600;
         const textNode = document.createTextNode('');
+        valEl.textContent = '';
         valEl.appendChild(textNode);
-        if (unit) valEl.insertAdjacentHTML('beforeend', unit);
 
         const start = performance.now();
         function step(now) {
@@ -231,11 +222,10 @@ if (scrollDots) {
         }
         requestAnimationFrame(step);
       }
-      // Non-numeric: reveal class already handles fade-up
     });
   }, { threshold: 0.5 });
 
-  document.querySelectorAll('.stat-item').forEach(el => statObs.observe(el));
+  document.querySelectorAll('.stat-card').forEach(el => statObs.observe(el));
 })();
 
 // ── Parallax — work-slide images (desktop only) ───────────────────────
