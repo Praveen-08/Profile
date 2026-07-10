@@ -2871,9 +2871,10 @@ body.site-loaded .nav {
   border-top: 1px solid var(--border);
 }
 .testimonials__header {
-  max-width: 640px;
+  max-width: 900px;
   margin: 0 auto 48px;
   text-align: center;
+  white-space: nowrap;
 }
 .testimonials__heading {
   font-family: var(--serif);
@@ -2933,6 +2934,7 @@ body.site-loaded .nav {
 }
 @media (max-width: 640px) {
   .testimonials { padding: 72px 24px; }
+  .testimonials__header { white-space: normal; }
   .testimonials__grid { grid-template-columns: 1fr; }
   .testimonial-card { padding: 28px 24px; }
 }
