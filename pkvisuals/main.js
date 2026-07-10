@@ -1,5 +1,4 @@
-/* PK Visuals — main.js  |  Cinematic Animation System */
-console.log('PK Visuals main.js loaded');
+/* PK Visuals — main.js */
 
 // ── Motion preference ──────────────────────────────────────────────────
 const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -163,7 +162,6 @@ const revealObs = new IntersectionObserver((entries) => {
 }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
 
 const revealEls = document.querySelectorAll('.reveal, .reveal-up, .reveal-scale, .stagger-item');
-console.log('Reveal elements found:', revealEls.length);
 revealEls.forEach(el => revealObs.observe(el));
 
 // ── Programmatic stagger on card groups ───────────────────────────────

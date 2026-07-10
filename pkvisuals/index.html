@@ -30,6 +30,10 @@
   <link rel="apple-touch-icon" href="assets/pk-mark.png">
   <meta name="theme-color" content="#050505">
 
+  <!-- Performance -->
+  <link rel="preconnect" href="https://formspree.io">
+  <link rel="dns-prefetch" href="//www.instagram.com">
+
   <link rel="stylesheet" href="styles.css">
 
   <!-- JSON-LD: LocalBusiness -->
@@ -110,7 +114,7 @@
 
 <!-- 1. HERO -->
 <section class="hero" data-dot="0" aria-labelledby="hero-heading">
-  <video class="hero__video hero-video" autoplay muted loop playsinline webkit-playsinline preload="auto" aria-hidden="true">
+  <video class="hero__video hero-video" autoplay muted loop playsinline webkit-playsinline preload="auto" fetchpriority="high" aria-hidden="true">
     <source src="assets/videos/hero/hero-1.mp4" type="video/mp4">
   </video>
   <div class="hero__gradient"></div>
@@ -255,20 +259,20 @@
   </div>
 </section>
 
-<!-- 4. PROOF STATS -->
-<section class="stats-section" data-dot="3" aria-label="Key statistics">
+<!-- 4. SOCIAL PROOF -->
+<section class="stats-section" data-dot="3" aria-label="Social proof">
   <div class="stats-grid">
     <div class="stat-card reveal">
-      <div class="stat-value">24hr</div>
-      <div class="stat-label">Photos / Twilight / Aerial</div>
+      <div class="stat-value">500+</div>
+      <div class="stat-label">Properties Shot</div>
     </div>
-    <div class="stat-card reveal reveal-d1">
-      <div class="stat-value">48hr</div>
-      <div class="stat-label">Video Delivery</div>
+    <div class="stat-card stat-card--rating reveal reveal-d1">
+      <div class="stat-value">5★</div>
+      <div class="stat-label">Google Rating</div>
     </div>
     <div class="stat-card reveal reveal-d2">
-      <div class="stat-value stat-value--location">Auckland</div>
-      <div class="stat-label">Real Estate Media</div>
+      <div class="stat-value">4yr</div>
+      <div class="stat-label">Experience</div>
     </div>
   </div>
 </section>
