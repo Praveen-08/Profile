@@ -1,4 +1,5 @@
 /* PK Visuals — main.js  |  Cinematic Animation System */
+console.log('PK Visuals main.js loaded');
 
 // ── Motion preference ──────────────────────────────────────────────────
 const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -108,15 +109,20 @@ const revealObs = new IntersectionObserver((entries) => {
   });
 }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
 
-document.querySelectorAll('.reveal, .reveal-up, .reveal-scale, .stagger-item').forEach(el => revealObs.observe(el));
+const revealEls = document.querySelectorAll('.reveal, .reveal-up, .reveal-scale, .stagger-item');
+console.log('Reveal elements found:', revealEls.length);
+revealEls.forEach(el => revealObs.observe(el));
 
 // ── Programmatic stagger on card groups ───────────────────────────────
 ['.reels__grid .reel-card', '.pkg-grid .pkg-item', '.agents-grid .agent-card',
- '.process-steps .process-step', '.testimonials-grid .testimonial-card'].forEach(sel => {
+ '.process-steps .process-step', '.testimonials-grid .testimonial-card',
+ '.work-grid .work-tile', '.service-block'].forEach(sel => {
   document.querySelectorAll(sel).forEach((el, i) => {
-    el.classList.add('stagger-item');
-    el.style.setProperty('--delay', `${i * 80}ms`);
-    revealObs.observe(el);
+    if (!el.classList.contains('stagger-item')) {
+      el.classList.add('stagger-item');
+      el.style.setProperty('--delay', `${i * 80}ms`);
+      revealObs.observe(el);
+    }
   });
 });
 
