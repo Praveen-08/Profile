@@ -1230,6 +1230,13 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
   letter-spacing: -0.045em;
 }
 .footer__brand-name span { color: var(--gold); }
+.footer__brand-logo {
+  height: clamp(36px, 4.5vw, 56px);
+  width: auto;
+  display: block;
+  background: transparent;
+  object-fit: contain;
+}
 .footer__col--instagram {
   display: flex;
   justify-content: center;
