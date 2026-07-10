@@ -1255,25 +1255,28 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
 }
-.footer__contact a,
-.footer__contact span {
+.footer-contact {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  text-align: right;
+}
+.footer-contact a,
+.footer-contact span {
   font-size: clamp(13px, 0.85vw, 16px);
   color: var(--white-dim);
   line-height: 1.65;
   transition: color 0.3s;
-  text-align: right;
   display: block;
 }
-.footer__contact a:hover { color: var(--gold); }
-.footer__copy {
-  font-size: 12px;
-  color: rgba(255,255,255,0.38);
-  letter-spacing: 0.02em;
-  margin-top: 14px;
+.footer-contact a:hover { color: var(--gold); }
+.footer-copyright {
+  margin-top: 12px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.42);
   display: block;
-  text-align: right;
 }
 .footer__bottom { display: none; }
 
@@ -1287,9 +1290,10 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
   .footer__col--brand { justify-content: flex-start; }
   .footer__col--instagram { justify-content: flex-start; }
   .footer__col--contact { align-items: flex-start; }
-  .footer__contact a,
-  .footer__contact span,
-  .footer__copy { text-align: left; }
+  .footer-contact {
+    align-items: flex-start;
+    text-align: left;
+  }
 }
 
 /* ===================================================
