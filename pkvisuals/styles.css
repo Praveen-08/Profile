@@ -1301,18 +1301,19 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 .footer__bottom { display: none; }
 
 @media (max-width: 768px) {
-  .footer { padding: 48px 24px 32px; }
+  .footer { padding: 48px 24px 40px; }
   .footer__grid {
     grid-template-columns: 1fr;
     gap: 0;
-    text-align: left;
+    text-align: center;
+    justify-items: center;
   }
-  .footer__col--brand { justify-content: flex-start; margin-bottom: 24px; }
-  .footer__col--instagram { justify-content: flex-start; order: 3; margin-top: 20px; }
-  .footer__col--contact { align-items: flex-start; }
+  .footer__col--brand { justify-content: center; margin-bottom: 16px; }
+  .footer__col--instagram { justify-content: center; order: 2; margin-bottom: 28px; }
+  .footer__col--contact { align-items: center; order: 3; }
   .footer-contact {
-    align-items: flex-start;
-    text-align: left;
+    align-items: center;
+    text-align: center;
   }
 }
 
