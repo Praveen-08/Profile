@@ -2866,9 +2866,9 @@ body.site-loaded .nav {
 .t-carousel { max-width: 900px; margin: 0 auto; }
 .t-carousel__inner { position: relative; padding: 64px 72px 52px; border: 1px solid var(--border); }
 .t-carousel__qdeco { position: absolute; top: 24px; left: 64px; font-family: var(--serif); font-size: 120px; color: var(--gold); opacity: 0.18; line-height: 1; pointer-events: none; user-select: none; }
-.t-carousel__track { position: relative; min-height: 160px; }
-.t-slide { display: none; opacity: 0; transform: translateY(8px); transition: opacity 0.5s ease, transform 0.5s ease; }
-.t-slide.t-slide--active { display: block; opacity: 1; transform: translateY(0); }
+.t-carousel__track { position: relative; }
+.t-slide { position: absolute; top: 0; left: 0; width: 100%; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
+.t-slide.t-slide--active { position: relative; opacity: 1; pointer-events: auto; }
 .t-slide__quote { font-family: var(--serif); font-size: clamp(19px, 1.7vw, 26px); color: var(--white); line-height: 1.7; font-style: italic; margin-bottom: 36px; }
 .t-slide__meta { display: flex; align-items: center; gap: 16px; }
 .t-slide__stars { font-size: 13px; color: var(--gold); letter-spacing: 3px; line-height: 1; }
