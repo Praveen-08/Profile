@@ -429,3 +429,16 @@ document.querySelectorAll('a[href*="#"]').forEach(a => {
     }, 5000);
   });
 })();
+
+// ── FAQ Accordion ─────────────────────────────────────────────
+(function () {
+  document.querySelectorAll('.faq__item').forEach(item => {
+    const btn = item.querySelector('.faq__q');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      const isOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq__item.open').forEach(o => o.classList.remove('open'));
+      if (!isOpen) item.classList.add('open');
+    });
+  });
+})();
