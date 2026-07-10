@@ -3006,3 +3006,57 @@ body.site-loaded .nav {
 
 /* ── Brand strip sub-line ─────────────────────────────────────── */
 .trusted__sub { font-size: 12px; color: var(--white-muted); letter-spacing: 0.04em; margin-bottom: 32px; }
+
+/* ===================================================
+   RESPONSIVE IMPROVEMENTS
+=================================================== */
+
+/* Filter bar — scrollable on mobile, no wrap */
+.filter-bar {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.filter-bar::-webkit-scrollbar { display: none; }
+.filter-btn { flex-shrink: 0; }
+
+/* Video tiles — black bg while loading (no poster) */
+.work-tile__img video,
+.reel-card video,
+.hero__video,
+.service-block__media video {
+  background: #000;
+}
+
+/* Work grid — 3 cols on mid tablet, 2 on small tablet */
+@media (min-width: 769px) and (max-width: 1200px) {
+  .work-grid { grid-template-columns: repeat(2, 1fr); }
+  .work-tile--wide { grid-column: span 2; }
+}
+
+/* Reels grid on small mobile — single column */
+@media (max-width: 480px) {
+  .reels__grid { grid-template-columns: 1fr; }
+  .reel-card { aspect-ratio: 9 / 16; max-width: 320px; margin: 0 auto; }
+  .filter-bar { padding: 16px 20px; gap: 10px; }
+  .filter-btn { font-size: 10px; padding: 8px 14px; }
+  .hero__headline { font-size: clamp(32px, 10vw, 48px); }
+  .work-tile__info { padding: 14px 16px; }
+  .pkg-item { padding: 32px 20px; }
+  .book-wrap { padding: calc(var(--nav-h) + 24px) 20px 60px; }
+}
+
+/* Mid-size screens (iPad landscape) */
+@media (min-width: 900px) and (max-width: 1100px) {
+  .service-block { grid-template-columns: 1fr 1fr; }
+  .packages-section { padding: 80px 40px; }
+  .pkg-grid--home { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Prevent horizontal scroll on all pages */
+html, body { max-width: 100%; overflow-x: hidden; }
+
+/* Images — never overflow their containers */
+img { max-width: 100%; height: auto; }
