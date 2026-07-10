@@ -176,75 +176,138 @@
   </div>
 </section>
 
-<!-- 3. SELECTED WORK -->
-<section class="selected-work" data-dot="2" aria-labelledby="selected-work-heading">
-  <div class="selected-work__header reveal">
-    <span id="selected-work-heading" class="selected-work__label">Selected Work</span>
-    <span class="selected-work__count">03 Campaigns</span>
-  </div>
+<!-- 3. SELECTED WORK — sticky scroll showcase -->
+<section class="selected-work-sticky" id="selected-work" data-dot="2" aria-label="Selected Work">
 
-  <div class="work-slide">
-    <div class="work-slide__content">
-      <span class="work-slide__num">01 / 03</span>
-      <h3 class="work-slide__title">16A Bliss Court,<br>Takanini</h3>
-      <span class="work-slide__meta">Auckland · Family Home Campaign · Photography + Drone + Floor Plan</span>
-      <div class="work-slide__stats">
-        <div>
-          <span class="work-slide__stat-val">40+</span>
-          <span class="work-slide__stat-label">Edited Images</span>
+  <!-- Desktop: sticky scroll (hidden on mobile / reduced-motion) -->
+  <div class="selected-work-track">
+    <div class="selected-work-pin">
+
+      <!-- Left: copy -->
+      <div class="selected-work-copy">
+        <span class="sw-eyebrow">Selected Work</span>
+
+        <div class="sw-projects">
+          <div class="selected-project active" data-index="0">
+            <div class="project-counter">01 / 04</div>
+            <h2 class="project-title">16A Bliss Court,<br>Takanini</h2>
+            <p class="project-meta">Family Home Campaign · Photography + Drone + Floor Plan</p>
+            <ul class="project-highlights">
+              <li>40+ edited images</li>
+              <li>Aerial coverage</li>
+              <li>2D floor plan</li>
+              <li>24–48hr delivery</li>
+            </ul>
+          </div>
+          <div class="selected-project" data-index="1">
+            <div class="project-counter">02 / 04</div>
+            <h2 class="project-title">7/11 Ray Small Drive,<br>Papakura</h2>
+            <p class="project-meta">Investor Campaign · Cinematic Video + Social Reel</p>
+            <ul class="project-highlights">
+              <li>Cinematic walkthrough</li>
+              <li>Vertical reel</li>
+              <li>Social-ready exports</li>
+              <li>Listing platform delivery</li>
+            </ul>
+          </div>
+          <div class="selected-project" data-index="2">
+            <div class="project-counter">03 / 04</div>
+            <h2 class="project-title">Karaka<br>Lifestyle Campaign</h2>
+            <p class="project-meta">Twilight + Aerial + Premium Photography</p>
+            <ul class="project-highlights">
+              <li>Twilight photography</li>
+              <li>Drone neighbourhood coverage</li>
+              <li>Premium exterior angles</li>
+              <li>Campaign-ready media</li>
+            </ul>
+          </div>
+          <div class="selected-project" data-index="3">
+            <div class="project-counter">04 / 04</div>
+            <h2 class="project-title">Auckland<br>Agent Reel</h2>
+            <p class="project-meta">Personal Brand Content · Signature Reel</p>
+            <ul class="project-highlights">
+              <li>Hook-led concept</li>
+              <li>Vertical filming</li>
+              <li>Premium edit</li>
+              <li>Platform-ready export</li>
+            </ul>
+          </div>
         </div>
-        <div>
-          <span class="work-slide__stat-val">24hr</span>
-          <span class="work-slide__stat-label">Delivery</span>
+
+        <nav class="project-nav" aria-label="Jump to project">
+          <button class="project-nav-item active" data-goto="0">16A Bliss Court</button>
+          <button class="project-nav-item" data-goto="1">7/11 Ray Small Drive</button>
+          <button class="project-nav-item" data-goto="2">Karaka Lifestyle</button>
+          <button class="project-nav-item" data-goto="3">Auckland Agent Reel</button>
+        </nav>
+
+        <div class="project-progress" aria-hidden="true">
+          <div class="project-progress-bar"></div>
+        </div>
+
+        <a href="work.html" class="sw-cta">View All Work</a>
+      </div>
+
+      <!-- Right: media -->
+      <div class="selected-work-media">
+        <!-- Replace assets/work-0*.jpg with assets/project-0*.jpg when available -->
+        <div class="project-media active" data-index="0">
+          <img src="assets/work-01.jpg" alt="16A Bliss Court Takanini — real estate photography and drone" loading="lazy">
+        </div>
+        <div class="project-media" data-index="1">
+          <img src="assets/work-02.jpg" alt="7/11 Ray Small Drive Papakura — cinematic property video" loading="lazy">
+        </div>
+        <div class="project-media" data-index="2">
+          <img src="assets/work-03.jpg" alt="Karaka lifestyle campaign — twilight and aerial photography" loading="lazy">
+        </div>
+        <div class="project-media" data-index="3">
+          <img src="assets/reel-04.jpg" alt="Auckland agent reel — personal brand content" loading="lazy">
         </div>
       </div>
-    </div>
-    <div class="work-slide__media">
-      <img src="assets/work-01.jpg" alt="Real estate photography and drone coverage for family home in Takanini Auckland" loading="lazy" width="800" height="600">
+
     </div>
   </div>
 
-  <div class="work-slide">
-    <div class="work-slide__content">
-      <span class="work-slide__num">02 / 03</span>
-      <h3 class="work-slide__title">7/11 Ray Small Drive,<br>Papakura</h3>
-      <span class="work-slide__meta">Auckland · Investor Campaign · Cinematic Video + Social Reel</span>
-      <div class="work-slide__stats">
-        <div>
-          <span class="work-slide__stat-val">Cinematic</span>
-          <span class="work-slide__stat-label">Walkthrough</span>
-        </div>
-        <div>
-          <span class="work-slide__stat-val">Vertical</span>
-          <span class="work-slide__stat-label">Reel Included</span>
-        </div>
+  <!-- Mobile / no-JS / reduced-motion fallback: stacked cards -->
+  <div class="sw-fallback">
+    <div class="sw-fallback__header">
+      <span class="sw-fallback__label">Selected Work</span>
+      <span class="sw-fallback__count">04 Campaigns</span>
+    </div>
+    <div class="sw-card reveal">
+      <div class="sw-card__img"><img src="assets/work-01.jpg" alt="16A Bliss Court Takanini" loading="lazy"></div>
+      <div class="sw-card__body">
+        <span class="sw-card__num">01 / 04</span>
+        <h3 class="sw-card__title">16A Bliss Court, Takanini</h3>
+        <p class="sw-card__meta">Family Home · Photography + Drone + Floor Plan</p>
       </div>
     </div>
-    <div class="work-slide__media">
-      <img src="assets/work-02.jpg" alt="Cinematic property video and social media reel for investor property in Papakura Auckland" loading="lazy" width="800" height="600">
+    <div class="sw-card reveal">
+      <div class="sw-card__img"><img src="assets/work-02.jpg" alt="7/11 Ray Small Drive Papakura" loading="lazy"></div>
+      <div class="sw-card__body">
+        <span class="sw-card__num">02 / 04</span>
+        <h3 class="sw-card__title">7/11 Ray Small Drive, Papakura</h3>
+        <p class="sw-card__meta">Investor Campaign · Cinematic Video + Social Reel</p>
+      </div>
+    </div>
+    <div class="sw-card reveal">
+      <div class="sw-card__img"><img src="assets/work-03.jpg" alt="Karaka Lifestyle Campaign" loading="lazy"></div>
+      <div class="sw-card__body">
+        <span class="sw-card__num">03 / 04</span>
+        <h3 class="sw-card__title">Karaka Lifestyle Campaign</h3>
+        <p class="sw-card__meta">Twilight + Aerial + Premium Photography</p>
+      </div>
+    </div>
+    <div class="sw-card reveal">
+      <div class="sw-card__img"><img src="assets/reel-04.jpg" alt="Auckland Agent Reel" loading="lazy"></div>
+      <div class="sw-card__body">
+        <span class="sw-card__num">04 / 04</span>
+        <h3 class="sw-card__title">Auckland Agent Reel</h3>
+        <p class="sw-card__meta">Personal Brand Content · Signature Reel</p>
+      </div>
     </div>
   </div>
 
-  <div class="work-slide">
-    <div class="work-slide__content">
-      <span class="work-slide__num">03 / 03</span>
-      <h3 class="work-slide__title">Karaka<br>Lifestyle Campaign</h3>
-      <span class="work-slide__meta">Auckland · Twilight + Aerial + Premium Photography</span>
-      <div class="work-slide__stats">
-        <div>
-          <span class="work-slide__stat-val">Twilight</span>
-          <span class="work-slide__stat-label">Premium Shoot</span>
-        </div>
-        <div>
-          <span class="work-slide__stat-val">Drone</span>
-          <span class="work-slide__stat-label">Neighbourhood Coverage</span>
-        </div>
-      </div>
-    </div>
-    <div class="work-slide__media">
-      <img src="assets/work-03.jpg" alt="Twilight real estate photography and aerial drone for lifestyle property in Karaka Auckland" loading="lazy" width="800" height="600">
-    </div>
-  </div>
 </section>
 
 <!-- 4. PROOF STATS -->
