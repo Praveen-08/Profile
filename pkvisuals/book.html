@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book a Shoot — PK Visuals</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="nav scrolled" id="nav">
+  <a href="index.html" class="nav__logo">PK<span>.</span>Visuals</a>
+  <ul class="nav__links">
+    <li><a href="work.html">Portfolio</a></li>
+    <li><a href="services.html">Services</a></li>
+    <li><a href="index.html#about">About</a></li>
+    <li class="nav-apply"><a href="book.html">Book Now</a></li>
+  </ul>
+  <button class="nav__burger" id="burger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="nav__drawer" id="drawer">
+  <a href="work.html">Portfolio</a>
+  <a href="services.html">Services</a>
+  <a href="index.html#about">About</a>
+  <a href="book.html">Book Now</a>
+</div>
+
+<div class="book-wrap">
+  <!-- FORM -->
+  <div class="book-main">
+    <div id="formContainer">
+      <h1 class="book-main__heading reveal">Let's talk<br>about your listing.</h1>
+      <p class="book-main__sub reveal reveal-d1">Fill in the details below and we'll get back to you within 2 hours to confirm your shoot date.</p>
+
+      <form id="bookForm" novalidate>
+
+        <div class="form-section">
+          <div class="form-section__title">Your Details</div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="firstName">First Name</label>
+              <input type="text" id="firstName" name="firstName" placeholder="Praveen" required>
+            </div>
+            <div class="form-field">
+              <label for="lastName">Last Name</label>
+              <input type="text" id="lastName" name="lastName" placeholder="Kumar" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="email">Email</label>
+              <input type="email" id="email" name="email" placeholder="you@agency.co.nz" required>
+            </div>
+            <div class="form-field">
+              <label for="phone">Phone</label>
+              <input type="tel" id="phone" name="phone" placeholder="022 450 2382">
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="agency">Agency / Company</label>
+            <input type="text" id="agency" name="agency" placeholder="RE/MAX, LJ Hooker, Ray White...">
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section__title">Property Details</div>
+          <div class="form-field">
+            <label for="address">Property Address</label>
+            <input type="text" id="address" name="address" placeholder="123 Remuera Road, Auckland" required>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="propertyType">Property Type</label>
+              <select id="propertyType" name="propertyType">
+                <option value="">Select type</option>
+                <option>House</option>
+                <option>Apartment</option>
+                <option>Townhouse</option>
+                <option>Section / Land</option>
+                <option>Commercial</option>
+                <option>Development</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="preferredDate">Preferred Shoot Date</label>
+              <input type="date" id="preferredDate" name="preferredDate">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section__title">Services Required</div>
+          <label class="form-check">
+            <input type="checkbox" name="services" value="photography">
+            <div class="form-check__box"></div>
+            <span class="form-check__label">Real Estate Photography</span>
+          </label>
+          <label class="form-check">
+            <input type="checkbox" name="services" value="video">
+            <div class="form-check__box"></div>
+            <span class="form-check__label">Cinematic Videography</span>
+          </label>
+          <label class="form-check">
+            <input type="checkbox" name="services" value="aerial">
+            <div class="form-check__box"></div>
+            <span class="form-check__label">Aerial / Drone</span>
+          </label>
+          <label class="form-check">
+            <input type="checkbox" name="services" value="floorplan">
+            <div class="form-check__box"></div>
+            <span class="form-check__label">Floor Plans</span>
+          </label>
+          <label class="form-check">
+            <input type="checkbox" name="services" value="staging">
+            <div class="form-check__box"></div>
+            <span class="form-check__label">Virtual Staging</span>
+          </label>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section__title">Anything Else</div>
+          <div class="form-field">
+            <label for="notes">Notes / Special Requirements</label>
+            <textarea id="notes" name="notes" placeholder="Property access details, key collection, specific shots you'd like..."></textarea>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit">Submit Enquiry</button>
+      </form>
+    </div>
+
+    <div class="form-success" id="formSuccess">
+      <div class="form-success__icon">✦</div>
+      <h2 class="form-success__title">Enquiry Received</h2>
+      <p class="form-success__text">Thank you. We'll be in touch within 2 hours to confirm your shoot date.</p>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside class="book-sidebar">
+    <div class="sidebar-card reveal">
+      <span class="sidebar-card__label">Get in Touch</span>
+      <h3 class="sidebar-card__title">Prefer to call?</h3>
+      <p class="sidebar-card__text">
+        <a href="tel:0224502382" style="color:var(--gold);font-size:20px;font-family:var(--serif);">022 450 2382</a><br><br>
+        <a href="mailto:hello@pkvisuals.com" style="color:var(--white-dim);">hello@pkvisuals.com</a><br><br>
+        Auckland, New Zealand
+      </p>
+    </div>
+
+    <div class="sidebar-card reveal reveal-d2">
+      <span class="sidebar-card__label">Our Packages</span>
+      <h3 class="sidebar-card__title">What does it cost?</h3>
+      <ul class="sidebar-list">
+        <li>Essential Photography <span>from $349</span></li>
+        <li>Premium (Photo + Video) <span>from $699</span></li>
+        <li>Full Media Package <span>from $1,199</span></li>
+        <li>Aerial / Drone Add-on <span>from $199</span></li>
+        <li>Floor Plans <span>from $149</span></li>
+        <li>Virtual Staging <span>from $99/room</span></li>
+      </ul>
+    </div>
+
+    <div class="sidebar-card reveal reveal-d4">
+      <span class="sidebar-card__label">Turnaround</span>
+      <h3 class="sidebar-card__title">Fast delivery, always.</h3>
+      <ul class="sidebar-list">
+        <li>Photography <span>24 hrs</span></li>
+        <li>Video + Aerial <span>48 hrs</span></li>
+        <li>Floor Plans <span>24 hrs</span></li>
+        <li>Virtual Staging <span>48 hrs</span></li>
+      </ul>
+    </div>
+  </aside>
+</div>
+
+<footer class="footer">
+  <div class="footer__brand">PK<span>.</span>Visuals</div>
+  <div class="footer__contact">
+    <a href="tel:0224502382">022 450 2382</a> &nbsp;|&nbsp; <a href="mailto:hello@pkvisuals.com">hello@pkvisuals.com</a><br>
+    Auckland, New Zealand
+  </div>
+  <div class="footer__right">
+    <nav class="footer__nav">
+      <a href="work.html">Portfolio</a>
+      <a href="services.html">Services</a>
+      <a href="book.html">Book</a>
+    </nav>
+    <div class="footer__copy">&copy; 2025 PK Visuals. All rights reserved.</div>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+</body>
+</html>
