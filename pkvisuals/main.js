@@ -309,6 +309,14 @@ if (filterBtns.length && workTiles.length) {
         const show = filter === 'all' || cats.includes(filter);
         tile.style.display = show ? '' : 'none';
       });
+      // hide section labels + grids that have no visible tiles
+      document.querySelectorAll('.work-section-label').forEach(label => {
+        const grid = label.nextElementSibling;
+        if (!grid) return;
+        const hasVisible = Array.from(grid.querySelectorAll('.work-tile')).some(t => t.style.display !== 'none');
+        label.style.display = hasVisible ? '' : 'none';
+        grid.style.display  = hasVisible ? '' : 'none';
+      });
     });
   });
 }
