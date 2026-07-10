@@ -400,7 +400,7 @@ if (filterBtns.length && workTiles.length) {
         headers: { Accept: 'application/json' }
       });
       if (res.ok) {
-        window.location.href = '../thank-you/';
+        window.location.href = '/thank-you/';
       } else {
         throw new Error('error');
       }
