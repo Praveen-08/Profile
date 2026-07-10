@@ -139,6 +139,18 @@ if (document.readyState === 'loading') {
 window.addEventListener('touchstart', playAllMutedVideos, { once: true, passive: true });
 window.addEventListener('scroll',     playAllMutedVideos, { once: true, passive: true });
 
+// ── Hide reel fallback image once video plays ──────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.reel-card video').forEach(function (v) {
+    v.addEventListener('playing', function () {
+      var next = v.nextElementSibling;
+      if (next && next.classList.contains('reel-card__fallback')) {
+        next.style.display = 'none';
+      }
+    }, { once: true });
+  });
+});
+
 // ── Scroll reveal — IntersectionObserver ──────────────────────────────
 const revealObs = new IntersectionObserver((entries) => {
   entries.forEach(e => {

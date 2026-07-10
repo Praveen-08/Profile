@@ -680,7 +680,7 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
   font-size: clamp(28px, 3.6vw, 52px);
 }
 .stat-value--location {
-  font-size: clamp(34px, 4vw, 60px);
+  font-size: clamp(28px, 4vw, 56px);
   white-space: normal;
   line-height: 1.05;
 }
@@ -2764,6 +2764,7 @@ body.site-loaded .nav {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  z-index: 1;
 }
 .reel-card__fallback {
   position: absolute;
@@ -2772,8 +2773,8 @@ body.site-loaded .nav {
   height: 100%;
   object-fit: cover;
   z-index: 0;
+  display: block;
 }
-.reel-card video + .reel-card__fallback { display: none; }
 
 /* Work page section labels */
 .work-section-label {
@@ -3046,7 +3047,7 @@ body.site-loaded .nav {
 /* Reels grid on small mobile — single column */
 @media (max-width: 480px) {
   .reels__grid { grid-template-columns: 1fr; }
-  .reel-card { aspect-ratio: 9 / 16; max-width: 320px; margin: 0 auto; }
+  .reel-card { aspect-ratio: 9 / 16; width: 100%; max-width: 100%; }
   .filter-bar { padding: 16px 20px; gap: 10px; }
   .filter-btn { font-size: 10px; padding: 8px 14px; }
   .hero__headline { font-size: clamp(32px, 10vw, 48px); }
