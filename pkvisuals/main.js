@@ -442,3 +442,31 @@ document.querySelectorAll('a[href*="#"]').forEach(a => {
     });
   });
 })();
+
+// ── Testimonial carousel ──────────────────────────────────────
+(function () {
+  const slides = document.querySelectorAll('.t-slide');
+  const dots = document.querySelectorAll('.t-dot');
+  if (!slides.length) return;
+
+  let current = 0;
+  let timer;
+
+  function goTo(n) {
+    slides[current].classList.remove('t-slide--active');
+    dots[current].classList.remove('t-dot--active');
+    current = (n + slides.length) % slides.length;
+    slides[current].classList.add('t-slide--active');
+    dots[current].classList.add('t-dot--active');
+  }
+
+  slides[0].classList.add('t-slide--active');
+
+  dots.forEach((dot, i) => dot.addEventListener('click', () => {
+    clearInterval(timer);
+    goTo(i);
+    timer = setInterval(() => goTo(current + 1), 5000);
+  }));
+
+  timer = setInterval(() => goTo(current + 1), 5000);
+})();
