@@ -1157,6 +1157,255 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 }
 
 /* ===================================================
+   SIGNATURE PACKAGE — featured full-width card
+=================================================== */
+.pkg-grid--3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin-bottom: 1px;
+}
+.pkg-signature {
+  border: 1px solid var(--border-gold);
+  background: var(--black-card);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  position: relative;
+  margin-bottom: 1px;
+  transition: background 0.4s;
+}
+.pkg-signature:hover { background: #141414; }
+.pkg-signature__badge {
+  position: absolute;
+  top: -1px; left: -1px;
+  background: var(--gold);
+  color: var(--black);
+  font-size: 8px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  padding: 5px 18px;
+  font-weight: 500;
+}
+.pkg-signature__left {
+  padding: 52px 48px 52px 52px;
+  border-right: 1px solid var(--border-gold);
+  display: flex;
+  flex-direction: column;
+}
+.pkg-signature__right {
+  padding: 52px 52px 52px 48px;
+}
+.pkg-signature__price {
+  font-family: var(--serif);
+  font-size: clamp(44px, 4.5vw, 68px);
+  font-weight: 300;
+  line-height: 1;
+  margin: 16px 0 20px;
+  letter-spacing: -0.02em;
+}
+.pkg-signature__price span {
+  font-size: 14px;
+  color: var(--white-muted);
+  font-family: var(--sans);
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+}
+.pkg-signature__tagline {
+  font-size: 14px;
+  color: var(--white-dim);
+  line-height: 1.75;
+  margin-bottom: 36px;
+  flex: 1;
+}
+.pkg-signature__list {
+  list-style: none;
+  margin-bottom: 20px;
+}
+.pkg-signature__list li {
+  font-size: 13px;
+  color: var(--white-dim);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  line-height: 1.4;
+}
+.pkg-signature__list li::before {
+  content: '✦';
+  font-size: 7px;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+.pkg-signature__best {
+  font-size: 12px;
+  color: var(--white-muted);
+  font-style: italic;
+  font-family: var(--serif);
+  line-height: 1.6;
+  margin-top: 20px;
+}
+.btn-pkg--gold {
+  background: var(--gold);
+  color: var(--black);
+  border-color: var(--gold);
+  font-weight: 500;
+}
+.btn-pkg--gold:hover { background: var(--gold-light); border-color: var(--gold-light); }
+
+/* Signature Reel Add-On */
+.pkg-addon {
+  border: 1px solid var(--border);
+  border-top: none;
+  padding: 36px 52px;
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  gap: 48px;
+  align-items: center;
+  transition: background 0.4s;
+}
+.pkg-addon:hover { background: var(--black-card); }
+.pkg-addon__price {
+  font-family: var(--serif);
+  font-size: clamp(28px, 2.8vw, 40px);
+  font-weight: 300;
+  margin-top: 10px;
+  letter-spacing: -0.01em;
+}
+.pkg-addon__price span {
+  font-size: 12px;
+  color: var(--white-muted);
+  font-family: var(--sans);
+  vertical-align: middle;
+}
+.pkg-addon__desc {
+  font-size: 13px;
+  color: var(--white-dim);
+  line-height: 1.8;
+}
+
+/* ===================================================
+   AGENT CONTENT PROGRAM
+=================================================== */
+.content-program {
+  padding: 120px 52px;
+  border-bottom: 1px solid var(--border);
+  background: var(--black-soft);
+}
+.content-program__intro {
+  max-width: 720px;
+  margin: 0 auto 72px;
+  text-align: center;
+}
+.content-program__heading {
+  font-family: var(--serif);
+  font-size: clamp(38px, 4.5vw, 66px);
+  font-weight: 300;
+  letter-spacing: -0.015em;
+  margin-bottom: 18px;
+}
+.content-program__sub {
+  font-family: var(--serif);
+  font-size: clamp(20px, 2vw, 28px);
+  font-weight: 300;
+  font-style: italic;
+  color: var(--gold-light);
+  margin-bottom: 24px;
+}
+.content-program__copy {
+  font-size: 14px;
+  color: var(--white-dim);
+  line-height: 1.9;
+}
+.content-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  max-width: 900px;
+  margin: 0 auto 60px;
+}
+.content-card {
+  background: var(--black-soft);
+  padding: 52px 44px;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.4s;
+  position: relative;
+}
+.content-card:hover { background: var(--black-card); }
+.content-card--featured {
+  background: var(--black-card);
+  outline: 1px solid var(--border-gold);
+  outline-offset: -1px;
+}
+.content-card__badge {
+  position: absolute;
+  top: -11px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--gold);
+  color: var(--black);
+  font-size: 8px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  padding: 3px 14px;
+  font-weight: 500;
+}
+.content-card__label {
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--gold);
+  display: block;
+  margin-bottom: 16px;
+}
+.content-card__price {
+  font-family: var(--serif);
+  font-size: clamp(32px, 3.2vw, 48px);
+  font-weight: 300;
+  line-height: 1;
+  margin-bottom: 24px;
+  letter-spacing: -0.01em;
+}
+.content-card__price span {
+  font-size: 12px;
+  color: var(--white-muted);
+  font-family: var(--sans);
+  vertical-align: middle;
+}
+.content-card__highlight {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 300;
+  color: var(--white);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+.content-card__text {
+  font-size: 13px;
+  color: var(--white-dim);
+  line-height: 1.8;
+  flex: 1;
+  margin-bottom: 32px;
+}
+.content-program__cta {
+  text-align: center;
+}
+
+/* Price note small text */
+.pkg-item__price-note {
+  font-size: 11px;
+  color: var(--white-muted);
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+  margin-top: -10px;
+}
+
+/* ===================================================
    PACKAGES / INVESTMENT (services page)
 =================================================== */
 .packages {
@@ -1778,4 +2027,25 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
   .pkg-card { border-right: none; border-bottom: 1px solid var(--border); }
   .pkg-wide { grid-template-columns: 1fr; }
   .pkg-wide__action { text-align: left; margin-top: 20px; }
+
+  /* New package layout mobile */
+  .pkg-grid--3 { grid-template-columns: 1fr; }
+  .pkg-signature { grid-template-columns: 1fr; }
+  .pkg-signature__left { border-right: none; border-bottom: 1px solid var(--border-gold); padding: 48px 24px; }
+  .pkg-signature__right { padding: 32px 24px 48px; }
+  .pkg-addon { grid-template-columns: 1fr; gap: 20px; padding: 36px 24px; }
+  .pkg-addon__action { }
+
+  /* Agent content program mobile */
+  .content-program { padding: 72px 24px; }
+  .content-cards { grid-template-columns: 1fr; max-width: 100%; }
+  .content-card { padding: 44px 28px; }
+}
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  .pkg-grid--3 { grid-template-columns: 1fr 1fr; }
+  .pkg-grid--3 .pkg-item:last-child { grid-column: span 2; }
+  .pkg-addon { grid-template-columns: 1fr 1fr; }
+  .pkg-addon__action { grid-column: 1 / -1; }
+  .content-cards { grid-template-columns: 1fr 1fr; }
 }
