@@ -872,9 +872,10 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 }
 .packages-section__note {
   text-align: center;
-  font-size: 11px;
-  color: var(--white-muted);
-  margin-top: 32px;
+  font-size: clamp(13px, 1vw, 15px);
+  color: var(--white-dim);
+  margin-top: 48px;
+  padding: 0 var(--side-pad);
   letter-spacing: 0.04em;
   line-height: 1.7;
 }
