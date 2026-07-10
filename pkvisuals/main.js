@@ -374,7 +374,8 @@ if (filterBtns.length && workTiles.length) {
   }
 
   function update() {
-    const scrolled   = window.scrollY - track.offsetTop;
+    const trackTop   = track.getBoundingClientRect().top + window.scrollY;
+    const scrolled   = window.scrollY - trackTop;
     const scrollable = track.offsetHeight - window.innerHeight;
     const progress   = Math.max(0, Math.min(1, scrolled / scrollable));
     if (bar) bar.style.width = (progress * 100) + '%';
