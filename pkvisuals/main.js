@@ -120,18 +120,24 @@ if (burger && drawer) {
   ).join('');
 })();
 
-// ── Hero video — autoplay with mobile fallback ─────────────────────────
-const heroVideo = document.querySelector('.hero__video');
-if (heroVideo) {
-  heroVideo.muted = true;
-  const playPromise = heroVideo.play();
-  if (playPromise !== undefined) {
-    playPromise.catch(() => {
-      document.addEventListener('touchstart', () => heroVideo.play(), { once: true });
-      document.addEventListener('click',      () => heroVideo.play(), { once: true });
-    });
-  }
+// ── Autoplay all muted videos (hero + reel cards + work tiles) ────────
+function playAllMutedVideos() {
+  document.querySelectorAll('video').forEach(function (v) {
+    v.muted = true;
+    v.setAttribute('muted', '');
+    v.setAttribute('playsinline', '');
+    v.setAttribute('webkit-playsinline', '');
+    var p = v.play();
+    if (p && p.catch) p.catch(function () {});
+  });
 }
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', playAllMutedVideos);
+} else {
+  playAllMutedVideos();
+}
+window.addEventListener('touchstart', playAllMutedVideos, { once: true, passive: true });
+window.addEventListener('scroll',     playAllMutedVideos, { once: true, passive: true });
 
 // ── Scroll reveal — IntersectionObserver ──────────────────────────────
 const revealObs = new IntersectionObserver((entries) => {
@@ -537,28 +543,3 @@ document.querySelectorAll('a[href*="#"]').forEach(a => {
   document.querySelectorAll('[data-before-after]').forEach(initSlider);
 })();
 
-// ── Hero video mobile autoplay ─────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', function () {
-  var heroVideo = document.querySelector('.hero-video');
-  if (!heroVideo) return;
-
-  heroVideo.muted = true;
-  heroVideo.defaultMuted = true;
-  heroVideo.playsInline = true;
-  heroVideo.setAttribute('muted', '');
-  heroVideo.setAttribute('playsinline', '');
-  heroVideo.setAttribute('webkit-playsinline', '');
-
-  function tryPlay() {
-    var p = heroVideo.play();
-    if (p && typeof p.catch === 'function') {
-      p.catch(function () {
-        document.body.classList.add('hero-video-fallback');
-      });
-    }
-  }
-
-  tryPlay();
-  window.addEventListener('touchstart', tryPlay, { once: true, passive: true });
-  window.addEventListener('click', tryPlay, { once: true });
-});
