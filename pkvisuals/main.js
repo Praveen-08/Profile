@@ -321,6 +321,50 @@ if (bookForm && formSuccess) {
   });
 }
 
+// ── Selected Work sticky scroll ─────────────────────────────────────────
+(function () {
+  const track = document.querySelector('.selected-work-track');
+  if (!track || prefersReduced || isMobile) return;
+  const projects = track.querySelectorAll('.selected-project');
+  const medias   = track.querySelectorAll('.project-media');
+  const navItems = track.querySelectorAll('.project-nav-item');
+  const bar      = track.querySelector('.project-progress-bar');
+  const COUNT    = projects.length;
+  let active     = -1;
+  let ticking    = false;
+
+  function setActive(idx) {
+    if (idx === active) return;
+    active = idx;
+    projects.forEach((p, i) => p.classList.toggle('active', i === idx));
+    medias.forEach((m, i)   => m.classList.toggle('active', i === idx));
+    navItems.forEach((n, i) => n.classList.toggle('active', i === idx));
+  }
+
+  function update() {
+    const scrolled   = window.scrollY - track.offsetTop;
+    const scrollable = track.offsetHeight - window.innerHeight;
+    const progress   = Math.max(0, Math.min(1, scrolled / scrollable));
+    if (bar) bar.style.width = (progress * 100) + '%';
+    setActive(Math.min(COUNT - 1, Math.floor(progress * COUNT)));
+    ticking = false;
+  }
+
+  window.addEventListener('scroll', () => {
+    if (!ticking) { requestAnimationFrame(update); ticking = true; }
+  }, { passive: true });
+
+  navItems.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.goto, 10);
+      const scrollable = track.offsetHeight - window.innerHeight;
+      window.scrollTo({ top: track.offsetTop + scrollable * (idx / COUNT), behavior: 'smooth' });
+    });
+  });
+
+  update();
+})();
+
 // ── Smooth hash scroll ─────────────────────────────────────────────────
 document.querySelectorAll('a[href*="#"]').forEach(a => {
   a.addEventListener('click', e => {
