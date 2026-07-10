@@ -1,5 +1,50 @@
 /* PK Visuals — main.js */
 
+// Custom cursor
+(function () {
+  if (window.matchMedia('(pointer: coarse)').matches) return; // skip on touch devices
+  const dot  = document.createElement('div');
+  const ring = document.createElement('div');
+  dot.className  = 'cursor-dot';
+  ring.className = 'cursor-ring';
+  document.body.appendChild(dot);
+  document.body.appendChild(ring);
+
+  let mx = -100, my = -100, rx = -100, ry = -100;
+  let scale = 1;
+
+  window.addEventListener('mousemove', e => {
+    mx = e.clientX;
+    my = e.clientY;
+  }, { passive: true });
+
+  // Expand ring on hoverable elements
+  const hoverEls = 'a, button, .reel-card, .work-tile, .work-slide__media, .pkg-card, .filter-btn';
+  document.addEventListener('mouseover', e => {
+    if (e.target.closest(hoverEls)) {
+      scale = 2.2;
+      ring.classList.add('cursor-ring--hover');
+    }
+  });
+  document.addEventListener('mouseout', e => {
+    if (e.target.closest(hoverEls)) {
+      scale = 1;
+      ring.classList.remove('cursor-ring--hover');
+    }
+  });
+
+  // RAF loop — dot snaps, ring lerps
+  const lerp = (a, b, t) => a + (b - a) * t;
+  function tick() {
+    dot.style.transform  = `translate(${mx}px, ${my}px) translate(-50%, -50%)`;
+    rx = lerp(rx, mx, 0.1);
+    ry = lerp(ry, my, 0.1);
+    ring.style.transform = `translate(${rx}px, ${ry}px) translate(-50%, -50%) scale(${scale})`;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
 // NAV scroll
 const nav = document.getElementById('nav');
 if (nav) {
@@ -52,8 +97,22 @@ if (scrollDots) {
         dots.forEach((d, i) => d.classList.toggle('active', String(i) === idx));
       }
     });
-  }, { threshold: 0.4 });
+  }, { threshold: 0.35 });
   sections.forEach(s => dotObs.observe(s));
+}
+
+// Hero video — ensure autoplay on mobile
+const heroVideo = document.querySelector('.hero__video');
+if (heroVideo) {
+  heroVideo.muted = true;
+  const playPromise = heroVideo.play();
+  if (playPromise !== undefined) {
+    playPromise.catch(() => {
+      // Autoplay blocked — try on first interaction
+      document.addEventListener('touchstart', () => heroVideo.play(), { once: true });
+      document.addEventListener('click', () => heroVideo.play(), { once: true });
+    });
+  }
 }
 
 // Stat counters
@@ -102,11 +161,6 @@ if (filterBtns.length && workTiles.length) {
   });
 }
 
-// Hero video
-const heroVideo = document.querySelector('.hero__video');
-if (heroVideo) {
-  heroVideo.play().catch(() => {});
-}
 
 // Booking form
 const bookForm = document.getElementById('bookForm');
