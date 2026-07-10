@@ -2787,7 +2787,9 @@ body.site-loaded .nav {
   height: 100%;
   background: #050505;
 }
-.fade-carousel img {
+.fade-carousel img,
+.project-media .fade-carousel img,
+.project-media.active .fade-carousel img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -2799,7 +2801,9 @@ body.site-loaded .nav {
     opacity 1.4s cubic-bezier(0.16,1,0.3,1),
     transform 1.4s cubic-bezier(0.16,1,0.3,1);
 }
-.fade-carousel img.active {
+.fade-carousel img.active,
+.project-media .fade-carousel img.active,
+.project-media.active .fade-carousel img.active {
   opacity: 1;
   transform: scale(1);
 }
