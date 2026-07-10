@@ -3,6 +3,42 @@ console.log('PK Visuals main.js loaded');
 
 // ── Motion preference ──────────────────────────────────────────────────
 const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ── Preloader ──────────────────────────────────────────────────────────
+(function () {
+  const preloader = document.getElementById('sitePreloader');
+  if (!preloader) {
+    document.body.classList.add('site-loaded');
+    return;
+  }
+
+  // Skip on reduced motion or repeat visits this session
+  if (prefersReduced || sessionStorage.getItem('pkIntroPlayed')) {
+    preloader.style.display = 'none';
+    document.body.classList.add('site-loaded');
+    return;
+  }
+
+  // Mark played so internal nav doesn't replay
+  sessionStorage.setItem('pkIntroPlayed', 'true');
+
+  // logo-in: 0.15s delay + 0.7s anim = 0.85s
+  // hold line: line animates at 0.65s for 0.6s = 1.25s total
+  // pause after: 0.5s → start exit at ~1.55s
+  // exit anim: 0.8s → done at ~2.35s
+  const EXIT_START = 1500; // ms after page load to begin exit
+  const EXIT_DUR   = 800;
+
+  function dismissPreloader() {
+    preloader.classList.add('is-hiding');
+    document.body.classList.add('site-loaded');
+    setTimeout(() => {
+      preloader.style.display = 'none';
+    }, EXIT_DUR + 50);
+  }
+
+  setTimeout(dismissPreloader, EXIT_START);
+})();
 const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
 // ── Custom cursor ──────────────────────────────────────────────────────
