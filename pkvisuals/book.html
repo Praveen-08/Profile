@@ -12,10 +12,9 @@
 <nav class="nav scrolled" id="nav">
   <a href="index.html" class="nav__logo"><img src="assets/logo-horizontal.png" alt="PK Visuals" class="nav__logo-img"></a>
   <ul class="nav__links">
-    <li><a href="work.html">Portfolio</a></li>
+    <li><a href="work.html">Work</a></li>
     <li><a href="services.html">Services</a></li>
-    <li><a href="index.html#about">About</a></li>
-    <li class="nav-apply"><a href="book.html" class="nav__cta-btn">Book Now</a></li>
+    <li class="nav-apply"><a href="book.html" class="nav__cta-btn">Book</a></li>
   </ul>
   <button class="nav__burger" id="burger" aria-label="Menu">
     <span></span><span></span><span></span>
@@ -23,10 +22,9 @@
 </nav>
 
 <div class="nav__drawer" id="drawer">
-  <a href="work.html">Portfolio</a>
+  <a href="work.html">Work</a>
   <a href="services.html">Services</a>
-  <a href="index.html#about">About</a>
-  <a href="book.html">Book Now</a>
+  <a href="book.html">Book</a>
 </div>
 
 <div class="book-wrap">
@@ -37,36 +35,17 @@
       <p class="book-main__sub reveal reveal-d1">Send the property address and campaign type — we'll confirm availability and next steps.</p>
 
       <!--
-        FORM DESTINATION — CURRENTLY USING MAILTO FALLBACK
-        =====================================================
-        This form currently uses mailto: as a temporary fallback.
-        Submissions open the user's email client — they do NOT go
-        directly to your inbox.
-
-        TO CONNECT A REAL FORM SERVICE, choose one:
-
-        OPTION A — Formspree (recommended for static HTML):
-          1. Go to formspree.io and sign up (free)
-          2. Create a new form → set email to Info@pkvisuals.com
-          3. Copy your endpoint, e.g. https://formspree.io/f/XXXXXXXX
-          4. Replace  action="mailto:Info@pkvisuals.com" method="POST" enctype="text/plain"
-             with      action="https://formspree.io/f/XXXXXXXX" method="POST"
-          5. Remove the data-mailto attribute from the form tag
-          Done — submissions land in your inbox, no email client needed.
-
-        OPTION B — Tally (easiest no-code option):
-          1. Go to tally.so and build the form with the same fields
-          2. Get the embed code or hosted link
-          3. Replace this entire <form> block with the Tally embed
-          Done — submissions go to Tally's dashboard + email.
-
-        OPTION C — Zoho Forms:
-          1. Build the form in Zoho Forms
-          2. Embed their iframe here, or link the Book Now button to your
-             hosted Zoho form URL
-          Done — integrates with Zoho CRM directly.
+        CONNECT FORMSPREE:
+        Replace YOUR_FORM_ID below with your real Formspree form ID.
+        1. Go to formspree.io — sign up free
+        2. Create a form → set notification email to Info@pkvisuals.com
+        3. Copy the form ID (e.g. xpzgvkab)
+        4. Replace YOUR_FORM_ID in the action attribute on the form below
       -->
-      <form id="bookForm" action="mailto:Info@pkvisuals.com" method="POST" enctype="text/plain" data-mailto="true" novalidate>
+      <form id="bookForm" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+        <input type="hidden" name="_subject" value="New PK Visuals Booking Enquiry">
+        <input type="hidden" name="_next" value="thank-you.html">
+        <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off">
 
         <div class="form-field">
           <label for="name">Name <span class="form-required">*</span></label>
@@ -115,10 +94,6 @@
         </div>
 
         <button type="submit" class="btn-submit">Send Enquiry</button>
-
-        <p class="form-mailto-note" id="mailtoNote">
-          Note: This will open your email app. To send directly to our inbox without an email app, call or email us below.
-        </p>
 
       </form>
     </div>
@@ -178,7 +153,7 @@
       <div class="footer__brand-name">PK<span> Visuals</span></div>
     </div>
     <div class="footer__col footer__col--instagram">
-      <a href="https://www.instagram.com/pkvisualsnz/" class="footer__insta" target="_blank" rel="noopener noreferrer">@pkvisualsnz</a>
+      <a href="https://www.instagram.com/pkvisualsnz/" class="footer__insta" target="_blank" rel="noopener noreferrer">Instagram</a>
     </div>
     <div class="footer__col footer__col--contact">
       <div class="footer__contact">

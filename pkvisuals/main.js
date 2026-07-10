@@ -323,21 +323,19 @@ if (filterBtns.length && workTiles.length) {
   });
 }
 
-// ── Booking form ───────────────────────────────────────────────────────
+// ── Booking form (Formspree) ────────────────────────────────────────────
 (function () {
-  const bookForm    = document.getElementById('bookForm');
-  const formSuccess = document.getElementById('formSuccess');
-  const formError   = document.getElementById('formError');
-  const mailtoNote  = document.getElementById('mailtoNote');
+  const bookForm  = document.getElementById('bookForm');
+  const formError = document.getElementById('formError');
   if (!bookForm) return;
 
-  const isMailto = bookForm.dataset.mailto === 'true';
-
-  // Show the mailto note only if using fallback
-  if (!isMailto && mailtoNote) mailtoNote.style.display = 'none';
+  // If the endpoint is still a placeholder, warn in console but don't block
+  if (bookForm.action.includes('YOUR_FORM_ID')) {
+    console.warn('PK Visuals: Formspree form ID not set. Update action in book.html.');
+  }
 
   bookForm.addEventListener('submit', (e) => {
-    // Validate required fields
+    // Client-side validation
     const required = bookForm.querySelectorAll('[required]');
     let valid = true;
     required.forEach(field => {
@@ -346,39 +344,8 @@ if (filterBtns.length && workTiles.length) {
       if (empty) valid = false;
     });
     if (!valid) { e.preventDefault(); return; }
-
-    // If using mailto fallback, let the browser open email client naturally
-    // (don't preventDefault — allow form action to fire)
-    if (isMailto) return;
-
-    // If a real endpoint is set, handle via fetch
-    e.preventDefault();
-    const data = new FormData(bookForm);
-    fetch(bookForm.action, { method: 'POST', body: data, headers: { Accept: 'application/json' } })
-      .then(r => {
-        if (!r.ok) throw new Error('Network error');
-        showSuccess();
-      })
-      .catch(() => {
-        if (formError) formError.style.display = 'block';
-      });
+    // Valid — allow native form POST to Formspree; _next redirects to thank-you.html
   });
-
-  function showSuccess() {
-    bookForm.style.opacity    = '0';
-    bookForm.style.transition = 'opacity 0.4s';
-    setTimeout(() => {
-      bookForm.style.display = 'none';
-      if (formSuccess) {
-        formSuccess.style.display = 'block';
-        formSuccess.style.opacity = '0';
-        requestAnimationFrame(() => {
-          formSuccess.style.transition = 'opacity 0.6s var(--silk, ease)';
-          formSuccess.style.opacity    = '1';
-        });
-      }
-    }, 400);
-  }
 })();
 
 // ── Selected Work sticky scroll ─────────────────────────────────────────
