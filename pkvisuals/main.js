@@ -470,3 +470,15 @@ document.querySelectorAll('a[href*="#"]').forEach(a => {
 
   timer = setInterval(() => goTo(current + 1), 5000);
 })();
+
+// ── Booking date: enforce future dates only ───────────────────
+(function () {
+  const dateInput = document.getElementById('preferredDate');
+  if (!dateInput) return;
+  const today = new Date();
+  today.setDate(today.getDate() + 1);
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  dateInput.min = `${yyyy}-${mm}-${dd}`;
+})();
