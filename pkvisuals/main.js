@@ -409,3 +409,22 @@ document.querySelectorAll('a[href*="#"]').forEach(a => {
     window.scrollTo({ top: target.offsetTop - navH - 20, behavior: 'smooth' });
   });
 });
+
+// ── Fade carousel ─────────────────────────────────────────────────────
+(function () {
+  if (prefersReduced) return;
+
+  document.querySelectorAll('[data-fade-carousel]').forEach(carousel => {
+    const imgs = Array.from(carousel.querySelectorAll('img'));
+    if (imgs.length < 2) return;
+
+    let current = 0;
+    imgs[0].classList.add('active');
+
+    setInterval(() => {
+      imgs[current].classList.remove('active');
+      current = (current + 1) % imgs.length;
+      imgs[current].classList.add('active');
+    }, 5000);
+  });
+})();

@@ -2723,3 +2723,124 @@ body.site-loaded .nav {
   .selected-work-track { display: none !important; }
   .sw-fallback { display: block !important; }
 }
+
+/* ===================================================
+   MEDIA UPDATE — new paths & components
+=================================================== */
+
+/* Reel cards with video */
+.reel-card {
+  position: relative;
+  overflow: hidden;
+  background: #050505;
+  aspect-ratio: 9/16;
+  border-radius: 2px;
+}
+.reel-card video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.reel-card__fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.reel-card video + .reel-card__fallback { display: none; }
+
+/* Work page section labels */
+.work-section-label {
+  padding: clamp(48px,6vw,80px) clamp(20px,5vw,80px) clamp(16px,2vw,24px);
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--gold);
+  border-top: 1px solid var(--border);
+}
+.work-section-label:first-child { border-top: none; }
+
+/* Video tiles on work page */
+.work-tile--video .work-tile__img {
+  position: relative;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  background: #050505;
+}
+.work-tile--video .work-tile__img video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Fade carousel */
+.fade-carousel {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background: #050505;
+}
+.fade-carousel img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.03);
+  transition:
+    opacity 1.4s cubic-bezier(0.16,1,0.3,1),
+    transform 1.4s cubic-bezier(0.16,1,0.3,1);
+}
+.fade-carousel img.active {
+  opacity: 1;
+  transform: scale(1);
+}
+.fade-carousel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.18);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Services floor plan text-only block */
+.service-block__media--text-only {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+}
+.service-block__media-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Book page subtle background */
+.book-page-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--black);
+}
+.book-page-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('assets/images/twilight/twilight-1.jpg');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.06;
+}
