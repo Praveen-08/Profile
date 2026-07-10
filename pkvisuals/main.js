@@ -402,7 +402,9 @@ if (filterBtns.length && workTiles.length) {
       if (res.ok) {
         const container = document.getElementById('formContainer');
         const success   = document.getElementById('formSuccess');
+        const fallback  = document.querySelector('.book-contact-fallback');
         if (container) container.style.display = 'none';
+        if (fallback)  fallback.style.display  = 'none';
         if (success)   success.style.display   = 'block';
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {

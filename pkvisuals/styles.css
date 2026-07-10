@@ -2023,6 +2023,9 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
   margin-top: 52px;
   padding-top: 36px;
   border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 /* ── Thank You Page ── */
 .thankyou-wrap {
