@@ -1167,6 +1167,14 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
   border: 1px solid var(--border);
   margin-bottom: 1px;
 }
+.pkg-grid--4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin-bottom: 1px;
+}
 .pkg-signature {
   border: 1px solid var(--border-gold);
   background: var(--black-card);
@@ -2030,6 +2038,7 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 
   /* New package layout mobile */
   .pkg-grid--3 { grid-template-columns: 1fr; }
+  .pkg-grid--4 { grid-template-columns: 1fr; }
   .pkg-signature { grid-template-columns: 1fr; }
   .pkg-signature__left { border-right: none; border-bottom: 1px solid var(--border-gold); padding: 48px 24px; }
   .pkg-signature__right { padding: 32px 24px 48px; }
@@ -2045,6 +2054,7 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 @media (max-width: 1024px) and (min-width: 769px) {
   .pkg-grid--3 { grid-template-columns: 1fr 1fr; }
   .pkg-grid--3 .pkg-item:last-child { grid-column: span 2; }
+  .pkg-grid--4 { grid-template-columns: 1fr 1fr; }
   .pkg-addon { grid-template-columns: 1fr 1fr; }
   .pkg-addon__action { grid-column: 1 / -1; }
   .content-cards { grid-template-columns: 1fr 1fr; }
