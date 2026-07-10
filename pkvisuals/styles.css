@@ -2864,8 +2864,9 @@ body.site-loaded .nav {
 /* ── Testimonials ─────────────────────────────────────────────── */
 .testimonials { padding: 120px var(--side-pad); border-top: 1px solid var(--border); }
 .testimonials__eyebrow { font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--gold); display: block; margin-bottom: 20px; }
-.testimonials__heading { font-family: var(--serif); font-size: clamp(24px, 2.5vw, 36px); color: var(--white); margin-bottom: 48px; }
-.testimonials__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.testimonials__heading { font-family: var(--serif); font-size: clamp(24px, 2.5vw, 36px); color: var(--white); margin-bottom: 16px; }
+.testimonials__sub { font-size: clamp(14px, 1vw, 16px); color: var(--white-muted); line-height: 1.7; margin-bottom: 48px; max-width: 640px; }
+.testimonials__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
 .testimonial-card { padding: 40px 36px; border: 1px solid var(--border); background: var(--black-card); }
 .testimonial-card__quote { font-size: clamp(15px, 1.05vw, 17px); color: var(--white-dim); line-height: 1.8; font-style: italic; margin-bottom: 28px; }
 .testimonial-card__mark { display: block; font-size: 24px; color: var(--gold); margin-bottom: 18px; line-height: 1; font-style: normal; }
