@@ -2555,8 +2555,8 @@ button { cursor: pointer; border: none; background: none; font: inherit; }
 }
 
 .preloader-logo-img {
-  height: clamp(48px, 7vw, 88px);
-  width: auto;
+  width: clamp(220px, 28vw, 420px);
+  height: auto;
   display: block;
   background: transparent;
   object-fit: contain;
