@@ -478,3 +478,53 @@ document.querySelectorAll('a[href*="#"]').forEach(a => {
   const dd = String(today.getDate()).padStart(2, '0');
   dateInput.min = `${yyyy}-${mm}-${dd}`;
 })();
+
+// ── Before/After Slider ───────────────────────────────────────
+(function () {
+  function initSlider(slider) {
+    const after = slider.querySelector('.after-wrapper');
+    const handle = slider.querySelector('.ba-handle');
+    const afterImg = slider.querySelector('.after-image');
+    if (!after || !handle) return;
+
+    let isDragging = false;
+
+    function syncWidth() {
+      if (afterImg) afterImg.style.width = slider.offsetWidth + 'px';
+    }
+
+    function setPosition(clientX) {
+      const rect = slider.getBoundingClientRect();
+      let percent = ((clientX - rect.left) / rect.width) * 100;
+      percent = Math.max(5, Math.min(95, percent));
+      after.style.width = percent + '%';
+      handle.style.left = percent + '%';
+      syncWidth();
+    }
+
+    function stopDrag() { isDragging = false; }
+
+    syncWidth();
+    window.addEventListener('resize', syncWidth);
+
+    handle.addEventListener('pointerdown', function (e) {
+      isDragging = true;
+      handle.setPointerCapture(e.pointerId);
+      setPosition(e.clientX);
+    });
+    handle.addEventListener('pointermove', function (e) { if (isDragging) setPosition(e.clientX); });
+    handle.addEventListener('pointerup', stopDrag);
+    handle.addEventListener('pointercancel', stopDrag);
+
+    slider.addEventListener('pointerdown', function (e) {
+      isDragging = true;
+      setPosition(e.clientX);
+    });
+    slider.addEventListener('pointermove', function (e) { if (isDragging) setPosition(e.clientX); });
+    slider.addEventListener('pointerup', stopDrag);
+    slider.addEventListener('pointerleave', stopDrag);
+    slider.addEventListener('pointercancel', stopDrag);
+  }
+
+  document.querySelectorAll('[data-before-after]').forEach(initSlider);
+})();

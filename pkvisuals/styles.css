@@ -2874,6 +2874,40 @@ body.site-loaded .nav {
 @media (max-width: 900px) { .testimonials__grid { grid-template-columns: 1fr; } }
 @media (max-width: 768px) { .testimonials { padding: 80px 24px; } .testimonial-card { padding: 32px 24px; } }
 
+/* ── Virtual Renovation callout (homepage) ───────────────────── */
+.vr-callout { padding: 0 var(--side-pad) 80px; }
+.vr-callout__inner { display: flex; align-items: center; justify-content: space-between; gap: 32px; padding: 40px 48px; border: 1px solid var(--border); background: var(--black-card); }
+.vr-callout__eyebrow { font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--gold); display: block; margin-bottom: 10px; }
+.vr-callout__title { font-family: var(--serif); font-size: clamp(20px, 1.8vw, 28px); color: var(--white); margin-bottom: 10px; }
+.vr-callout__desc { font-size: clamp(13px, 0.9vw, 15px); color: var(--white-muted); line-height: 1.7; max-width: 520px; }
+@media (max-width: 768px) { .vr-callout { padding: 0 24px 60px; } .vr-callout__inner { flex-direction: column; align-items: flex-start; padding: 32px 24px; } }
+
+/* ── Service block note ──────────────────────────────────────── */
+.service-block__note { font-size: clamp(12px, 0.85vw, 13px); color: var(--white-muted); line-height: 1.7; margin-top: 20px; padding: 14px 16px; border-left: 2px solid rgba(201,165,92,0.4); font-style: italic; }
+
+/* ── Before/After Slider ─────────────────────────────────────── */
+.before-after-slider { position: relative; overflow: hidden; border-radius: 16px; border: 1px solid rgba(201,165,92,0.35); background: #050505; aspect-ratio: 16 / 10; cursor: ew-resize; touch-action: none; }
+.before-after-slider img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; user-select: none; pointer-events: none; draggable: false; }
+.after-wrapper { position: absolute; top: 0; left: 0; bottom: 0; width: 50%; overflow: hidden; }
+.after-wrapper .after-image { position: absolute; top: 0; left: 0; height: 100%; width: 100%; max-width: none; object-fit: cover; }
+.ba-handle { position: absolute; top: 0; left: 50%; width: 3px; height: 100%; transform: translateX(-50%); background: rgba(201,165,92,0.95); border: none; cursor: ew-resize; z-index: 5; padding: 0; }
+.ba-handle::before { content: ""; position: absolute; top: 50%; left: 50%; width: 42px; height: 42px; transform: translate(-50%,-50%); border-radius: 999px; background: rgba(5,5,5,0.82); border: 1px solid rgba(201,165,92,0.75); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+.ba-handle::after { content: "↔"; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-52%); color: #c9a55c; font-size: 18px; z-index: 2; pointer-events: none; }
+.ba-label { position: absolute; top: 14px; z-index: 6; padding: 6px 12px; border-radius: 999px; background: rgba(5,5,5,0.65); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.82); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; pointer-events: none; }
+.ba-label-before { left: 14px; }
+.ba-label-after { right: 14px; }
+@media (max-width: 768px) { .before-after-slider { aspect-ratio: 4 / 5; border-radius: 12px; } }
+
+/* ── Virtual Renovation work page section ────────────────────── */
+.vr-work-section { padding: 100px var(--side-pad); border-top: 1px solid var(--border); }
+.vr-work-section__intro { margin-bottom: 48px; }
+.vr-work-section__eyebrow { font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--gold); display: block; margin-bottom: 16px; }
+.vr-work-section__heading { font-family: var(--serif); font-size: clamp(28px, 3vw, 44px); color: var(--white); margin-bottom: 14px; }
+.vr-work-section__sub { font-size: clamp(14px, 1vw, 16px); color: var(--white-muted); line-height: 1.7; max-width: 560px; }
+.vr-sliders { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 40px; }
+.vr-work-section__cta { display: flex; gap: 16px; flex-wrap: wrap; }
+@media (max-width: 768px) { .vr-work-section { padding: 72px 24px; } .vr-sliders { grid-template-columns: 1fr; } }
+
 /* ── FAQ ──────────────────────────────────────────────────────── */
 .faq { padding: 120px var(--side-pad); border-top: 1px solid var(--border); }
 .faq__eyebrow { font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--gold); display: block; margin-bottom: 20px; }
