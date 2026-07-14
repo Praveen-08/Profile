@@ -32,24 +32,20 @@
   .pk-serif { font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif; }
   .pk-sans  { font-family: 'Inter', Arial, Helvetica, sans-serif; }
 
-  .pk-card       { border-radius: 16px; }
-  .pk-card-inner { border-radius: 14px; }
-  .pk-shadow     { box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,168,76,0.14); }
-  .pk-img-round  { border-radius: 12px; }
-
-  .pk-btn-primary:hover { background-color: #dfc278 !important; }
-  .pk-btn-outline:hover { background-color: rgba(201,168,76,0.08) !important; }
+  .pk-btn-primary   { background-color:#c9a84c; background-image:linear-gradient(135deg, #e9cb7e 0%, #c9a84c 48%, #a3812f 100%); }
+  .pk-btn-primary:hover   { background-image:linear-gradient(135deg, #f0d68f 0%, #dfc278 48%, #b3902f 100%) !important; }
+  .pk-btn-secondary { background-color:#c9a84c; background-image:linear-gradient(135deg, #e9cb7e 0%, #c9a84c 48%, #a3812f 100%); }
+  .pk-btn-secondary:hover { background-image:linear-gradient(135deg, #f0d68f 0%, #dfc278 48%, #b3902f 100%) !important; }
 
   @media only screen and (max-width: 650px) {
-    .pk-container { width: 100% !important; }
-    .pk-pad        { padding-left: 24px !important; padding-right: 24px !important; }
-    .pk-pad-lg     { padding-left: 24px !important; padding-right: 24px !important; padding-top: 40px !important; padding-bottom: 40px !important; }
-    .pk-hero-title { font-size: 32px !important; line-height: 40px !important; }
-    .pk-stack      { display: block !important; width: 100% !important; max-width: 100% !important; }
-    .pk-stack-pad  { padding-bottom: 14px !important; }
-    .pk-gallery-img{ width: 100% !important; height: auto !important; }
-    .pk-btn-full   { width: 100% !important; }
-    .pk-chip       { display: inline-block !important; margin-bottom: 10px !important; }
+    .pk-container   { width: 100% !important; }
+    .pk-pad         { padding-left: 24px !important; padding-right: 24px !important; }
+    .pk-pad-hero    { padding: 40px 26px 34px !important; }
+    .pk-hero-title  { font-size: 30px !important; line-height: 38px !important; }
+    .pk-stack       { display: block !important; width: 100% !important; max-width: 100% !important; }
+    .pk-stack-pad   { padding-bottom: 12px !important; }
+    .pk-btn-full    { width: 100% !important; box-sizing: border-box !important; }
+    .pk-trust-item  { display: block !important; padding: 6px 0 !important; }
   }
 </style>
 </head>
@@ -57,74 +53,107 @@
 
 <!-- Preheader (hidden preview text) -->
 <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#070707; opacity:0;">
-  Your property's photography and media are ready to download — PK Visuals.
+  Your property media is ready — 24 photos, floor plan, video and more. Download now.
 </div>
-<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</div>
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</div>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#070707;">
 <tr>
-<td align="center" style="padding: 36px 16px;">
+<td align="center" style="padding: 32px 16px;">
 
   <table role="presentation" class="pk-container" width="650" cellpadding="0" cellspacing="0" border="0" style="width:650px; max-width:650px;">
 
     <!-- ===================== LOGO HEADER ===================== -->
     <tr>
-      <td align="center" style="padding: 8px 0 28px 0;">
+      <td align="center" style="padding: 4px 0 22px 0;">
         <!-- Replace Logo -->
-        <img src="https://pkvisuals.com/assets/pkvisuals_full_logo_transparent_header.png" width="168" alt="PK Visuals" style="display:block; width:168px; max-width:60%; height:auto; border:0;">
+        <img src="https://pkvisuals.com/assets/pkvisuals_full_logo_transparent_header.png" width="152" alt="PK Visuals" style="display:block; width:152px; max-width:55%; height:auto; border:0;">
       </td>
     </tr>
 
-    <!-- ===================== HERO CARD ===================== -->
+    <!-- ===================== HERO ===================== -->
     <tr>
-      <td class="pk-card pk-shadow" style="background-color:#111111; border:1px solid rgba(201,168,76,0.18); border-radius:16px;">
+      <td style="background-color:#111111; background-image:linear-gradient(165deg, #171310 0%, #0e0d0c 55%, #0d0d0d 100%); border:1px solid rgba(201,168,76,0.2); border-radius:20px; box-shadow:0 28px 70px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,168,76,0.1);">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+
+          <!-- Full-width hero photograph — architectural, magazine-cover feel -->
           <tr>
-            <td class="pk-pad-lg" align="center" style="padding: 56px 56px 40px 56px;">
+            <td style="line-height:0; font-size:0;">
+              <!-- Replace Hero Image -->
+              <img src="https://picsum.photos/1200/760?random=21" width="100%" alt="12 Harbour View Road" style="display:block; width:100%; height:auto; border-radius:20px 20px 0 0;">
+            </td>
+          </tr>
+
+          <tr>
+            <td class="pk-pad-hero" align="center" style="padding: 48px 52px 44px;">
 
               <!-- Badge -->
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 26px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
                 <tr>
-                  <td style="border:1px solid rgba(201,168,76,0.4); border-radius:999px; padding:8px 20px; background-color:rgba(201,168,76,0.06);">
+                  <td style="border:1px solid rgba(201,168,76,0.4); border-radius:999px; padding:7px 18px; background-color:rgba(201,168,76,0.07);">
                     <span class="pk-sans" style="color:#dfc278; font-size:10px; letter-spacing:2.5px; text-transform:uppercase; font-weight:500;">Delivered by PK Visuals</span>
                   </td>
                 </tr>
               </table>
 
-              <!-- Gold divider -->
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 22px;">
-                <tr><td style="width:44px; height:1px; background-color:#c9a84c; font-size:1px; line-height:1px;">&nbsp;</td></tr>
-              </table>
+              <!-- Replace Property Address -->
+              <div class="pk-sans" style="color:#c9a84c; font-size:11.5px; letter-spacing:3px; text-transform:uppercase; font-weight:600; margin-bottom:14px;">
+                12 Harbour View Road, Auckland
+              </div>
 
-              <h1 class="pk-serif pk-hero-title" style="margin:0 0 22px 0; color:#f0ede8; font-size:42px; line-height:50px; font-weight:500; letter-spacing:0.2px;">
-                Your Property Media<br>is&nbsp;Ready
+              <!-- Replace Agent Name (used for personal greeting) -->
+              <h1 class="pk-serif pk-hero-title" style="margin:0 0 20px 0; color:#f7f4ee; font-size:44px; line-height:52px; font-weight:500; letter-spacing:0.2px;">
+                Ray, Your Property<br>Media is Ready.
               </h1>
 
-              <p class="pk-sans" style="margin:0 0 8px 0; color:rgba(240,237,232,0.72); font-size:16px; line-height:27px; font-weight:300; max-width:460px;">
-                Thank you for choosing PK Visuals. We've carefully crafted your property's photography and media, and everything is now ready for download.
-              </p>
-              <p class="pk-sans" style="margin:18px 0 36px 0; color:rgba(240,237,232,0.72); font-size:16px; line-height:27px; font-weight:300; max-width:460px;">
-                We hope it helps create an outstanding first impression and attracts the right buyers.
+              <p class="pk-sans" style="margin:0 0 34px 0; color:rgba(240,237,232,0.68); font-size:15.5px; line-height:26px; font-weight:300; max-width:420px;">
+                Everything has been professionally edited and is ready to download below.
               </p>
 
-              <!-- Primary CTA Button (bulletproof) -->
+              <!-- Primary CTA — the focal point of this email (bulletproof, gradient, Outlook-safe) -->
               <!-- Replace Download Link -->
               <!--[if mso]>
-              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://example.com/your-download-link" style="height:56px;v-text-anchor:middle;width:300px;" arcsize="10%" stroke="f" fillcolor="#c9a84c">
+              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://example.com/your-download-link" style="height:62px;v-text-anchor:middle;width:340px;" arcsize="16%" stroke="f" fillcolor="#c9a84c">
+              <v:fill type="gradient" angle="135" color="#dfc278" color2="#a3812f" />
               <w:anchorlock/>
-              <center style="color:#0d0d0d;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;letter-spacing:2px;">DOWNLOAD YOUR MEDIA</center>
+              <center style="color:#0d0d0d;font-family:Arial,sans-serif;font-size:14.5px;font-weight:bold;letter-spacing:2px;">&#8595;&nbsp;&nbsp;DOWNLOAD YOUR MEDIA</center>
               </v:roundrect>
               <![endif]-->
               <!--[if !mso]><!-->
-              <a href="https://example.com/your-download-link" target="_blank" class="pk-btn-primary pk-btn-full" style="display:inline-block; background-color:#c9a84c; color:#0d0d0d; font-family:'Inter',Arial,Helvetica,sans-serif; font-size:14px; font-weight:600; letter-spacing:2px; text-transform:uppercase; text-decoration:none; padding:19px 46px; border-radius:8px; box-shadow:0 14px 34px rgba(201,168,76,0.28);">
-                Download Your Media
+              <a href="https://example.com/your-download-link" target="_blank" class="pk-btn-primary pk-btn-full" style="display:inline-block; background-color:#c9a84c; color:#0d0d0d; font-family:'Inter',Arial,Helvetica,sans-serif; font-size:14.5px; font-weight:700; letter-spacing:2px; text-transform:uppercase; text-decoration:none; padding:22px 52px; border-radius:12px; box-shadow:0 18px 40px rgba(201,168,76,0.35), 0 4px 10px rgba(0,0,0,0.3);">
+                &#8595;&nbsp;&nbsp;Download Your Media
               </a>
               <!--<![endif]-->
 
-              <p class="pk-sans" style="margin:18px 0 0 0; color:rgba(240,237,232,0.35); font-size:12px; letter-spacing:0.5px;">
-                Link active for 90 days from delivery
+              <p class="pk-sans" style="margin:20px 0 32px 0; color:#dfc278; font-size:12px; letter-spacing:1.2px; font-weight:500;">
+                24 Photos&nbsp;&nbsp;&bull;&nbsp;&nbsp;Floor Plan&nbsp;&nbsp;&bull;&nbsp;&nbsp;Video&nbsp;&nbsp;&bull;&nbsp;&nbsp;1.3 GB
               </p>
 
+              <!-- ===== YOUR DELIVERY — package summary card ===== -->
+              <!-- Replace Package -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:rgba(255,255,255,0.025); border:1px solid rgba(201,168,76,0.16); border-radius:14px;">
+                <tr>
+                  <td style="padding:26px 28px;">
+                    <div class="pk-sans" style="color:#dfc278; font-size:10.5px; letter-spacing:2.5px; text-transform:uppercase; font-weight:600; margin-bottom:14px; text-align:left;">Your Delivery</div>
+
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr><td class="pk-sans" style="padding:4px 0; color:rgba(240,237,232,0.82); font-size:13.5px; text-align:left;">24 High Resolution Photos</td></tr>
+                      <tr><td class="pk-sans" style="padding:4px 0; color:rgba(240,237,232,0.82); font-size:13.5px; text-align:left;">12 Drone Images</td></tr>
+                      <tr><td class="pk-sans" style="padding:4px 0; color:rgba(240,237,232,0.82); font-size:13.5px; text-align:left;">Floor Plan</td></tr>
+                      <tr><td class="pk-sans" style="padding:4px 0; color:rgba(240,237,232,0.82); font-size:13.5px; text-align:left;">1 Cinematic Video</td></tr>
+                      <tr><td class="pk-sans" style="padding:4px 0 14px; color:rgba(240,237,232,0.82); font-size:13.5px; text-align:left;">1 Social Reel</td></tr>
+                    </table>
+
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid rgba(255,255,255,0.08); padding-top:14px; margin-top:2px;">
+                      <tr>
+                        <td class="pk-sans" style="padding-top:14px; color:rgba(240,237,232,0.5); font-size:12px; letter-spacing:0.3px; text-align:left;">Estimated Download</td>
+                        <td class="pk-sans" style="padding-top:14px; color:#dfc278; font-size:15px; font-weight:700; text-align:right;">1.3 GB</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
             </td>
           </tr>
         </table>
@@ -132,38 +161,59 @@
     </tr>
 
     <!-- Spacer -->
-    <tr><td style="height:36px; line-height:36px; font-size:1px;">&nbsp;</td></tr>
+    <tr><td style="height:30px; line-height:30px; font-size:1px;">&nbsp;</td></tr>
 
-    <!-- ===================== PREVIEW GALLERY ===================== -->
+    <!-- ===================== TRUST INDICATORS ===================== -->
+    <tr>
+      <td class="pk-pad" align="center" style="padding:0 24px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td class="pk-trust-item pk-sans" style="color:rgba(240,237,232,0.55); font-size:12px; letter-spacing:0.4px; padding:0 16px;"><span style="color:#c9a84c;">&#10003;</span>&nbsp; Delivered within 24 Hours</td>
+            <td class="pk-trust-item pk-sans" style="color:rgba(240,237,232,0.55); font-size:12px; letter-spacing:0.4px; padding:0 16px;"><span style="color:#c9a84c;">&#10003;</span>&nbsp; Premium Real Estate Media</td>
+            <td class="pk-trust-item pk-sans" style="color:rgba(240,237,232,0.55); font-size:12px; letter-spacing:0.4px; padding:0 16px;"><span style="color:#c9a84c;">&#10003;</span>&nbsp; Trusted by Auckland Agents</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Spacer -->
+    <tr><td style="height:40px; line-height:40px; font-size:1px;">&nbsp;</td></tr>
+
+    <!-- ===================== PROJECT INFORMATION — icon cards ===================== -->
     <tr>
       <td class="pk-pad">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr>
-            <td align="center" style="padding-bottom:20px;">
-              <span class="pk-sans" style="color:#dfc278; font-size:11px; letter-spacing:2.5px; text-transform:uppercase; font-weight:500;">Preview</span>
-              <div class="pk-serif" style="color:#f0ede8; font-size:26px; margin-top:8px;">A Glimpse of Your Gallery</div>
-            </td>
-          </tr>
-        </table>
+        <div class="pk-sans" style="color:#dfc278; font-size:11px; letter-spacing:2.5px; text-transform:uppercase; font-weight:500; margin-bottom:16px;">Project Details</div>
 
-        <!-- Replace Images -->
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <td class="pk-stack" width="49%" valign="top" style="padding-bottom:12px;">
-              <img src="https://picsum.photos/600/450?random=1" width="100%" alt="Property preview 1" class="pk-img-round pk-gallery-img" style="display:block; width:100%; height:auto; border-radius:12px; box-shadow:0 16px 40px rgba(0,0,0,0.5);">
+            <!-- Replace Property Address -->
+            <td class="pk-stack" width="49%" valign="top" style="background-color:#141210; border:1px solid rgba(201,168,76,0.14); border-radius:14px; padding:20px 22px;">
+              <div style="font-size:18px; margin-bottom:8px;">&#128205;</div>
+              <div class="pk-sans" style="color:rgba(240,237,232,0.45); font-size:11px; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:5px;">Property Address</div>
+              <div class="pk-sans" style="color:#f0ede8; font-size:14.5px; font-weight:500; line-height:20px;">12 Harbour View Road, Auckland</div>
             </td>
             <td class="pk-stack" width="2%" style="font-size:1px; line-height:1px;">&nbsp;</td>
-            <td class="pk-stack" width="49%" valign="top" style="padding-bottom:12px;">
-              <img src="https://picsum.photos/600/450?random=2" width="100%" alt="Property preview 2" class="pk-img-round pk-gallery-img" style="display:block; width:100%; height:auto; border-radius:12px; box-shadow:0 16px 40px rgba(0,0,0,0.5);">
+            <!-- Replace Shoot Date -->
+            <td class="pk-stack" width="49%" valign="top" style="background-color:#141210; border:1px solid rgba(201,168,76,0.14); border-radius:14px; padding:20px 22px;">
+              <div style="font-size:18px; margin-bottom:8px;">&#128197;</div>
+              <div class="pk-sans" style="color:rgba(240,237,232,0.45); font-size:11px; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:5px;">Shoot Date</div>
+              <div class="pk-sans" style="color:#f0ede8; font-size:14.5px; font-weight:500; line-height:20px;">12 July 2026</div>
             </td>
           </tr>
+          <tr><td class="pk-stack-pad" style="line-height:12px; font-size:1px;">&nbsp;</td><td style="font-size:1px;">&nbsp;</td><td class="pk-stack-pad" style="line-height:12px; font-size:1px;">&nbsp;</td></tr>
           <tr>
-            <td class="pk-stack" width="49%" valign="top">
-              <img src="https://picsum.photos/600/450?random=3" width="100%" alt="Property preview 3" class="pk-img-round pk-gallery-img" style="display:block; width:100%; height:auto; border-radius:12px; box-shadow:0 16px 40px rgba(0,0,0,0.5);">
+            <!-- Replace Agent Name -->
+            <td class="pk-stack" width="49%" valign="top" style="background-color:#141210; border:1px solid rgba(201,168,76,0.14); border-radius:14px; padding:20px 22px;">
+              <div style="font-size:18px; margin-bottom:8px;">&#128100;</div>
+              <div class="pk-sans" style="color:rgba(240,237,232,0.45); font-size:11px; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:5px;">Agent</div>
+              <div class="pk-sans" style="color:#f0ede8; font-size:14.5px; font-weight:500; line-height:20px;">Ray Sampleton — Ray White</div>
             </td>
             <td class="pk-stack" width="2%" style="font-size:1px; line-height:1px;">&nbsp;</td>
-            <td class="pk-stack" width="49%" valign="top">
-              <img src="https://picsum.photos/600/450?random=4" width="100%" alt="Property preview 4" class="pk-img-round pk-gallery-img" style="display:block; width:100%; height:auto; border-radius:12px; box-shadow:0 16px 40px rgba(0,0,0,0.5);">
+            <!-- Replace Package -->
+            <td class="pk-stack" width="49%" valign="top" style="background-color:#141210; border:1px solid rgba(201,168,76,0.14); border-radius:14px; padding:20px 22px;">
+              <div style="font-size:18px; margin-bottom:8px;">&#128230;</div>
+              <div class="pk-sans" style="color:rgba(240,237,232,0.45); font-size:11px; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:5px;">Package</div>
+              <div class="pk-sans" style="color:#f0ede8; font-size:14.5px; font-weight:500; line-height:20px;">Premium Marketing</div>
             </td>
           </tr>
         </table>
@@ -171,165 +221,42 @@
     </tr>
 
     <!-- Spacer -->
-    <tr><td style="height:44px; line-height:44px; font-size:1px;">&nbsp;</td></tr>
+    <tr><td style="height:30px; line-height:30px; font-size:1px;">&nbsp;</td></tr>
 
-    <!-- ===================== PROJECT INFORMATION CARD ===================== -->
+    <!-- ===================== DELIVERABLES ===================== -->
     <tr>
-      <td class="pk-card" style="background-color:#111111; border:1px solid rgba(255,255,255,0.07); border-radius:16px;">
+      <td class="pk-pad" style="background-color:#111111; border:1px solid rgba(255,255,255,0.07); border-radius:16px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <td class="pk-pad" style="padding:40px 44px;">
+            <td style="padding:32px 36px;">
+              <div class="pk-sans" style="color:#dfc278; font-size:11px; letter-spacing:2.5px; text-transform:uppercase; font-weight:500; margin-bottom:18px;">What You Received</div>
 
-              <span class="pk-sans" style="color:#dfc278; font-size:11px; letter-spacing:2.5px; text-transform:uppercase; font-weight:500;">Project Information</span>
-
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:22px;">
-
-                <!-- Replace Property Address -->
-                <tr>
-                  <td style="padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.07);">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td class="pk-sans" style="color:rgba(240,237,232,0.45); font-size:13px; letter-spacing:0.3px;">Property Address</td>
-                        <td class="pk-sans" align="right" style="color:#f0ede8; font-size:14px; font-weight:500;">12 Harbourview Road, Auckland</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-
-                <!-- Replace Shoot Date -->
-                <tr>
-                  <td style="padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.07);">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td class="pk-sans" style="color:rgba(240,237,232,0.45); font-size:13px; letter-spacing:0.3px;">Shoot Date</td>
-                        <td class="pk-sans" align="right" style="color:#f0ede8; font-size:14px; font-weight:500;">12 July 2026</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-
-                <!-- Replace Agent Name -->
-                <tr>
-                  <td style="padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.07);">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td class="pk-sans" style="color:rgba(240,237,232,0.45); font-size:13px; letter-spacing:0.3px;">Agent</td>
-                        <td class="pk-sans" align="right" style="color:#f0ede8; font-size:14px; font-weight:500;">Jane Sampleton — Ray White</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-
-                <!-- Replace Campaign -->
-                <tr>
-                  <td style="padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.07);">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td class="pk-sans" style="color:rgba(240,237,232,0.45); font-size:13px; letter-spacing:0.3px;">Campaign</td>
-                        <td class="pk-sans" align="right" style="color:#f0ede8; font-size:14px; font-weight:500;">Premium Marketing Package</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-
-                <!-- Replace Delivery Date -->
-                <tr>
-                  <td style="padding:14px 0 0 0;">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td class="pk-sans" style="color:rgba(240,237,232,0.45); font-size:13px; letter-spacing:0.3px;">Delivery Date</td>
-                        <td class="pk-sans" align="right" style="color:#dfc278; font-size:14px; font-weight:600;">14 July 2026</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-
-              </table>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-
-    <!-- Spacer -->
-    <tr><td style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
-
-    <!-- ===================== DELIVERABLES CARD ===================== -->
-    <tr>
-      <td class="pk-card" style="background-color:#111111; border:1px solid rgba(255,255,255,0.07); border-radius:16px;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr>
-            <td class="pk-pad" style="padding:40px 44px;">
-
-              <span class="pk-sans" style="color:#dfc278; font-size:11px; letter-spacing:2.5px; text-transform:uppercase; font-weight:500;">Deliverables</span>
-              <div class="pk-serif" style="color:#f0ede8; font-size:24px; margin-top:8px; margin-bottom:22px;">What's Included</div>
-
-              <!-- Replace / remove deliverable rows as needed -->
+              <!-- Add / remove deliverable rows below as needed for this project -->
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr><td style="padding:9px 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                  <td width="26" valign="middle" style="color:#c9a84c; font-size:15px; font-weight:700;">✓</td>
-                  <td class="pk-sans" valign="middle" style="color:#f0ede8; font-size:14.5px; font-weight:300;">High Resolution Photography</td>
-                </tr></table></td></tr>
-                <tr><td style="padding:9px 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                  <td width="26" valign="middle" style="color:#c9a84c; font-size:15px; font-weight:700;">✓</td>
-                  <td class="pk-sans" valign="middle" style="color:#f0ede8; font-size:14.5px; font-weight:300;">Web Optimised Images</td>
-                </tr></table></td></tr>
-                <tr><td style="padding:9px 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                  <td width="26" valign="middle" style="color:#c9a84c; font-size:15px; font-weight:700;">✓</td>
-                  <td class="pk-sans" valign="middle" style="color:#f0ede8; font-size:14.5px; font-weight:300;">Twilight Images</td>
-                </tr></table></td></tr>
-                <tr><td style="padding:9px 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                  <td width="26" valign="middle" style="color:#c9a84c; font-size:15px; font-weight:700;">✓</td>
-                  <td class="pk-sans" valign="middle" style="color:#f0ede8; font-size:14.5px; font-weight:300;">Drone Photography</td>
-                </tr></table></td></tr>
-                <tr><td style="padding:9px 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                  <td width="26" valign="middle" style="color:#c9a84c; font-size:15px; font-weight:700;">✓</td>
-                  <td class="pk-sans" valign="middle" style="color:#f0ede8; font-size:14.5px; font-weight:300;">Floor Plan</td>
-                </tr></table></td></tr>
-                <tr><td style="padding:9px 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                  <td width="26" valign="middle" style="color:#c9a84c; font-size:15px; font-weight:700;">✓</td>
-                  <td class="pk-sans" valign="middle" style="color:#f0ede8; font-size:14.5px; font-weight:300;">Cinematic Video</td>
-                </tr></table></td></tr>
-                <tr><td style="padding:9px 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                  <td width="26" valign="middle" style="color:#c9a84c; font-size:15px; font-weight:700;">✓</td>
-                  <td class="pk-sans" valign="middle" style="color:#f0ede8; font-size:14.5px; font-weight:300;">Social Media Reel</td>
-                </tr></table></td></tr>
-              </table>
-
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-
-    <!-- Spacer -->
-    <tr><td style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
-
-    <!-- ===================== HELPFUL NOTES CARD ===================== -->
-    <tr>
-      <td style="background-color:rgba(201,168,76,0.05); border:1px solid rgba(201,168,76,0.22); border-radius:16px;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr>
-            <td class="pk-pad" style="padding:36px 44px;">
-              <span class="pk-sans" style="color:#dfc278; font-size:11px; letter-spacing:2.5px; text-transform:uppercase; font-weight:500;">Helpful Notes</span>
-
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;">
-                <tr><td style="padding:6px 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                  <td width="18" valign="top" style="color:#c9a84c; font-size:14px;">—</td>
-                  <td class="pk-sans" style="color:rgba(240,237,232,0.7); font-size:14px; line-height:22px; font-weight:300;">Images are professionally colour graded.</td>
-                </tr></table></td></tr>
-                <tr><td style="padding:6px 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                  <td width="18" valign="top" style="color:#c9a84c; font-size:14px;">—</td>
-                  <td class="pk-sans" style="color:rgba(240,237,232,0.7); font-size:14px; line-height:22px; font-weight:300;">Suitable for online advertising and print.</td>
-                </tr></table></td></tr>
-                <tr><td style="padding:6px 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                  <td width="18" valign="top" style="color:#c9a84c; font-size:14px;">—</td>
-                  <td class="pk-sans" style="color:rgba(240,237,232,0.7); font-size:14px; line-height:22px; font-weight:300;">Please avoid compressing images before uploading.</td>
-                </tr></table></td></tr>
-                <tr><td style="padding:6px 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                  <td width="18" valign="top" style="color:#c9a84c; font-size:14px;">—</td>
-                  <td class="pk-sans" style="color:rgba(240,237,232,0.7); font-size:14px; line-height:22px; font-weight:300;">Contact us if you require additional edits.</td>
-                </tr></table></td></tr>
+                <tr>
+                  <td class="pk-stack" width="49%" valign="middle" style="padding:9px 0;">
+                    <span style="font-size:15px;">&#128247;</span>&nbsp;&nbsp;<span class="pk-sans" style="color:#f0ede8; font-size:14px; font-weight:300;">Photography</span>
+                  </td>
+                  <td class="pk-stack" width="49%" valign="middle" style="padding:9px 0;">
+                    <span style="font-size:15px;">&#127909;</span>&nbsp;&nbsp;<span class="pk-sans" style="color:#f0ede8; font-size:14px; font-weight:300;">Cinematic Video</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="pk-stack" width="49%" valign="middle" style="padding:9px 0;">
+                    <span style="font-size:15px;">&#128257;</span>&nbsp;&nbsp;<span class="pk-sans" style="color:#f0ede8; font-size:14px; font-weight:300;">Drone Photography</span>
+                  </td>
+                  <td class="pk-stack" width="49%" valign="middle" style="padding:9px 0;">
+                    <span style="font-size:15px;">&#128208;</span>&nbsp;&nbsp;<span class="pk-sans" style="color:#f0ede8; font-size:14px; font-weight:300;">Floor Plan</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="pk-stack" width="49%" valign="middle" style="padding:9px 0;">
+                    <span style="font-size:15px;">&#127749;</span>&nbsp;&nbsp;<span class="pk-sans" style="color:#f0ede8; font-size:14px; font-weight:300;">Twilight</span>
+                  </td>
+                  <td class="pk-stack" width="49%" valign="middle" style="padding:9px 0;">
+                    <span style="font-size:15px;">&#127916;</span>&nbsp;&nbsp;<span class="pk-sans" style="color:#f0ede8; font-size:14px; font-weight:300;">Social Reel</span>
+                  </td>
+                </tr>
               </table>
             </td>
           </tr>
@@ -338,71 +265,87 @@
     </tr>
 
     <!-- Spacer -->
-    <tr><td style="height:44px; line-height:44px; font-size:1px;">&nbsp;</td></tr>
+    <tr><td style="height:30px; line-height:30px; font-size:1px;">&nbsp;</td></tr>
 
-    <!-- ===================== REVIEW SECTION ===================== -->
-    <tr>
-      <td class="pk-card pk-shadow" style="background-color:#111111; border:1px solid rgba(201,168,76,0.18); border-radius:16px;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr>
-            <td class="pk-pad-lg" align="center" style="padding:48px 44px;">
-              <div style="font-size:26px; margin-bottom:14px;">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-              <div class="pk-serif" style="color:#f0ede8; font-size:26px; margin-bottom:12px;">Enjoyed Working With Us?</div>
-              <p class="pk-sans" style="margin:0 0 30px 0; color:rgba(240,237,232,0.65); font-size:14.5px; line-height:24px; font-weight:300; max-width:420px; margin-left:auto; margin-right:auto;">
-                Your feedback means the world to a small creative studio. If you loved your media, a quick review helps us continue doing what we love.
-              </p>
-
-              <!-- Replace Review URL -->
-              <!--[if mso]>
-              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://g.page/r/example-review-link/review" style="height:52px;v-text-anchor:middle;width:220px;" arcsize="12%" stroke="t" strokecolor="#c9a84c" fillcolor="#111111">
-              <w:anchorlock/>
-              <center style="color:#dfc278;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;letter-spacing:2px;">LEAVE A REVIEW</center>
-              </v:roundrect>
-              <![endif]-->
-              <!--[if !mso]><!-->
-              <a href="https://g.page/r/example-review-link/review" target="_blank" class="pk-btn-outline pk-btn-full" style="display:inline-block; background-color:transparent; color:#dfc278; font-family:'Inter',Arial,Helvetica,sans-serif; font-size:13px; font-weight:600; letter-spacing:2px; text-transform:uppercase; text-decoration:none; padding:17px 40px; border-radius:8px; border:1px solid #c9a84c;">
-                Leave a Review
-              </a>
-              <!--<![endif]-->
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-
-    <!-- Spacer -->
-    <tr><td style="height:44px; line-height:44px; font-size:1px;">&nbsp;</td></tr>
-
-    <!-- ===================== UPSELL: NEED ADDITIONAL MEDIA ===================== -->
-    <tr>
-      <td class="pk-pad" align="center">
-        <span class="pk-sans" style="color:#dfc278; font-size:11px; letter-spacing:2.5px; text-transform:uppercase; font-weight:500;">Also Available</span>
-        <div class="pk-serif" style="color:#f0ede8; font-size:26px; margin-top:8px; margin-bottom:8px;">Need Additional Marketing Media?</div>
-        <p class="pk-sans" style="margin:0 0 26px 0; color:rgba(240,237,232,0.6); font-size:14px; line-height:23px; font-weight:300; max-width:440px; margin-left:auto; margin-right:auto;">
-          Elevate your next listing with our full suite of premium creative services.
-        </p>
-      </td>
-    </tr>
+    <!-- ===================== HELPFUL NOTES — three elegant cards ===================== -->
     <tr>
       <td class="pk-pad">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <td align="center">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                <td class="pk-chip" style="padding:6px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:#111111; border:1px solid rgba(201,168,76,0.25); border-radius:999px; padding:11px 20px;"><span class="pk-sans" style="color:#f0ede8; font-size:12.5px;">&#127768; Twilight Photography</span></td></tr></table></td>
-              </tr></table>
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                <td class="pk-chip" style="padding:6px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:#111111; border:1px solid rgba(201,168,76,0.25); border-radius:999px; padding:11px 20px;"><span class="pk-sans" style="color:#f0ede8; font-size:12.5px;">&#127916; Agent Reels</span></td></tr></table></td>
-              </tr></table>
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                <td class="pk-chip" style="padding:6px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:#111111; border:1px solid rgba(201,168,76,0.25); border-radius:999px; padding:11px 20px;"><span class="pk-sans" style="color:#f0ede8; font-size:12.5px;">&#128241; Social Media Videos</span></td></tr></table></td>
-              </tr></table>
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                <td class="pk-chip" style="padding:6px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:#111111; border:1px solid rgba(201,168,76,0.25); border-radius:999px; padding:11px 20px;"><span class="pk-sans" style="color:#f0ede8; font-size:12.5px;">&#128247; Drone Photography</span></td></tr></table></td>
-              </tr></table>
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-                <td class="pk-chip" style="padding:6px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:#111111; border:1px solid rgba(201,168,76,0.25); border-radius:999px; padding:11px 20px;"><span class="pk-sans" style="color:#f0ede8; font-size:12.5px;">&#127968; Virtual Staging</span></td></tr></table></td>
-              </tr></table>
+            <td class="pk-stack" width="32%" valign="top" style="background-color:rgba(201,168,76,0.05); border:1px solid rgba(201,168,76,0.2); border-radius:14px; padding:22px 20px;">
+              <div class="pk-sans" style="color:#dfc278; font-size:14px; font-weight:600; margin-bottom:6px;">High Resolution</div>
+              <div class="pk-sans" style="color:rgba(240,237,232,0.55); font-size:12.5px; line-height:19px; font-weight:300;">Perfect for print and marketing.</div>
+            </td>
+            <td class="pk-stack" width="2%" style="font-size:1px;">&nbsp;</td>
+            <td class="pk-stack" width="32%" valign="top" style="background-color:rgba(201,168,76,0.05); border:1px solid rgba(201,168,76,0.2); border-radius:14px; padding:22px 20px;">
+              <div class="pk-sans" style="color:#dfc278; font-size:14px; font-weight:600; margin-bottom:6px;">MLS Ready</div>
+              <div class="pk-sans" style="color:rgba(240,237,232,0.55); font-size:12.5px; line-height:19px; font-weight:300;">Optimised for online listing platforms.</div>
+            </td>
+            <td class="pk-stack" width="2%" style="font-size:1px;">&nbsp;</td>
+            <td class="pk-stack" width="32%" valign="top" style="background-color:rgba(201,168,76,0.05); border:1px solid rgba(201,168,76,0.2); border-radius:14px; padding:22px 20px;">
+              <div class="pk-sans" style="color:#dfc278; font-size:14px; font-weight:600; margin-bottom:6px;">Need Changes?</div>
+              <div class="pk-sans" style="color:rgba(240,237,232,0.55); font-size:12.5px; line-height:19px; font-weight:300;">Simply reply to this email.</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!--
+      Review request intentionally removed from this email.
+      Recommendation: send a separate, dedicated review-request email
+      2–3 days after delivery, once the client has actually used the media —
+      this converts noticeably better than bundling it with the delivery email.
+    -->
+
+    <!-- Spacer -->
+    <tr><td style="height:40px; line-height:40px; font-size:1px;">&nbsp;</td></tr>
+
+    <!-- ===================== REPEAT BOOKING + QR ===================== -->
+    <tr>
+      <td style="background-color:#111111; background-image:linear-gradient(165deg, #171310 0%, #0d0d0d 100%); border:1px solid rgba(201,168,76,0.2); border-radius:18px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td class="pk-pad" style="padding:40px 40px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="pk-stack" width="62%" valign="middle">
+                    <div class="pk-sans" style="color:#dfc278; font-size:11px; letter-spacing:2.5px; text-transform:uppercase; font-weight:500; margin-bottom:10px;">Ready For More?</div>
+                    <div class="pk-serif" style="color:#f7f4ee; font-size:27px; line-height:34px; margin-bottom:10px;">Ready for Your<br>Next Listing?</div>
+                    <p class="pk-sans" style="margin:0 0 22px 0; color:rgba(240,237,232,0.6); font-size:13.5px; line-height:21px; font-weight:300;">
+                      Book your next campaign in less than 30 seconds.
+                    </p>
+
+                    <!-- Replace Booking URL -->
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://pkvisuals.com/book" style="height:50px;v-text-anchor:middle;width:230px;" arcsize="18%" stroke="f" fillcolor="#c9a84c">
+                    <v:fill type="gradient" angle="135" color="#dfc278" color2="#a3812f" />
+                    <w:anchorlock/>
+                    <center style="color:#0d0d0d;font-family:Arial,sans-serif;font-size:12.5px;font-weight:bold;letter-spacing:1.5px;">BOOK YOUR NEXT SHOOT</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-->
+                    <a href="https://pkvisuals.com/book" target="_blank" class="pk-btn-secondary pk-btn-full" style="display:inline-block; background-color:#c9a84c; color:#0d0d0d; font-family:'Inter',Arial,Helvetica,sans-serif; font-size:12.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; text-decoration:none; padding:16px 30px; border-radius:10px; box-shadow:0 14px 30px rgba(201,168,76,0.3);">
+                      Book Your Next Shoot
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+
+                  <td class="pk-stack" width="6%" style="font-size:1px;">&nbsp;</td>
+
+                  <td class="pk-stack" width="32%" valign="middle" align="center" style="padding-top:20px;">
+                    <!-- Replace QR Code — defaults to a live QR pointing at the booking URl above -->
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0ede8; border-radius:12px;">
+                      <tr>
+                        <td style="padding:10px;">
+                          <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=6&color=0d0d0d&bgcolor=f0ede8&data=https://pkvisuals.com/book" width="110" alt="Scan to book your next shoot" style="display:block; width:110px; height:110px; border-radius:6px;">
+                        </td>
+                      </tr>
+                    </table>
+                    <div class="pk-sans" style="color:rgba(240,237,232,0.5); font-size:10.5px; letter-spacing:1px; text-transform:uppercase; margin-top:10px;">Scan to Book</div>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
         </table>
@@ -410,37 +353,27 @@
     </tr>
 
     <!-- Spacer -->
-    <tr><td style="height:16px; line-height:16px; font-size:1px;">&nbsp;</td></tr>
-
-    <tr>
-      <td align="center" style="padding-bottom:44px;">
-        <!-- Replace Download Link (secondary CTA, optional — points to booking / contact) -->
-        <a href="https://pkvisuals.com" target="_blank" class="pk-sans" style="color:#dfc278; font-size:13px; letter-spacing:1px; text-decoration:underline;">Book Your Next Shoot &rarr;</a>
-      </td>
-    </tr>
+    <tr><td style="height:44px; line-height:44px; font-size:1px;">&nbsp;</td></tr>
 
     <!-- Gold divider -->
     <tr>
-      <td align="center" style="padding-bottom:44px;">
+      <td align="center" style="padding-bottom:36px;">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="width:60px; height:1px; background-color:rgba(201,168,76,0.35); font-size:1px; line-height:1px;">&nbsp;</td></tr></table>
       </td>
     </tr>
 
     <!-- ===================== SIGNATURE ===================== -->
     <tr>
-      <td class="pk-pad" align="center" style="padding-bottom:48px;">
-        <p class="pk-serif" style="margin:0 0 8px 0; color:#f0ede8; font-size:20px; font-style:italic; line-height:30px; max-width:460px; margin-left:auto; margin-right:auto;">
-          Thank you again for trusting PK Visuals.
-        </p>
-        <p class="pk-sans" style="margin:0 0 30px 0; color:rgba(240,237,232,0.6); font-size:14px; line-height:23px; font-weight:300; max-width:460px; margin-left:auto; margin-right:auto;">
-          We truly appreciate the opportunity to showcase your property. If you ever need photography, videography, aerials, floor plans or premium marketing media, we'd love to work with you again.
+      <td class="pk-pad" align="center" style="padding-bottom:40px;">
+        <p class="pk-serif" style="margin:0 0 22px 0; color:rgba(240,237,232,0.75); font-size:16px; font-style:italic; line-height:25px; max-width:440px; margin-left:auto; margin-right:auto;">
+          Thank you for trusting PK Visuals with your listing — we'd love to work with you again.
         </p>
 
         <p class="pk-sans" style="margin:0; color:rgba(240,237,232,0.5); font-size:13.5px; line-height:22px;">Regards,</p>
         <p class="pk-serif" style="margin:6px 0 2px 0; color:#dfc278; font-size:19px;">Praveen Kumar</p>
         <p class="pk-sans" style="margin:0; color:rgba(240,237,232,0.5); font-size:12.5px; letter-spacing:0.5px;">PK Visuals — Premium Real Estate Media</p>
 
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;">
           <tr>
             <!-- Replace phone / email / website / instagram as needed -->
             <td class="pk-sans" style="color:rgba(240,237,232,0.55); font-size:12.5px; padding:0 10px;"><a href="tel:0224502382" style="color:rgba(240,237,232,0.55); text-decoration:none;">022 450 2382</a></td>
@@ -460,12 +393,12 @@
       <td style="background-color:#0d0d0d; border-radius:16px; border:1px solid rgba(255,255,255,0.06);">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <td class="pk-pad" align="center" style="padding:36px 40px;">
+            <td class="pk-pad" align="center" style="padding:30px 40px;">
 
               <!-- Replace Logo -->
-              <img src="https://pkvisuals.com/assets/pkvisuals_full_logo_transparent_header.png" width="110" alt="PK Visuals" style="display:block; width:110px; max-width:40%; height:auto; margin:0 auto 18px auto; opacity:0.85;">
+              <img src="https://pkvisuals.com/assets/pkvisuals_full_logo_transparent_header.png" width="100" alt="PK Visuals" style="display:block; width:100px; max-width:38%; height:auto; margin:0 auto 16px auto; opacity:0.85;">
 
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:18px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:16px;">
                 <tr>
                   <td style="padding:0 8px;"><a href="https://www.instagram.com/pkvisualsnz/" class="pk-sans" style="display:inline-block; width:32px; height:32px; line-height:32px; border-radius:50%; border:1px solid rgba(201,168,76,0.3); color:#dfc278; font-size:12px; text-align:center; text-decoration:none;">IG</a></td>
                   <td style="padding:0 8px;"><a href="https://pkvisuals.com" class="pk-sans" style="display:inline-block; width:32px; height:32px; line-height:32px; border-radius:50%; border:1px solid rgba(201,168,76,0.3); color:#dfc278; font-size:12px; text-align:center; text-decoration:none;">WEB</a></td>
@@ -487,7 +420,7 @@
     </tr>
 
     <!-- Spacer -->
-    <tr><td style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td></tr>
+    <tr><td style="height:20px; line-height:20px; font-size:1px;">&nbsp;</td></tr>
 
     <tr>
       <td align="center">
