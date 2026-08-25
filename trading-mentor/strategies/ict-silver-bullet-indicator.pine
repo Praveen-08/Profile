@@ -35,12 +35,24 @@ useEqualHL   = input.bool(true, "Relative equal highs/lows", group = "Liquidity 
 eqTolAtrFrac = input.float(0.15, "Equal H/L tolerance (x ATR)", minval = 0.01, group = "Liquidity sources")
 usePrevDayHL = input.bool(true, "Previous day high/low", group = "Liquidity sources")
 usePrevWeekHL = input.bool(true, "Previous week high/low", group = "Liquidity sources")
-useAsianHL   = input.bool(true, "Asian session high/low (previous session)", group = "Liquidity sources")
-asianSession = input.session("2000-0000", "Asian session (NY time)", group = "Liquidity sources")
-useLondonHL  = input.bool(true, "London session high/low (previous session)", group = "Liquidity sources")
-londonSession = input.session("0300-0800", "London session (NY time)", group = "Liquidity sources")
+useNYHL      = input.bool(true, "Previous NY session high/low", group = "Liquidity sources")
+useTokyoHL   = input.bool(true, "Previous Tokyo session high/low", group = "Liquidity sources")
+useLondonHL  = input.bool(true, "Previous London session high/low", group = "Liquidity sources")
 useNWOG      = input.bool(false, "New Week Opening Gap", group = "Liquidity sources")
 useFvgTarget = input.bool(true, "Fair Value Gap / inefficiency as a target", group = "Liquidity sources")
+
+// ---- Session H/L lines (merged from the FeraTrading Sessions High/Low indicator) ----
+// Shows the PREVIOUS completed session's high/low as an extending line + label -- exactly the
+// same visual as that script -- and feeds those same levels into the liquidity targets above.
+nySession     = input.session("0930-1700", "NY session time (NY time)", group = "Session H/L")
+tokyoSession  = input.session("1700-0200", "Tokyo session time (NY time)", group = "Session H/L")
+londonSession = input.session("0200-0700", "London session time (NY time)", group = "Session H/L")
+nyColor       = input.color(color.lime,   "NY session color",     group = "Session H/L")
+tokyoColor    = input.color(color.aqua,   "Tokyo session color",  group = "Session H/L")
+londonColor   = input.color(color.orange, "London session color", group = "Session H/L")
+lineExtender  = input.int(20, "Line extender (bars)", minval = 0, group = "Session H/L")
+showSessionLabels = input.bool(true, "Show session labels", group = "Session H/L")
+sessionLabelColor = input.color(color.white, "Session label color", group = "Session H/L")
 
 // ---- Sweep ----
 sweepConfirm = input.string("Wick", "Sweep confirmation", options = ["Wick", "Close"], group = "Sweep")
@@ -173,25 +185,71 @@ prevDayLow   = usePrevDayHL  ? request.security(syminfo.tickerid, "D", low[1],  
 prevWeekHigh = usePrevWeekHL ? request.security(syminfo.tickerid, "W", high[1],  lookahead = barmerge.lookahead_off) : na
 prevWeekLow  = usePrevWeekHL ? request.security(syminfo.tickerid, "W", low[1],   lookahead = barmerge.lookahead_off) : na
 
-var float asianHigh = na
-var float asianLow = na
-asianActive = not na(time(timeframe.period, asianSession, tz))
-if useAsianHL and asianActive and not asianActive[1]
-    asianHigh := high
-    asianLow := low
-else if useAsianHL and asianActive
-    asianHigh := math.max(asianHigh, high)
-    asianLow := math.min(asianLow, low)
+// Previous NY/Tokyo/London session high/low, drawn as an extending line + label -- same visual
+// as the FeraTrading Sessions High/Low indicator. All three sessions reset together at 18:00 NY
+// (the standard forex day rollover), matching that script's day-boundary logic.
+isNewDay = not na(time(timeframe.period, "1800-1801", tz))
 
-var float londonHigh = na
-var float londonLow = na
+f_sessionHL(sessActive, resetNow, lineCol, hiTxt, loTxt) =>
+    var float curHigh = na
+    var float curLow = na
+    var int   curHighBar = na
+    var int   curLowBar = na
+    var float prevHigh = na
+    var float prevLow = na
+    var int   prevHighBar = na
+    var int   prevLowBar = na
+    var line  hiLine = na
+    var line  loLine = na
+    var label hiLbl = na
+    var label loLbl = na
+
+    if resetNow
+        prevHigh := curHigh
+        prevLow := curLow
+        prevHighBar := curHighBar
+        prevLowBar := curLowBar
+        curHigh := na
+        curLow := na
+        curHighBar := na
+        curLowBar := na
+        line.delete(hiLine)
+        line.delete(loLine)
+        hiLine := na
+        loLine := na
+
+    if sessActive
+        if na(curHigh) or high > curHigh
+            curHigh := high
+            curHighBar := bar_index
+        if na(curLow) or low < curLow
+            curLow := low
+            curLowBar := bar_index
+
+    if not na(prevHigh)
+        if na(hiLine)
+            hiLine := line.new(prevHighBar, prevHigh, bar_index, prevHigh, color = lineCol)
+        line.set_xy2(hiLine, bar_index + lineExtender, prevHigh)
+        if showSessionLabels
+            label.delete(hiLbl)
+            hiLbl := label.new(int(math.avg(prevHighBar, bar_index)), prevHigh, hiTxt, style = label.style_none, color = lineCol, textcolor = sessionLabelColor, size = size.tiny)
+    if not na(prevLow)
+        if na(loLine)
+            loLine := line.new(prevLowBar, prevLow, bar_index, prevLow, color = lineCol)
+        line.set_xy2(loLine, bar_index + lineExtender, prevLow)
+        if showSessionLabels
+            label.delete(loLbl)
+            loLbl := label.new(int(math.avg(prevLowBar, bar_index)), prevLow, loTxt, style = label.style_none, color = lineCol, textcolor = sessionLabelColor, size = size.tiny)
+
+    [prevHigh, prevLow]
+
+nyActive     = not na(time(timeframe.period, nySession, tz))
+tokyoActive  = not na(time(timeframe.period, tokyoSession, tz))
 londonActive = not na(time(timeframe.period, londonSession, tz))
-if useLondonHL and londonActive and not londonActive[1]
-    londonHigh := high
-    londonLow := low
-else if useLondonHL and londonActive
-    londonHigh := math.max(londonHigh, high)
-    londonLow := math.min(londonLow, low)
+
+[prevNYHigh, prevNYLow]         = f_sessionHL(nyActive, isNewDay, nyColor, "NY High", "NY Low")
+[prevTokyoHigh, prevTokyoLow]   = f_sessionHL(tokyoActive, isNewDay, tokyoColor, "Tokyo High", "Tokyo Low")
+[prevLondonHigh, prevLondonLow] = f_sessionHL(londonActive, isNewDay, londonColor, "London High", "London Low")
 
 var float nwogTop = na
 var float nwogBot = na
@@ -241,10 +299,12 @@ f_nearestAbove(refPrice) =>
         best := prevDayHigh
     if usePrevWeekHL and not na(prevWeekHigh) and prevWeekHigh > refPrice and (na(best) or prevWeekHigh < best)
         best := prevWeekHigh
-    if useAsianHL and not na(asianHigh) and asianHigh > refPrice and (na(best) or asianHigh < best)
-        best := asianHigh
-    if useLondonHL and not na(londonHigh) and londonHigh > refPrice and (na(best) or londonHigh < best)
-        best := londonHigh
+    if useNYHL and not na(prevNYHigh) and prevNYHigh > refPrice and (na(best) or prevNYHigh < best)
+        best := prevNYHigh
+    if useTokyoHL and not na(prevTokyoHigh) and prevTokyoHigh > refPrice and (na(best) or prevTokyoHigh < best)
+        best := prevTokyoHigh
+    if useLondonHL and not na(prevLondonHigh) and prevLondonHigh > refPrice and (na(best) or prevLondonHigh < best)
+        best := prevLondonHigh
     if useNWOG and not na(nwogTop) and nwogTop > refPrice and (na(best) or nwogTop < best)
         best := nwogTop
     if useFvgTarget and not lastBullFvgFilled and not na(lastBullFvgBot) and lastBullFvgBot > refPrice and (na(best) or lastBullFvgBot < best)
@@ -261,10 +321,12 @@ f_nearestBelow(refPrice) =>
         best := prevDayLow
     if usePrevWeekHL and not na(prevWeekLow) and prevWeekLow < refPrice and (na(best) or prevWeekLow > best)
         best := prevWeekLow
-    if useAsianHL and not na(asianLow) and asianLow < refPrice and (na(best) or asianLow > best)
-        best := asianLow
-    if useLondonHL and not na(londonLow) and londonLow < refPrice and (na(best) or londonLow > best)
-        best := londonLow
+    if useNYHL and not na(prevNYLow) and prevNYLow < refPrice and (na(best) or prevNYLow > best)
+        best := prevNYLow
+    if useTokyoHL and not na(prevTokyoLow) and prevTokyoLow < refPrice and (na(best) or prevTokyoLow > best)
+        best := prevTokyoLow
+    if useLondonHL and not na(prevLondonLow) and prevLondonLow < refPrice and (na(best) or prevLondonLow > best)
+        best := prevLondonLow
     if useNWOG and not na(nwogBot) and nwogBot < refPrice and (na(best) or nwogBot > best)
         best := nwogBot
     if useFvgTarget and not lastBearFvgFilled and not na(lastBearFvgTop) and lastBearFvgTop < refPrice and (na(best) or lastBearFvgTop > best)
