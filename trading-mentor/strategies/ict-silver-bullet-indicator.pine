@@ -255,14 +255,14 @@ f_sessionHL(sessActive, resetNow, lineCol, hiTxt, loTxt) =>
         line.set_xy2(hiLine, bar_index + lineExtender, prevHigh)
         if showSessionLabels
             label.delete(hiLbl)
-            hiLbl := label.new(int(math.avg(prevHighBar, bar_index)), prevHigh, hiTxt, style = label.style_none, color = lineCol, textcolor = sessionLabelColor, size = size.tiny)
+            hiLbl := label.new(bar_index + lineExtender, prevHigh, hiTxt, style = label.style_label_left, color = color.new(lineCol, 0), textcolor = sessionLabelColor, size = size.tiny)
     if not na(prevLow)
         if na(loLine)
             loLine := line.new(prevLowBar, prevLow, bar_index, prevLow, color = lineCol)
         line.set_xy2(loLine, bar_index + lineExtender, prevLow)
         if showSessionLabels
             label.delete(loLbl)
-            loLbl := label.new(int(math.avg(prevLowBar, bar_index)), prevLow, loTxt, style = label.style_none, color = lineCol, textcolor = sessionLabelColor, size = size.tiny)
+            loLbl := label.new(bar_index + lineExtender, prevLow, loTxt, style = label.style_label_left, color = color.new(lineCol, 0), textcolor = sessionLabelColor, size = size.tiny)
 
     [prevHigh, prevLow]
 
