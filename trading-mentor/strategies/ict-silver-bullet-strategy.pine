@@ -64,6 +64,8 @@ requireSweepInsideKZ = input.bool(false, "Require sweep inside the killzone (str
 
 bosConfirm = input.string("Close", "BOS confirmation", options = ["Wick", "Close"], group = "BOS")
 maxBarsSweepToBOS = input.int(60, "Max bars: sweep -> BOS", minval = 1, group = "BOS")
+useFastBOS = input.bool(true, "Use LuxAlgo fast zigzag for BOS reference (recommended)", group = "BOS",
+ tooltip = "Ported from LuxAlgo's ICT Concepts [LuxAlgo] MSS/BOS indexing: BOS breaks against the nearest point on their fast 1-bar-confirm zigzag instead of the slower Swing lookback pivot above, which can otherwise sit many bars (even days) stale on lower-frequency structure. Off reverts to the old swing-pivot-based BOS.")
 
 requireDisplacementFilter = input.bool(true, "Require additional displacement strength filter", group = "Displacement")
 dispBodyAvgLen = input.int(5, "Body average length (bars)", minval = 1, group = "Displacement")
@@ -194,13 +196,13 @@ eqHigh = useEqualHL and not na(lastSwingHigh) and not na(prevSwingHigh) and math
 eqLow  = useEqualHL and not na(lastSwingLow)  and not na(prevSwingLow)  and math.abs(lastSwingLow  - prevSwingLow)  <= eqTol ? math.min(lastSwingLow, prevSwingLow)   : na
 
 // =====================================================================================
-// LIQUIDITY: buy-side/sell-side clustering, ported from LuxAlgo's ICT Concepts [LuxAlgo] `draw()`
-// function. Their zigzag point array (built here independently of the swingLeft/swingRight pivots
-// above, using LuxAlgo's own faster 1-bar-confirm pivots) clusters 3+ nearby swing points of the
-// same direction within an ATR-based margin into a single box -- marking resting buy-side/sell-side
-// liquidity as a zone rather than one single swing line. Additive only: it just contributes two more
-// candidate levels (nearest buy-side / sell-side cluster edge) to f_nearestAbove/f_nearestBelow
-// below, alongside the single-swing-point liquidity already tracked above.
+// STRUCTURE ZIGZAG, ported from LuxAlgo's ICT Concepts [LuxAlgo] `draw()` function. Their single
+// shared zigzag point array (built here independently of the swingLeft/swingRight pivots above,
+// using LuxAlgo's own faster 1-bar-confirm pivots) feeds two things below: buy-side/sell-side
+// liquidity clustering (3+ nearby swing points of the same direction within an ATR-based margin,
+// grouped into a single box instead of one swing line), and the BOS reference-level indexing
+// further down (their `iH`/`iL`) -- both additive/optional via their own toggles, alongside the
+// single-swing-point liquidity and BOS already tracked above.
 type liqZone
     box   bx
     line  ln
@@ -224,7 +226,7 @@ f_liqZZPush(dir, x2, y2) =>
     liqZZx.pop()
     liqZZy.pop()
 
-if useLiqCluster
+if useLiqCluster or useFastBOS
     if not na(liqPh)
         pivDir = liqZZd.get(0)
         pivY1  = liqZZy.get(0)
@@ -235,7 +237,7 @@ if useLiqCluster
         else if liqPh > pivY1
             liqZZx.set(0, pivX2)
             liqZZy.set(0, pivY2)
-        if withinLookback
+        if useLiqCluster and withinLookback
             count = 0
             stB = 0
             stP = 0.0
@@ -278,7 +280,7 @@ if useLiqCluster
         else if liqPl < pivY1L
             liqZZx.set(0, pivX2L)
             liqZZy.set(0, pivY2L)
-        if withinLookback
+        if useLiqCluster and withinLookback
             countL = 0
             stBL = 0
             stPL = 0.0
@@ -615,18 +617,29 @@ if state == 2 and bar_index - sweepBar > maxBarsSweepToBOS
     state := 0
     dir := 0
 
+// BOS reference level, ported from LuxAlgo's ICT Concepts [LuxAlgo] MSS/BOS indexing (their
+// `iH`/`iL`): the nearest zigzag point of the needed direction that ISN'T the point that just
+// formed -- reused from the same fast zigzag built above for liquidity clustering. Falls back to
+// the slower Swing lookback pivot when useFastBOS is off.
+bosIH = liqZZd.get(2) == 1  ? 2 : 1
+bosIL = liqZZd.get(2) == -1 ? 2 : 1
+bosLevelHigh    = not useFastBOS ? lastSwingHigh    : (liqZZd.get(bosIH) == 1  ? liqZZy.get(bosIH) : na)
+bosLevelHighBar = not useFastBOS ? lastSwingHighBar : (liqZZd.get(bosIH) == 1  ? liqZZx.get(bosIH) : na)
+bosLevelLow     = not useFastBOS ? lastSwingLow     : (liqZZd.get(bosIL) == -1 ? liqZZy.get(bosIL) : na)
+bosLevelLowBar  = not useFastBOS ? lastSwingLowBar  : (liqZZd.get(bosIL) == -1 ? liqZZx.get(bosIL) : na)
+
 // Window-gated: BOS only confirms while a killzone is active. (Reverted an earlier attempt to
 // let BOS form before the window -- since sweeps aren't window-restricted by default either,
 // that let sweep->BOS->FVG fire anywhere on the chart all day, not just near a killzone.)
-bosUp   = dir == 1  and state == 2 and anyWindowActive and not na(lastSwingHigh) and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? high > lastSwingHigh : close > lastSwingHigh)
-bosDown = dir == -1 and state == 2 and anyWindowActive and not na(lastSwingLow)  and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? low  < lastSwingLow  : close < lastSwingLow)
+bosUp   = dir == 1  and state == 2 and anyWindowActive and not na(bosLevelHigh) and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? high > bosLevelHigh : close > bosLevelHigh)
+bosDown = dir == -1 and state == 2 and anyWindowActive and not na(bosLevelLow)  and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? low  < bosLevelLow  : close < bosLevelLow)
 
 if bosUp or bosDown
     state := 3
     bosBar := bar_index
     if showBOS and withinLookback
-        bosFromBar = bosUp ? lastSwingHighBar : lastSwingLowBar
-        bosLevel = bosUp ? lastSwingHigh : lastSwingLow
+        bosFromBar = bosUp ? bosLevelHighBar : bosLevelLowBar
+        bosLevel = bosUp ? bosLevelHigh : bosLevelLow
         line.new(bosFromBar, bosLevel, bar_index, bosLevel, color = colBOS, style = line.style_arrow_right, width = 2)
         label.new(int(math.avg(bosFromBar, bar_index)), bosLevel, "BOS", color = color(na), textcolor = colBOS, style = bosUp ? label.style_label_down : label.style_label_up, size = size.small)
 
