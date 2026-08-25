@@ -35,9 +35,7 @@ useEqualHL   = input.bool(true, "Relative equal highs/lows", group = "Liquidity 
 eqTolAtrFrac = input.float(0.15, "Equal H/L tolerance (x ATR)", minval = 0.01, group = "Liquidity sources")
 usePrevDayHL = input.bool(true, "Previous day high/low", group = "Liquidity sources")
 usePrevWeekHL = input.bool(true, "Previous week high/low", group = "Liquidity sources")
-useNYHL      = input.bool(true, "Previous NY session high/low", group = "Liquidity sources")
-useTokyoHL   = input.bool(true, "Previous Tokyo session high/low", group = "Liquidity sources")
-useLondonHL  = input.bool(true, "Previous London session high/low", group = "Liquidity sources")
+usePrevSessionHL = input.bool(true, "Previous session (Asian/London/NY) high/low", group = "Liquidity sources")
 useNWOG      = input.bool(false, "New Week Opening Gap", group = "Liquidity sources")
 useFvgTarget = input.bool(true, "Fair Value Gap / inefficiency as a target", group = "Liquidity sources")
 
@@ -63,6 +61,7 @@ requireDisplacementFilter = input.bool(true, "Require additional displacement st
 dispAtrMult = input.float(1.2, "Displacement ATR multiplier", minval = 0.1, group = "Displacement")
 dispMinBodyPct = input.float(50, "Minimum body % of range", minval = 1, maxval = 100, group = "Displacement")
 atrLen = input.int(14, "ATR length", minval = 1, group = "Displacement")
+maxBarsBOStoFVG = input.int(5, "Max bars: BOS -> FVG/OB", minval = 0, group = "Displacement")
 
 minFvgSizeAtrFrac = input.float(0.1, "Minimum FVG size (x ATR)", minval = 0, group = "FVG")
 ignoreTinyFvg = input.bool(true, "Ignore FVGs under minimum size", group = "FVG")
@@ -193,68 +192,70 @@ prevDayLow   = usePrevDayHL  ? request.security(syminfo.tickerid, "D", low[1],  
 prevWeekHigh = usePrevWeekHL ? request.security(syminfo.tickerid, "W", high[1],  lookahead = barmerge.lookahead_off) : na
 prevWeekLow  = usePrevWeekHL ? request.security(syminfo.tickerid, "W", low[1],   lookahead = barmerge.lookahead_off) : na
 
-isNewDay = not na(time(timeframe.period, "1800-1801", tz))
-
-f_sessionHL(sessActive, resetNow, lineCol, hiTxt, loTxt) =>
-    var float curHigh = na
-    var float curLow = na
-    var int   curHighBar = na
-    var int   curLowBar = na
-    var float prevHigh = na
-    var float prevLow = na
-    var int   prevHighBar = na
-    var int   prevLowBar = na
-    var line  hiLine = na
-    var line  loLine = na
-    var label hiLbl = na
-    var label loLbl = na
-
-    if resetNow
-        prevHigh := curHigh
-        prevLow := curLow
-        prevHighBar := curHighBar
-        prevLowBar := curLowBar
-        curHigh := na
-        curLow := na
-        curHighBar := na
-        curLowBar := na
-        line.delete(hiLine)
-        line.delete(loLine)
-        hiLine := na
-        loLine := na
-
-    if sessActive
-        if na(curHigh) or high > curHigh
-            curHigh := high
-            curHighBar := bar_index
-        if na(curLow) or low < curLow
-            curLow := low
-            curLowBar := bar_index
-
-    if not na(prevHigh)
-        if na(hiLine)
-            hiLine := line.new(prevHighBar, prevHigh, bar_index, prevHigh, color = lineCol)
-        line.set_xy2(hiLine, bar_index + lineExtender, prevHigh)
-        if showSessionLabels
-            label.delete(hiLbl)
-            hiLbl := label.new(bar_index + lineExtender, prevHigh, hiTxt, style = label.style_label_left, color = color.new(lineCol, 0), textcolor = sessionLabelColor, size = size.tiny)
-    if not na(prevLow)
-        if na(loLine)
-            loLine := line.new(prevLowBar, prevLow, bar_index, prevLow, color = lineCol)
-        line.set_xy2(loLine, bar_index + lineExtender, prevLow)
-        if showSessionLabels
-            label.delete(loLbl)
-            loLbl := label.new(bar_index + lineExtender, prevLow, loTxt, style = label.style_label_left, color = color.new(lineCol, 0), textcolor = sessionLabelColor, size = size.tiny)
-
-    [prevHigh, prevLow]
-
+// Rolling "previous session" high/low -- a single line+label pair that always reflects whichever
+// of the three sessions (Asian/Tokyo, London, NY) most recently completed.
 nyActive     = not na(time(timeframe.period, nySession, tz))
 tokyoActive  = not na(time(timeframe.period, tokyoSession, tz))
 londonActive = not na(time(timeframe.period, londonSession, tz))
 
-[prevNYHigh, prevNYLow]         = f_sessionHL(nyActive, isNewDay, nyColor, "NY High", "NY Low")
-[prevTokyoHigh, prevTokyoLow]   = f_sessionHL(tokyoActive, isNewDay, tokyoColor, "Tokyo High", "Tokyo Low")
-[prevLondonHigh, prevLondonLow] = f_sessionHL(londonActive, isNewDay, londonColor, "London High", "London Low")
+nyEnding     = not nyActive     and nyActive[1]
+tokyoEnding  = not tokyoActive  and tokyoActive[1]
+londonEnding = not londonActive and londonActive[1]
+anySessionEnding = nyEnding or tokyoEnding or londonEnding
+
+var float  curSessHigh = na
+var float  curSessLow = na
+var int    curSessHighBar = na
+var int    curSessLowBar = na
+var float  prevSessionHigh = na
+var float  prevSessionLow = na
+var int    prevSessHighBar = na
+var int    prevSessLowBar = na
+var string prevSessionName = ""
+var color  prevSessionColor = color.gray
+var line   sessHiLine = na
+var line   sessLoLine = na
+var label  sessHiLbl = na
+var label  sessLoLbl = na
+
+if anySessionEnding
+    prevSessionHigh := curSessHigh
+    prevSessionLow := curSessLow
+    prevSessHighBar := curSessHighBar
+    prevSessLowBar := curSessLowBar
+    prevSessionName := nyEnding ? "NY" : tokyoEnding ? "Tokyo" : "London"
+    prevSessionColor := nyEnding ? nyColor : tokyoEnding ? tokyoColor : londonColor
+    curSessHigh := na
+    curSessLow := na
+    curSessHighBar := na
+    curSessLowBar := na
+    line.delete(sessHiLine)
+    line.delete(sessLoLine)
+    sessHiLine := na
+    sessLoLine := na
+
+if nyActive or tokyoActive or londonActive
+    if na(curSessHigh) or high > curSessHigh
+        curSessHigh := high
+        curSessHighBar := bar_index
+    if na(curSessLow) or low < curSessLow
+        curSessLow := low
+        curSessLowBar := bar_index
+
+if not na(prevSessionHigh)
+    if na(sessHiLine)
+        sessHiLine := line.new(prevSessHighBar, prevSessionHigh, bar_index, prevSessionHigh, color = prevSessionColor)
+    line.set_xy2(sessHiLine, bar_index + lineExtender, prevSessionHigh)
+    if showSessionLabels
+        label.delete(sessHiLbl)
+        sessHiLbl := label.new(bar_index + lineExtender, prevSessionHigh, prevSessionName + " High", style = label.style_label_left, color = color.new(prevSessionColor, 0), textcolor = sessionLabelColor, size = size.tiny)
+if not na(prevSessionLow)
+    if na(sessLoLine)
+        sessLoLine := line.new(prevSessLowBar, prevSessionLow, bar_index, prevSessionLow, color = prevSessionColor)
+    line.set_xy2(sessLoLine, bar_index + lineExtender, prevSessionLow)
+    if showSessionLabels
+        label.delete(sessLoLbl)
+        sessLoLbl := label.new(bar_index + lineExtender, prevSessionLow, prevSessionName + " Low", style = label.style_label_left, color = color.new(prevSessionColor, 0), textcolor = sessionLabelColor, size = size.tiny)
 
 var float nwogTop = na
 var float nwogBot = na
@@ -303,12 +304,8 @@ f_nearestAbove(refPrice) =>
         best := prevDayHigh
     if usePrevWeekHL and not na(prevWeekHigh) and prevWeekHigh > refPrice and (na(best) or prevWeekHigh < best)
         best := prevWeekHigh
-    if useNYHL and not na(prevNYHigh) and prevNYHigh > refPrice and (na(best) or prevNYHigh < best)
-        best := prevNYHigh
-    if useTokyoHL and not na(prevTokyoHigh) and prevTokyoHigh > refPrice and (na(best) or prevTokyoHigh < best)
-        best := prevTokyoHigh
-    if useLondonHL and not na(prevLondonHigh) and prevLondonHigh > refPrice and (na(best) or prevLondonHigh < best)
-        best := prevLondonHigh
+    if usePrevSessionHL and not na(prevSessionHigh) and prevSessionHigh > refPrice and (na(best) or prevSessionHigh < best)
+        best := prevSessionHigh
     if useNWOG and not na(nwogTop) and nwogTop > refPrice and (na(best) or nwogTop < best)
         best := nwogTop
     if useFvgTarget and not lastBullFvgFilled and not na(lastBullFvgBot) and lastBullFvgBot > refPrice and (na(best) or lastBullFvgBot < best)
@@ -325,12 +322,8 @@ f_nearestBelow(refPrice) =>
         best := prevDayLow
     if usePrevWeekHL and not na(prevWeekLow) and prevWeekLow < refPrice and (na(best) or prevWeekLow > best)
         best := prevWeekLow
-    if useNYHL and not na(prevNYLow) and prevNYLow < refPrice and (na(best) or prevNYLow > best)
-        best := prevNYLow
-    if useTokyoHL and not na(prevTokyoLow) and prevTokyoLow < refPrice and (na(best) or prevTokyoLow > best)
-        best := prevTokyoLow
-    if useLondonHL and not na(prevLondonLow) and prevLondonLow < refPrice and (na(best) or prevLondonLow > best)
-        best := prevLondonLow
+    if usePrevSessionHL and not na(prevSessionLow) and prevSessionLow < refPrice and (na(best) or prevSessionLow > best)
+        best := prevSessionLow
     if useNWOG and not na(nwogBot) and nwogBot < refPrice and (na(best) or nwogBot > best)
         best := nwogBot
     if useFvgTarget and not lastBearFvgFilled and not na(lastBearFvgTop) and lastBearFvgTop < refPrice and (na(best) or lastBearFvgTop > best)
@@ -366,6 +359,7 @@ var bool  zoneClosedOutside = false
 var box   zoneBox = na
 var label zoneLbl = na
 var float targetLevel = na
+var int   bosBar = na
 
 // ---- arm on sweep (once per killzone window -- see setupAttemptedThisWindow below) ----
 armHigh = state == 0 and not setupAttemptedThisWindow and sweepHighRaw and (not requireSweepInsideKZ or anyWindowActive)
@@ -402,6 +396,7 @@ bosDown = dir == -1 and state == 2 and not na(lastSwingLow)  and (bar_index - sw
 
 if bosUp or bosDown
     state := 3
+    bosBar := bar_index
     if showBOS and withinLookback
         bosFromBar = bosUp ? lastSwingHighBar : lastSwingLowBar
         bosLevel = bosUp ? lastSwingHigh : lastSwingLow
@@ -409,19 +404,23 @@ if bosUp or bosDown
         label.new(int(math.avg(bosFromBar, bar_index)), bosLevel, "BOS", color = color(na), textcolor = colBOS, style = bosUp ? label.style_label_down : label.style_label_up, size = size.small)
 
 dispStrengthOk = not requireDisplacementFilter or ((high - low) >= atrVal * dispAtrMult and math.abs(close - open) / (high - low) * 100 >= dispMinBodyPct)
-fvgSizeOk = not ignoreTinyFvg or (bosUp and (low - high[2]) >= atrVal * minFvgSizeAtrFrac) or (bosDown and (low[2] - high) >= atrVal * minFvgSizeAtrFrac)
+fvgSizeOk = not ignoreTinyFvg or (dir == 1 and (low - high[2]) >= atrVal * minFvgSizeAtrFrac) or (dir == -1 and (low[2] - high) >= atrVal * minFvgSizeAtrFrac)
 
-if state == 3 and bosUp
-    if bullFVGraw and dispStrengthOk and fvgSizeOk and (entryZoneMode == "FVG" or entryZoneMode == "Either")
-        zoneTop := low
-        zoneBot := high[2]
+// ---- keep checking every bar while state==3, for up to maxBarsBOStoFVG bars after the BOS bar --
+// the imbalance doesn't always land on the exact bar structure broke on ----
+if state == 3
+    fvgHere = dir == 1 ? bullFVGraw : bearFVGraw
+    obHere  = dir == 1 ? close[1] < open[1] : close[1] > open[1]
+    if fvgHere and dispStrengthOk and fvgSizeOk and (entryZoneMode == "FVG" or entryZoneMode == "Either")
+        zoneTop := dir == 1 ? low : low[2]
+        zoneBot := dir == 1 ? high[2] : high
         zoneType := "FVG"
         zoneBar := bar_index
         zoneClosedOutside := false
         state := 4
         if showDisplacement and withinLookback
-            label.new(bar_index, low, "DISPLACEMENT", color = colBull, style = label.style_label_up, textcolor = color.white, size = size.tiny)
-    else if useOB and (entryZoneMode == "OB" or entryZoneMode == "Either") and close[1] < open[1]
+            label.new(bar_index, dir == 1 ? low : high, "DISPLACEMENT", color = dir == 1 ? colBull : colBear, style = dir == 1 ? label.style_label_up : label.style_label_down, textcolor = color.white, size = size.tiny)
+    else if useOB and obHere and (entryZoneMode == "OB" or entryZoneMode == "Either")
         zoneTop := high[1]
         zoneBot := low[1]
         zoneType := "OB"
@@ -429,35 +428,10 @@ if state == 3 and bosUp
         zoneClosedOutside := false
         state := 4
         if showDisplacement and withinLookback
-            label.new(bar_index, low, "DISPLACEMENT", color = colBull, style = label.style_label_up, textcolor = color.white, size = size.tiny)
-    else
+            label.new(bar_index, dir == 1 ? low : high, "DISPLACEMENT", color = dir == 1 ? colBull : colBear, style = dir == 1 ? label.style_label_up : label.style_label_down, textcolor = color.white, size = size.tiny)
+    else if bar_index - bosBar >= maxBarsBOStoFVG
         if showInvalidation and withinLookback
-            label.new(bar_index, high, "SETUP INVALIDATED\n(no FVG/OB)", color = colInvalid, style = label.style_label_down, textcolor = color.white, size = size.tiny)
-        state := 0
-        dir := 0
-
-if state == 3 and bosDown
-    if bearFVGraw and dispStrengthOk and fvgSizeOk and (entryZoneMode == "FVG" or entryZoneMode == "Either")
-        zoneTop := low[2]
-        zoneBot := high
-        zoneType := "FVG"
-        zoneBar := bar_index
-        zoneClosedOutside := false
-        state := 4
-        if showDisplacement and withinLookback
-            label.new(bar_index, high, "DISPLACEMENT", color = colBear, style = label.style_label_down, textcolor = color.white, size = size.tiny)
-    else if useOB and (entryZoneMode == "OB" or entryZoneMode == "Either") and close[1] > open[1]
-        zoneTop := high[1]
-        zoneBot := low[1]
-        zoneType := "OB"
-        zoneBar := bar_index
-        zoneClosedOutside := false
-        state := 4
-        if showDisplacement and withinLookback
-            label.new(bar_index, high, "DISPLACEMENT", color = colBear, style = label.style_label_down, textcolor = color.white, size = size.tiny)
-    else
-        if showInvalidation and withinLookback
-            label.new(bar_index, low, "SETUP INVALIDATED\n(no FVG/OB)", color = colInvalid, style = label.style_label_up, textcolor = color.white, size = size.tiny)
+            label.new(bar_index, dir == 1 ? high : low, "SETUP INVALIDATED\n(no FVG/OB)", color = colInvalid, style = dir == 1 ? label.style_label_down : label.style_label_up, textcolor = color.white, size = size.tiny)
         state := 0
         dir := 0
 
