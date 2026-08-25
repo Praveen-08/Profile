@@ -35,7 +35,9 @@ useEqualHL   = input.bool(true, "Relative equal highs/lows", group = "Liquidity 
 eqTolAtrFrac = input.float(0.15, "Equal H/L tolerance (x ATR)", minval = 0.01, group = "Liquidity sources")
 usePrevDayHL = input.bool(true, "Previous day high/low", group = "Liquidity sources")
 usePrevWeekHL = input.bool(true, "Previous week high/low", group = "Liquidity sources")
-usePrevSessionHL = input.bool(true, "Previous session (Asian/London/NY) high/low", group = "Liquidity sources")
+useNYHL      = input.bool(true, "Previous NY session high/low", group = "Liquidity sources")
+useTokyoHL   = input.bool(true, "Tokyo session high/low", group = "Liquidity sources")
+useLondonHL  = input.bool(true, "London session high/low", group = "Liquidity sources")
 useNWOG      = input.bool(false, "New Week Opening Gap", group = "Liquidity sources")
 useFvgTarget = input.bool(true, "Fair Value Gap / inefficiency as a target", group = "Liquidity sources")
 
@@ -192,70 +194,153 @@ prevDayLow   = usePrevDayHL  ? request.security(syminfo.tickerid, "D", low[1],  
 prevWeekHigh = usePrevWeekHL ? request.security(syminfo.tickerid, "W", high[1],  lookahead = barmerge.lookahead_off) : na
 prevWeekLow  = usePrevWeekHL ? request.security(syminfo.tickerid, "W", low[1],   lookahead = barmerge.lookahead_off) : na
 
-// Rolling "previous session" high/low -- a single line+label pair that always reflects whichever
-// of the three sessions (Asian/Tokyo, London, NY) most recently completed.
+// Merged from the user-supplied FeraTrading Sessions High/Low indicator, behavior preserved as-is:
+// NY shows only the previously-completed NY session (frozen, snapshotted at the 18:00 NY reset).
+// Tokyo and London instead draw LIVE -- their line/label update in real time as new highs/lows
+// form during the session, then freeze once that session ends, until wiped at the next 18:00 reset.
+isNewDay     = not na(time(timeframe.period, "1800-1801", tz))
 nyActive     = not na(time(timeframe.period, nySession, tz))
 tokyoActive  = not na(time(timeframe.period, tokyoSession, tz))
 londonActive = not na(time(timeframe.period, londonSession, tz))
 
-nyEnding     = not nyActive     and nyActive[1]
-tokyoEnding  = not tokyoActive  and tokyoActive[1]
-londonEnding = not londonActive and londonActive[1]
-anySessionEnding = nyEnding or tokyoEnding or londonEnding
+// ---- NY: snapshot the completed session at the daily reset, show only that frozen previous session ----
+var float nyHigh = na
+var float nyLow = na
+var int   nyHighBar = na
+var int   nyLowBar = na
+var float prevNyHigh = na
+var float prevNyLow = na
+var int   prevNyHighBar = na
+var int   prevNyLowBar = na
+var line  nyHighLine = na
+var line  nyLowLine = na
+var label nyHighLbl = na
+var label nyLowLbl = na
 
-var float  curSessHigh = na
-var float  curSessLow = na
-var int    curSessHighBar = na
-var int    curSessLowBar = na
-var float  prevSessionHigh = na
-var float  prevSessionLow = na
-var int    prevSessHighBar = na
-var int    prevSessLowBar = na
-var string prevSessionName = ""
-var color  prevSessionColor = color.gray
-var line   sessHiLine = na
-var line   sessLoLine = na
-var label  sessHiLbl = na
-var label  sessLoLbl = na
+if isNewDay
+    prevNyHigh := nyHigh
+    prevNyLow := nyLow
+    prevNyHighBar := nyHighBar
+    prevNyLowBar := nyLowBar
+    nyHigh := na
+    nyLow := na
+    nyHighBar := na
+    nyLowBar := na
+    line.delete(nyHighLine)
+    line.delete(nyLowLine)
+    nyHighLine := na
+    nyLowLine := na
 
-if anySessionEnding
-    prevSessionHigh := curSessHigh
-    prevSessionLow := curSessLow
-    prevSessHighBar := curSessHighBar
-    prevSessLowBar := curSessLowBar
-    prevSessionName := nyEnding ? "NY" : tokyoEnding ? "Tokyo" : "London"
-    prevSessionColor := nyEnding ? nyColor : tokyoEnding ? tokyoColor : londonColor
-    curSessHigh := na
-    curSessLow := na
-    curSessHighBar := na
-    curSessLowBar := na
-    line.delete(sessHiLine)
-    line.delete(sessLoLine)
-    sessHiLine := na
-    sessLoLine := na
+if nyActive
+    if na(nyHigh) or high > nyHigh
+        nyHigh := high
+        nyHighBar := bar_index
+    if na(nyLow) or low < nyLow
+        nyLow := low
+        nyLowBar := bar_index
 
-if nyActive or tokyoActive or londonActive
-    if na(curSessHigh) or high > curSessHigh
-        curSessHigh := high
-        curSessHighBar := bar_index
-    if na(curSessLow) or low < curSessLow
-        curSessLow := low
-        curSessLowBar := bar_index
-
-if not na(prevSessionHigh)
-    if na(sessHiLine)
-        sessHiLine := line.new(prevSessHighBar, prevSessionHigh, bar_index, prevSessionHigh, color = prevSessionColor)
-    line.set_xy2(sessHiLine, bar_index + lineExtender, prevSessionHigh)
+if not na(prevNyHigh)
+    if na(nyHighLine)
+        nyHighLine := line.new(prevNyHighBar, prevNyHigh, bar_index, prevNyHigh, color = nyColor)
+    line.set_xy2(nyHighLine, bar_index + lineExtender, prevNyHigh)
     if showSessionLabels
-        label.delete(sessHiLbl)
-        sessHiLbl := label.new(bar_index + lineExtender, prevSessionHigh, prevSessionName + " High", style = label.style_label_left, color = color.new(prevSessionColor, 0), textcolor = sessionLabelColor, size = size.tiny)
-if not na(prevSessionLow)
-    if na(sessLoLine)
-        sessLoLine := line.new(prevSessLowBar, prevSessionLow, bar_index, prevSessionLow, color = prevSessionColor)
-    line.set_xy2(sessLoLine, bar_index + lineExtender, prevSessionLow)
+        label.delete(nyHighLbl)
+        nyHighLbl := label.new(bar_index + lineExtender, prevNyHigh, "NY High", style = label.style_label_left, color = color.new(nyColor, 0), textcolor = sessionLabelColor, size = size.tiny)
+if not na(prevNyLow)
+    if na(nyLowLine)
+        nyLowLine := line.new(prevNyLowBar, prevNyLow, bar_index, prevNyLow, color = nyColor)
+    line.set_xy2(nyLowLine, bar_index + lineExtender, prevNyLow)
     if showSessionLabels
-        label.delete(sessLoLbl)
-        sessLoLbl := label.new(bar_index + lineExtender, prevSessionLow, prevSessionName + " Low", style = label.style_label_left, color = color.new(prevSessionColor, 0), textcolor = sessionLabelColor, size = size.tiny)
+        label.delete(nyLowLbl)
+        nyLowLbl := label.new(bar_index + lineExtender, prevNyLow, "NY Low", style = label.style_label_left, color = color.new(nyColor, 0), textcolor = sessionLabelColor, size = size.tiny)
+
+// ---- Tokyo: live-updating during the session, freezes once it ends, cleared at the next reset ----
+var float tokyoHigh = na
+var float tokyoLow = na
+var int   tokyoHighBar = na
+var int   tokyoLowBar = na
+var line  tokyoHighLine = na
+var line  tokyoLowLine = na
+var label tokyoHighLbl = na
+var label tokyoLowLbl = na
+
+if isNewDay
+    tokyoHigh := na
+    tokyoLow := na
+    tokyoHighBar := na
+    tokyoLowBar := na
+    line.delete(tokyoHighLine)
+    line.delete(tokyoLowLine)
+    tokyoHighLine := na
+    tokyoLowLine := na
+
+if tokyoActive
+    if na(tokyoHigh) or high > tokyoHigh
+        tokyoHigh := high
+        tokyoHighBar := bar_index
+        line.delete(tokyoHighLine)
+        tokyoHighLine := line.new(tokyoHighBar, tokyoHigh, bar_index, tokyoHigh, color = tokyoColor)
+    if na(tokyoLow) or low < tokyoLow
+        tokyoLow := low
+        tokyoLowBar := bar_index
+        line.delete(tokyoLowLine)
+        tokyoLowLine := line.new(tokyoLowBar, tokyoLow, bar_index, tokyoLow, color = tokyoColor)
+
+if not na(tokyoHighLine)
+    line.set_xy2(tokyoHighLine, bar_index + lineExtender, tokyoHigh)
+if not na(tokyoLowLine)
+    line.set_xy2(tokyoLowLine, bar_index + lineExtender, tokyoLow)
+if showSessionLabels
+    if not na(tokyoHigh)
+        label.delete(tokyoHighLbl)
+        tokyoHighLbl := label.new(bar_index + lineExtender, tokyoHigh, "Tokyo High", style = label.style_label_left, color = color.new(tokyoColor, 0), textcolor = sessionLabelColor, size = size.tiny)
+    if not na(tokyoLow)
+        label.delete(tokyoLowLbl)
+        tokyoLowLbl := label.new(bar_index + lineExtender, tokyoLow, "Tokyo Low", style = label.style_label_left, color = color.new(tokyoColor, 0), textcolor = sessionLabelColor, size = size.tiny)
+
+// ---- London: same live-updating pattern as Tokyo ----
+var float londonHigh = na
+var float londonLow = na
+var int   londonHighBar = na
+var int   londonLowBar = na
+var line  londonHighLine = na
+var line  londonLowLine = na
+var label londonHighLbl = na
+var label londonLowLbl = na
+
+if isNewDay
+    londonHigh := na
+    londonLow := na
+    londonHighBar := na
+    londonLowBar := na
+    line.delete(londonHighLine)
+    line.delete(londonLowLine)
+    londonHighLine := na
+    londonLowLine := na
+
+if londonActive
+    if na(londonHigh) or high > londonHigh
+        londonHigh := high
+        londonHighBar := bar_index
+        line.delete(londonHighLine)
+        londonHighLine := line.new(londonHighBar, londonHigh, bar_index, londonHigh, color = londonColor)
+    if na(londonLow) or low < londonLow
+        londonLow := low
+        londonLowBar := bar_index
+        line.delete(londonLowLine)
+        londonLowLine := line.new(londonLowBar, londonLow, bar_index, londonLow, color = londonColor)
+
+if not na(londonHighLine)
+    line.set_xy2(londonHighLine, bar_index + lineExtender, londonHigh)
+if not na(londonLowLine)
+    line.set_xy2(londonLowLine, bar_index + lineExtender, londonLow)
+if showSessionLabels
+    if not na(londonHigh)
+        label.delete(londonHighLbl)
+        londonHighLbl := label.new(bar_index + lineExtender, londonHigh, "London High", style = label.style_label_left, color = color.new(londonColor, 0), textcolor = sessionLabelColor, size = size.tiny)
+    if not na(londonLow)
+        label.delete(londonLowLbl)
+        londonLowLbl := label.new(bar_index + lineExtender, londonLow, "London Low", style = label.style_label_left, color = color.new(londonColor, 0), textcolor = sessionLabelColor, size = size.tiny)
 
 var float nwogTop = na
 var float nwogBot = na
@@ -304,8 +389,12 @@ f_nearestAbove(refPrice) =>
         best := prevDayHigh
     if usePrevWeekHL and not na(prevWeekHigh) and prevWeekHigh > refPrice and (na(best) or prevWeekHigh < best)
         best := prevWeekHigh
-    if usePrevSessionHL and not na(prevSessionHigh) and prevSessionHigh > refPrice and (na(best) or prevSessionHigh < best)
-        best := prevSessionHigh
+    if useNYHL and not na(prevNyHigh) and prevNyHigh > refPrice and (na(best) or prevNyHigh < best)
+        best := prevNyHigh
+    if useTokyoHL and not na(tokyoHigh) and tokyoHigh > refPrice and (na(best) or tokyoHigh < best)
+        best := tokyoHigh
+    if useLondonHL and not na(londonHigh) and londonHigh > refPrice and (na(best) or londonHigh < best)
+        best := londonHigh
     if useNWOG and not na(nwogTop) and nwogTop > refPrice and (na(best) or nwogTop < best)
         best := nwogTop
     if useFvgTarget and not lastBullFvgFilled and not na(lastBullFvgBot) and lastBullFvgBot > refPrice and (na(best) or lastBullFvgBot < best)
@@ -322,8 +411,12 @@ f_nearestBelow(refPrice) =>
         best := prevDayLow
     if usePrevWeekHL and not na(prevWeekLow) and prevWeekLow < refPrice and (na(best) or prevWeekLow > best)
         best := prevWeekLow
-    if usePrevSessionHL and not na(prevSessionLow) and prevSessionLow < refPrice and (na(best) or prevSessionLow > best)
-        best := prevSessionLow
+    if useNYHL and not na(prevNyLow) and prevNyLow < refPrice and (na(best) or prevNyLow > best)
+        best := prevNyLow
+    if useTokyoHL and not na(tokyoLow) and tokyoLow < refPrice and (na(best) or tokyoLow > best)
+        best := tokyoLow
+    if useLondonHL and not na(londonLow) and londonLow < refPrice and (na(best) or londonLow > best)
+        best := londonLow
     if useNWOG and not na(nwogBot) and nwogBot < refPrice and (na(best) or nwogBot > best)
         best := nwogBot
     if useFvgTarget and not lastBearFvgFilled and not na(lastBearFvgTop) and lastBearFvgTop < refPrice and (na(best) or lastBearFvgTop > best)
