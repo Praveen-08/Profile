@@ -1,0 +1,141 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+//@version=6
+strategy("R:R Backtest Lab", shorttitle = "RR-Lab", overlay = true,
+     initial_capital = 10000,
+     default_qty_type = strategy.cash,
+     default_qty_value = 10000,
+     commission_type = strategy.commission.percent,
+     commission_value = 0.05,
+     slippage = 1,
+     calc_on_every_tick = false)
+
+// =====================================================================================
+// ABOUT
+// -------------------------------------------------------------------------------------
+// Answers two questions for whatever entry signal you plug in:
+//   1) What win rate does this setup actually achieve?
+//   2) What R:R (reward:risk) does it need to be profitable at that win rate, and how
+//      does that compare to the R:R you're actually targeting?
+//
+// The stop and target are always defined as a multiple of risk ("R"), so every trade
+// risks the same fraction of equity and the stats below are directly comparable.
+//
+// HOW TO USE
+//   1. Replace the block marked "ENTRY SIGNAL" below with your own long/short logic.
+//      Keep the variable names `longCondition` / `shortCondition` — everything else
+//      (sizing, stop, target, stats table) works off those two booleans.
+//   2. Add to chart, open the Strategy Tester panel for the standard performance report.
+//   3. Read the on-chart table (top-right) for win rate, realized R:R, and the
+//      breakeven R:R your current win rate requires.
+//   4. To find your IDEAL R:R: vary the "Target R:R" input below (e.g. 1.0, 1.5, 2.0,
+//      2.5, 3.0...) and re-run. On a paid TradingView plan you can right-click that
+//      input in the Strategy Tester's Settings tab and choose "Optimize" to sweep a
+//      range automatically. Pick the value that maximizes Expectancy / Profit Factor,
+//      not just the one with the highest win rate — a lower win rate at a higher R:R
+//      is often more profitable overall.
+// =====================================================================================
+
+// ---------------------------- Backtest window ----------------------------
+startDate  = input.time(timestamp("2020-01-01 00:00"), title = "Backtest start")
+endDate    = input.time(timestamp("2099-01-01 00:00"), title = "Backtest end")
+inWindow   = time >= startDate and time <= endDate
+
+// ---------------------------- Direction toggles ----------------------------
+allowLong  = input.bool(true,  title = "Allow long trades")
+allowShort = input.bool(true,  title = "Allow short trades")
+
+// ---------------------------- Risk & reward model ----------------------------
+riskPct    = input.float(1.0, title = "Risk per trade (% of equity)", minval = 0.01, maxval = 100)
+rMultiple  = input.float(2.0, title = "Target R:R (reward multiple of risk)", minval = 0.1, step = 0.25,
+     tooltip = "Take-profit distance = R multiple x stop distance. Vary/optimize this input to find your ideal R:R.")
+
+stopMethod = input.string("ATR", title = "Stop method", options = ["ATR", "Fixed %"])
+atrLen     = input.int(14, title = "ATR length (if ATR stop)", minval = 1)
+atrMult    = input.float(1.5, title = "ATR multiple (if ATR stop)", minval = 0.1, step = 0.1)
+fixedStopPct = input.float(1.0, title = "Fixed stop % (if Fixed % stop)", minval = 0.01)
+
+// =====================================================================================
+// ENTRY SIGNAL  -- replace this block with your own strategy logic --------------------
+// Example shown: fast/slow EMA crossover. Only `longCondition` / `shortCondition` need
+// to survive into the rest of the script.
+// =====================================================================================
+fastLen = input.int(20, title = "Example signal: fast EMA")
+slowLen = input.int(50, title = "Example signal: slow EMA")
+emaFast = ta.ema(close, fastLen)
+emaSlow = ta.ema(close, slowLen)
+
+longCondition  = ta.crossover(emaFast, emaSlow)
+shortCondition = ta.crossunder(emaFast, emaSlow)
+// =====================================================================================
+// END ENTRY SIGNAL
+// =====================================================================================
+
+atrVal = ta.atr(atrLen)
+
+longStopDist  = stopMethod == "ATR" ? atrMult * atrVal : close * fixedStopPct / 100
+shortStopDist = longStopDist
+
+longStopPrice   = close - longStopDist
+longTargetPrice = close + longStopDist * rMultiple
+shortStopPrice   = close + shortStopDist
+shortTargetPrice = close - shortStopDist * rMultiple
+
+// ---------------------------- Position sizing (risk-based) ----------------------------
+riskAmount = strategy.equity * riskPct / 100
+longQty    = longStopDist  > 0 ? riskAmount / longStopDist  : 0
+shortQty   = shortStopDist > 0 ? riskAmount / shortStopDist : 0
+
+// ---------------------------- Orders ----------------------------
+if inWindow and allowLong and longCondition and strategy.position_size <= 0 and longQty > 0
+    strategy.entry("Long", strategy.long, qty = longQty)
+    strategy.exit("Long Exit", "Long", stop = longStopPrice, limit = longTargetPrice)
+
+if inWindow and allowShort and shortCondition and strategy.position_size >= 0 and shortQty > 0
+    strategy.entry("Short", strategy.short, qty = shortQty)
+    strategy.exit("Short Exit", "Short", stop = shortStopPrice, limit = shortTargetPrice)
+
+if not inWindow and strategy.position_size != 0
+    strategy.close_all("Out of window")
+
+// =====================================================================================
+// STATS: win rate + realized R:R + breakeven R:R
+// =====================================================================================
+totalTrades = strategy.closedtrades
+wins        = strategy.wintrades
+losses      = strategy.losstrades
+
+winRate   = totalTrades > 0 ? wins / totalTrades * 100 : na
+avgWin    = wins   > 0 ? strategy.grossprofit / wins   : na
+avgLoss   = losses > 0 ? strategy.grossloss   / losses : na
+realizedRR = (not na(avgWin)) and (not na(avgLoss)) and avgLoss != 0 ? avgWin / math.abs(avgLoss) : na
+
+// Breakeven R:R = the R:R needed to be profitable at the CURRENT win rate:
+//   0 = WR*R - (1-WR)  =>  R = (1-WR)/WR
+wrFrac        = totalTrades > 0 ? wins / totalTrades : na
+breakevenRR   = (not na(wrFrac)) and wrFrac > 0 ? (1 - wrFrac) / wrFrac : na
+
+// Expectancy per trade, in R, using the TARGET R:R and the ACTUAL win rate:
+//   E[R] = WR*targetR - (1-WR)*1
+expectancyR   = (not na(wrFrac)) ? wrFrac * rMultiple - (1 - wrFrac) : na
+
+profitFactor  = strategy.grossloss != 0 ? strategy.grossprofit / math.abs(strategy.grossloss) : na
+
+// ---------------------------- On-chart table ----------------------------
+var table stats = table.new(position.top_right, 2, 8, border_width = 1)
+
+f_row(_row, _label, _val) =>
+    table.cell(stats, 0, _row, _label, text_halign = text.align_left,  bgcolor = color.new(color.gray, 80), text_color = color.white)
+    table.cell(stats, 1, _row, _val,   text_halign = text.align_right, bgcolor = color.new(color.gray, 80), text_color = color.white)
+
+if barstate.islast
+    f_row(0, "Closed trades",        str.tostring(totalTrades))
+    f_row(1, "Win rate",             na(winRate) ? "n/a" : str.tostring(winRate, "#.##") + "%")
+    f_row(2, "Target R:R (input)",   str.tostring(rMultiple, "#.##"))
+    f_row(3, "Realized R:R (avg)",   na(realizedRR) ? "n/a" : str.tostring(realizedRR, "#.##"))
+    f_row(4, "Breakeven R:R needed", na(breakevenRR) ? "n/a" : str.tostring(breakevenRR, "#.##"))
+    f_row(5, "Expectancy",           na(expectancyR) ? "n/a" : str.tostring(expectancyR, "#.###") + " R/trade")
+    f_row(6, "Profit factor",        na(profitFactor) ? "n/a" : str.tostring(profitFactor, "#.##"))
+    f_row(7, "Net profit",           str.tostring(strategy.netprofit, "#.##"))
+
+plot(longStopPrice,   title = "Long stop",   color = color.new(color.red, 0),   style = plot.style_circles, display = display.none)
+plot(longTargetPrice, title = "Long target", color = color.new(color.green, 0), style = plot.style_circles, display = display.none)
