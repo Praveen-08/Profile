@@ -60,8 +60,7 @@ bosConfirm = input.string("Close", "BOS confirmation", options = ["Wick", "Close
 maxBarsSweepToBOS = input.int(60, "Max bars: sweep -> BOS", minval = 1, group = "BOS")
 
 requireDisplacementFilter = input.bool(true, "Require additional displacement strength filter", group = "Displacement")
-dispAtrMult = input.float(1.2, "Displacement ATR multiplier", minval = 0.1, group = "Displacement")
-dispMinBodyPct = input.float(50, "Minimum body % of range", minval = 1, maxval = 100, group = "Displacement")
+dispBodyAvgLen = input.int(5, "Body average length (bars)", minval = 1, group = "Displacement")
 atrLen = input.int(14, "ATR length", minval = 1, group = "Displacement")
 maxBarsBOStoFVG = input.int(5, "Max bars: BOS -> FVG/OB", minval = 0, group = "Displacement")
 
@@ -497,7 +496,17 @@ if bosUp or bosDown
         line.new(bosFromBar, bosLevel, bar_index, bosLevel, color = colBOS, style = line.style_arrow_right, width = 2)
         label.new(int(math.avg(bosFromBar, bar_index)), bosLevel, "BOS", color = color(na), textcolor = colBOS, style = bosUp ? label.style_label_down : label.style_label_up, size = size.small)
 
-dispStrengthOk = not requireDisplacementFilter or ((high - low) >= atrVal * dispAtrMult and math.abs(close - open) / (high - low) * 100 >= dispMinBodyPct)
+// Displacement quality test ported from LuxAlgo's ICT Concepts [LuxAlgo]: the gap-forming candle
+// must have an above-average body, with wicks each under 36% of the body's own size.
+luxBody = math.abs(close - open)
+luxMeanBody = ta.sma(luxBody, dispBodyAvgLen)
+luxMx = math.max(close, open)
+luxMn = math.min(close, open)
+luxL_body = (high - luxMx) < luxBody * 0.36 and (luxMn - low) < luxBody * 0.36
+luxBodyUp = luxBody > luxMeanBody and luxL_body and close > open
+luxBodyDn = luxBody > luxMeanBody and luxL_body and close < open
+
+dispStrengthOk = not requireDisplacementFilter or (dir == 1 ? luxBodyUp[1] : luxBodyDn[1])
 fvgSizeOk = not ignoreTinyFvg or (dir == 1 and (low - high[2]) >= atrVal * minFvgSizeAtrFrac) or (dir == -1 and (low[2] - high) >= atrVal * minFvgSizeAtrFrac)
 
 // ---- keep checking every bar while state==3, for up to maxBarsBOStoFVG bars after the BOS bar --
@@ -541,6 +550,11 @@ if state >= 4 and zoneBar == bar_index and withinLookback
 if state >= 4 and state < 7 and not na(zoneBox) and withinLookback
     box.set_right(zoneBox, bar_index)
     label.set_x(zoneLbl, int(math.avg(zoneBar, bar_index)))
+    // Break-state border, ported from LuxAlgo's ICT Concepts [LuxAlgo]: dashed once price has
+    // traded into the zone (still live, just being tested).
+    touchedZoneBorder = dir == 1 ? low <= zoneTop : high >= zoneBot
+    if touchedZoneBorder
+        box.set_border_style(zoneBox, line.style_dashed)
 
 if state == 4
     refEdge = dir == 1 ? zoneTop : zoneBot
@@ -573,6 +587,9 @@ if state >= 5 and state < 7 and (bar_index - zoneBar) > maxBarsZoneToRetrace
 if state >= 5 and state < 7 and zoneFilled
     if showInvalidation and withinLookback
         label.new(bar_index, dir == 1 ? high : low, "SETUP INVALIDATED\n(zone filled)", color = colInvalid, style = dir == 1 ? label.style_label_down : label.style_label_up, textcolor = color.white, size = size.tiny)
+    if not na(zoneBox)
+        box.set_border_style(zoneBox, line.style_dotted)
+        box.set_bgcolor(zoneBox, color.new(dir == 1 ? colFVGbull : colFVGbear, 90))
     state := 0
     dir := 0
 
