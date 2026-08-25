@@ -426,7 +426,11 @@ if touchedZone
             strategy.entry("SB Short", strategy.short, qty = qty)
             strategy.exit("SB Short Exit", "SB Short", stop = stopLevel, limit = finalTarget)
         if showEntry and withinLookback
-            label.new(bar_index, entryLevel, "ENTRY", color = colEntry, style = dir == 1 ? label.style_label_up : label.style_label_down, textcolor = color.black, size = size.small)
+            label.new(bar_index, entryLevel,
+             (dir == 1 ? "BUY " : "SELL ") + str.tostring(entryLevel, format.mintick) +
+             "\nStop " + str.tostring(stopLevel, format.mintick) +
+             "\nTarget " + str.tostring(finalTarget, format.mintick),
+             color = dir == 1 ? colBull : colBear, style = dir == 1 ? label.style_label_up : label.style_label_down, textcolor = color.white, size = size.small)
     state := 0
     dir := 0
 

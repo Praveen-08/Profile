@@ -91,7 +91,7 @@ showFVG          = input.bool(true, "Show FVG zones", group = "Visuals")
 showOB           = input.bool(true, "Show OB zones", group = "Visuals")
 showEntry        = input.bool(true, "Show entries", group = "Visuals")
 showTarget       = input.bool(true, "Show targets", group = "Visuals")
-showInvalidation = input.bool(true, "Show invalidations", group = "Visuals")
+showInvalidation = input.bool(false, "Show invalidations", group = "Visuals")
 showDashboard    = input.bool(true, "Show dashboard", group = "Visuals")
 showDebug        = input.bool(false, "Show debug reasoning labels", group = "Visuals")
 showKillzoneBg   = input.bool(true, "Shade active killzone windows on chart", group = "Visuals")
@@ -463,12 +463,20 @@ if touchedZone
     riskUnit = math.abs(entryLevel - stopLevel)
     rrTargetLevel := dir == 1 ? entryLevel + riskUnit * targetRR : entryLevel - riskUnit * targetRR
     state := 7
+    finalTargetLevel = targetMode == "R:R" ? rrTargetLevel : targetLevel
     if showEntry and withinLookback
-        label.new(bar_index, entryLevel, "ENTRY\n" + scoreGrade + " (" + str.tostring(scoreCount) + "/7)", color = colEntry, style = dir == 1 ? label.style_label_up : label.style_label_down, textcolor = color.black, size = size.small)
-    if showTarget and targetMode != "R:R" and not na(targetLevel) and withinLookback
-        line.new(bar_index, targetLevel, bar_index + 20, targetLevel, color = colTarget, style = line.style_dashed)
-        label.new(bar_index + 20, targetLevel, "TARGET", color = colTarget, textcolor = color.black, style = label.style_label_left, size = size.tiny)
-    if showTarget and targetMode != "Liquidity" and withinLookback
+        label.new(bar_index, entryLevel,
+         (dir == 1 ? "BUY " : "SELL ") + str.tostring(entryLevel, format.mintick) +
+         "\nStop " + str.tostring(stopLevel, format.mintick) +
+         "\nTarget " + (na(finalTargetLevel) ? "n/a" : str.tostring(finalTargetLevel, format.mintick)) +
+         "\n" + scoreGrade + " (" + str.tostring(scoreCount) + "/7)",
+         color = dir == 1 ? colBull : colBear, style = dir == 1 ? label.style_label_up : label.style_label_down, textcolor = color.white, size = size.small)
+        line.new(bar_index, stopLevel, bar_index + 20, stopLevel, color = colInvalid, style = line.style_dashed)
+        label.new(bar_index + 20, stopLevel, "STOP", color = colInvalid, textcolor = color.white, style = label.style_label_left, size = size.tiny)
+    if showTarget and not na(finalTargetLevel) and withinLookback
+        line.new(bar_index, finalTargetLevel, bar_index + 20, finalTargetLevel, color = colTarget, style = line.style_dashed)
+        label.new(bar_index + 20, finalTargetLevel, "TARGET", color = colTarget, textcolor = color.black, style = label.style_label_left, size = size.tiny)
+    if showTarget and targetMode == "Both" and not na(targetLevel) and withinLookback
         line.new(bar_index, rrTargetLevel, bar_index + 20, rrTargetLevel, color = color.new(colTarget, 60), style = line.style_dotted)
 
 // ---- manage open setup: stop / target ----
