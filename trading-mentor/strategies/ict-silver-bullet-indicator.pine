@@ -21,7 +21,7 @@ win3On = input.bool(true, "Enable NY PM window (14:00-15:00 NY)", group = "Time 
 win3Session = input.session("1400-1500", "Window 3 session", group = "Time windows")
 invalidateOnWindowClose = input.bool(true, "Invalidate pending setup when window closes", group = "Time windows")
 restrictToKillzone = input.bool(true, "Only draw sweep/timeout signals inside killzone windows", group = "Time windows",
- tooltip = "BOS, displacement, FVG/OB, entry and target are already only ever drawn while a window is active. This additionally hides raw liquidity sweeps and sweep-timeout invalidations that occur outside a window -- those are the two label types that can otherwise appear all day, since the underlying model allows a sweep's bias/context to form before the window (see docs/ict-silver-bullet-spec.md).")
+ tooltip = "Only ENTRY is required to happen inside an active killzone window -- BOS, displacement and FVG/OB can form any time before it (matching the video: liquidity/BOS/FVG build the setup, the killzone is when you act on it). This toggle just hides raw liquidity sweeps and sweep-timeout invalidations that occur outside a window -- those are the two label types that can otherwise appear all day, since the underlying model allows a sweep's bias/context to form before the window (see docs/ict-silver-bullet-spec.md).")
 
 // ---- Display range ----
 lookbackDays = input.int(30, "History to display (days, 0 = show all)", minval = 0, group = "Display range",
@@ -153,12 +153,17 @@ if anyWindowActive
     if not anyWindowActive[1]
         kzBannerStartBar := bar_index
         kzBannerLow := low
-        setupAttemptedThisWindow := false
     else
         kzBannerLow := math.min(kzBannerLow, low)
     if showSilverBulletBanner and withinLookback
         label.delete(kzBannerLbl)
         kzBannerLbl := label.new(int(math.avg(kzBannerStartBar, bar_index)), kzBannerLow - kzBannerLow * 0.0006, "SILVER BULLET ZONE", color = color.new(color.black, 15), textcolor = color.white, style = label.style_label_up, size = size.normal)
+// Reset "one attempt" tracking the moment a window CLOSES (not when it opens) -- this is what
+// lets a sweep/BOS/FVG that forms in the gap *before* the next window (e.g. up to an hour prior)
+// still count as a fresh attempt for that upcoming window, instead of being blocked by whatever
+// happened in the previous window.
+if not anyWindowActive and anyWindowActive[1]
+    setupAttemptedThisWindow := false
 
 // =====================================================================================
 // ATR / pip size
@@ -421,9 +426,11 @@ if state == 2 and bar_index - sweepBar > maxBarsSweepToBOS
     state := 0
     dir := 0
 
-// ---- BOS check (only within sweepLookback of the sweep, and only while a window is active) ----
-bosUp   = dir == 1  and state == 2 and anyWindowActive and not na(lastSwingHigh) and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? high > lastSwingHigh : close > lastSwingHigh)
-bosDown = dir == -1 and state == 2 and anyWindowActive and not na(lastSwingLow)  and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? low  < lastSwingLow  : close < lastSwingLow)
+// ---- BOS check (only within sweepLookback of the sweep -- NOT window-gated: per the video's
+// worked examples, BOS/displacement/FVG build the setup and can happen before the killzone opens;
+// only the entry itself is required to land inside the window, see touchedZone below) ----
+bosUp   = dir == 1  and state == 2 and not na(lastSwingHigh) and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? high > lastSwingHigh : close > lastSwingHigh)
+bosDown = dir == -1 and state == 2 and not na(lastSwingLow)  and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? low  < lastSwingLow  : close < lastSwingLow)
 
 if bosUp or bosDown
     state := 3
@@ -541,7 +548,10 @@ if state >= 5 and state < 7 and zoneFilled
     state := 0
     dir := 0
 
-if invalidateOnWindowClose and state >= 3 and state < 7 and not anyWindowActive
+// Edge-triggered (window just closed), not level-triggered -- a zone that formed BEFORE its
+// window opened must not get invalidated for simply not being in a window yet. It only expires
+// once a window it actually had the chance to be entered in has come and gone.
+if invalidateOnWindowClose and state >= 3 and state < 7 and anyWindowActive[1] and not anyWindowActive
     if showInvalidation and withinLookback
         label.new(bar_index, dir == 1 ? high : low, "SETUP INVALIDATED\n(window closed)", color = colInvalid, style = dir == 1 ? label.style_label_down : label.style_label_up, textcolor = color.white, size = size.tiny)
     state := 0
@@ -561,8 +571,9 @@ scoreTarget  = state >= 5 and not na(targetLevel)
 scoreCount = (scoreWindow ? 1 : 0) + (scoreSweep ? 1 : 0) + (scoreBOS ? 1 : 0) + (scoreDisp ? 1 : 0) + (scoreZone ? 1 : 0) + (scoreRetrace ? 1 : 0) + (scoreTarget ? 1 : 0)
 scoreGrade = scoreCount == 7 ? "A+ SETUP" : scoreCount >= 5 ? "A SETUP" : state >= 4 ? "B SETUP" : "NO TRADE"
 
-// ---- entry: price retraces back into the zone ----
-touchedZone = state == 6 and (dir == 1 ? (low <= zoneTop and low >= zoneBot) : (high >= zoneBot and high <= zoneTop))
+// ---- entry: price retraces back into the zone -- this is the one step required to happen
+// inside an active killzone window, even though BOS/FVG could have formed well before it ----
+touchedZone = state == 6 and anyWindowActive and (dir == 1 ? (low <= zoneTop and low >= zoneBot) : (high >= zoneBot and high <= zoneTop))
 if touchedZone
     entryLevel := dir == 1 ? zoneTop : zoneBot
     entryBar := bar_index

@@ -137,12 +137,15 @@ if anyWindowActive
     if not anyWindowActive[1]
         kzBannerStartBar := bar_index
         kzBannerLow := low
-        setupAttemptedThisWindow := false
     else
         kzBannerLow := math.min(kzBannerLow, low)
     if showSilverBulletBanner and withinLookback
         label.delete(kzBannerLbl)
         kzBannerLbl := label.new(int(math.avg(kzBannerStartBar, bar_index)), kzBannerLow - kzBannerLow * 0.0006, "SILVER BULLET ZONE", color = color.new(color.black, 15), textcolor = color.white, style = label.style_label_up, size = size.normal)
+// Reset "one attempt" tracking the moment a window CLOSES (not when it opens) -- lets a
+// sweep/BOS/FVG that forms in the gap before the next window still count as a fresh attempt.
+if not anyWindowActive and anyWindowActive[1]
+    setupAttemptedThisWindow := false
 
 // =====================================================================================
 // ATR / pip size
@@ -392,8 +395,10 @@ if state == 2 and bar_index - sweepBar > maxBarsSweepToBOS
     state := 0
     dir := 0
 
-bosUp   = dir == 1  and state == 2 and anyWindowActive and not na(lastSwingHigh) and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? high > lastSwingHigh : close > lastSwingHigh)
-bosDown = dir == -1 and state == 2 and anyWindowActive and not na(lastSwingLow)  and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? low  < lastSwingLow  : close < lastSwingLow)
+// Not window-gated -- BOS/displacement/FVG can form before the killzone opens; only the entry
+// (touchedZone below) is required to land inside an active window.
+bosUp   = dir == 1  and state == 2 and not na(lastSwingHigh) and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? high > lastSwingHigh : close > lastSwingHigh)
+bosDown = dir == -1 and state == 2 and not na(lastSwingLow)  and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? low  < lastSwingLow  : close < lastSwingLow)
 
 if bosUp or bosDown
     state := 3
@@ -503,7 +508,9 @@ if state >= 5 and state < 7 and zoneFilled
     state := 0
     dir := 0
 
-if invalidateOnWindowClose and state >= 3 and state < 7 and not anyWindowActive
+// Edge-triggered (window just closed), not level-triggered -- a zone formed before its window
+// opened must not be invalidated for simply not being in a window yet.
+if invalidateOnWindowClose and state >= 3 and state < 7 and anyWindowActive[1] and not anyWindowActive
     if showInvalidation and withinLookback
         label.new(bar_index, dir == 1 ? high : low, "SETUP INVALIDATED\n(window closed)", color = colInvalid, style = dir == 1 ? label.style_label_down : label.style_label_up, textcolor = color.white, size = size.tiny)
     state := 0
@@ -512,7 +519,7 @@ if invalidateOnWindowClose and state >= 3 and state < 7 and not anyWindowActive
 // =====================================================================================
 // ENTRY -- places the actual order. Only when flat, so one Silver Bullet trade at a time.
 // =====================================================================================
-touchedZone = state == 6 and strategy.position_size == 0 and (dir == 1 ? (low <= zoneTop and low >= zoneBot) : (high >= zoneBot and high <= zoneTop))
+touchedZone = state == 6 and anyWindowActive and strategy.position_size == 0 and (dir == 1 ? (low <= zoneTop and low >= zoneBot) : (high >= zoneBot and high <= zoneTop))
 if touchedZone
     entryLevel = dir == 1 ? zoneTop : zoneBot
     bufAtr = atrVal * stopBufferAtrMult
