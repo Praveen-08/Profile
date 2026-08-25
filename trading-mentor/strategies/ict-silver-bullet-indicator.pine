@@ -422,11 +422,12 @@ if state == 2 and bar_index - sweepBar > maxBarsSweepToBOS
     state := 0
     dir := 0
 
-// ---- BOS check (only within sweepLookback of the sweep -- NOT window-gated: per the video's
-// worked examples, BOS/displacement/FVG build the setup and can happen before the killzone opens;
-// only the entry itself is required to land inside the window, see touchedZone below) ----
-bosUp   = dir == 1  and state == 2 and not na(lastSwingHigh) and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? high > lastSwingHigh : close > lastSwingHigh)
-bosDown = dir == -1 and state == 2 and not na(lastSwingLow)  and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? low  < lastSwingLow  : close < lastSwingLow)
+// ---- BOS check (only within sweepLookback of the sweep, and only while a window is active --
+// reverted from an earlier attempt to let BOS form before the window: since sweeps aren't
+// window-restricted by default either, that let sweep->BOS->FVG fire anywhere on the chart all
+// day, not just near a killzone, flooding it with irrelevant setups) ----
+bosUp   = dir == 1  and state == 2 and anyWindowActive and not na(lastSwingHigh) and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? high > lastSwingHigh : close > lastSwingHigh)
+bosDown = dir == -1 and state == 2 and anyWindowActive and not na(lastSwingLow)  and (bar_index - sweepBar) <= sweepLookback and (bosConfirm == "Wick" ? low  < lastSwingLow  : close < lastSwingLow)
 
 if bosUp or bosDown
     state := 3
