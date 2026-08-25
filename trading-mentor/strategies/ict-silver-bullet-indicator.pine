@@ -98,7 +98,7 @@ stopBufferAtrMult = input.float(0.15, "Stop buffer beyond level (x ATR)", minval
 showLiquidity    = input.bool(true, "Show liquidity levels", group = "Visuals")
 showSweep        = input.bool(true, "Show sweeps", group = "Visuals")
 showBOS          = input.bool(true, "Show BOS", group = "Visuals")
-showDisplacement = input.bool(true, "Show displacement", group = "Visuals")
+showDisplacement = input.bool(false, "Show displacement", group = "Visuals")
 showFVG          = input.bool(true, "Show FVG zones", group = "Visuals")
 showOB           = input.bool(true, "Show OB zones", group = "Visuals")
 showEntry        = input.bool(true, "Show entries", group = "Visuals")
@@ -115,10 +115,10 @@ colLiquidity    = color.new(color.yellow, 40)
 colBull         = color.green
 colBear         = color.red
 colBOS          = color.blue
-colFVGbull      = color.new(color.aqua, 75)
-colFVGbear      = color.new(color.fuchsia, 75)
-colOBbull       = color.new(color.teal, 80)
-colOBbear       = color.new(color.maroon, 80)
+colFVGbull      = color.new(color.aqua, 40)
+colFVGbear      = color.new(color.fuchsia, 40)
+colOBbull       = color.new(color.teal, 50)
+colOBbear       = color.new(color.maroon, 50)
 colEntry        = color.new(color.yellow, 0)
 colTarget       = color.new(color.green, 0)
 colInvalid      = color.new(color.red, 0)
@@ -148,15 +148,17 @@ if showKillzoneLines and withinLookback and not anyWindowActive and anyWindowAct
 var int   kzBannerStartBar = na
 var float kzBannerLow = na
 var label kzBannerLbl = na
+var bool  setupAttemptedThisWindow = false
 if anyWindowActive
     if not anyWindowActive[1]
         kzBannerStartBar := bar_index
         kzBannerLow := low
+        setupAttemptedThisWindow := false
     else
         kzBannerLow := math.min(kzBannerLow, low)
     if showSilverBulletBanner and withinLookback
         label.delete(kzBannerLbl)
-        kzBannerLbl := label.new(int(math.avg(kzBannerStartBar, bar_index)), kzBannerLow, "SILVER BULLET ZONE", color = color(na), textcolor = color.white, style = label.style_label_up, size = size.normal)
+        kzBannerLbl := label.new(int(math.avg(kzBannerStartBar, bar_index)), kzBannerLow - kzBannerLow * 0.0006, "SILVER BULLET ZONE", color = color.new(color.black, 15), textcolor = color.white, style = label.style_label_up, size = size.normal)
 
 // =====================================================================================
 // ATR / pip size
@@ -362,11 +364,10 @@ watchLow  = f_nearestBelow(close)
 // =====================================================================================
 sweepHighRaw = not na(watchHigh) and (sweepConfirm == "Wick" ? (high > watchHigh and close < watchHigh) : (close[1] > watchHigh and close < watchHigh))
 sweepLowRaw  = not na(watchLow)  and (sweepConfirm == "Wick" ? (low  < watchLow  and close > watchLow)  : (close[1] < watchLow  and close > watchLow))
-
-if showSweep and sweepHighRaw and withinLookback and showKZ
-    label.new(bar_index, high, "SWEEP", color = colInvalid, style = label.style_label_down, textcolor = color.white, size = size.tiny)
-if showSweep and sweepLowRaw and withinLookback and showKZ
-    label.new(bar_index, low, "SWEEP", color = colBull, style = label.style_label_up, textcolor = color.white, size = size.tiny)
+// Note: these two are "raw" -- true on every qualifying wick-rejection, even while a setup is
+// already being tracked. The SWEEP label is only drawn on the bar that actually arms a NEW
+// setup (see armHigh/armLow below), not on every raw occurrence -- otherwise minor rejections
+// during an already-pending setup each drew their own label.
 
 // =====================================================================================
 // STATE MACHINE
@@ -391,17 +392,27 @@ var float stopLevel = na
 var float entryLevel = na
 var int   entryBar = na
 
-// ---- arm on sweep ----
-if state == 0 and sweepHighRaw and (not requireSweepInsideKZ or anyWindowActive)
+// ---- arm on sweep (once per killzone window -- see setupAttemptedThisWindow below) ----
+armHigh = state == 0 and not setupAttemptedThisWindow and sweepHighRaw and (not requireSweepInsideKZ or anyWindowActive)
+armLow  = state == 0 and not setupAttemptedThisWindow and sweepLowRaw  and (not requireSweepInsideKZ or anyWindowActive)
+
+if armHigh
     state := 2
     dir := -1
     sweepBar := bar_index
     sweptLevel := watchHigh
-if state == 0 and sweepLowRaw and (not requireSweepInsideKZ or anyWindowActive)
+    setupAttemptedThisWindow := true
+if armLow
     state := 2
     dir := 1
     sweepBar := bar_index
     sweptLevel := watchLow
+    setupAttemptedThisWindow := true
+
+if showSweep and armHigh and withinLookback and showKZ
+    label.new(bar_index, high, "SWEEP", color = colInvalid, style = label.style_label_down, textcolor = color.white, size = size.tiny)
+if showSweep and armLow and withinLookback and showKZ
+    label.new(bar_index, low, "SWEEP", color = colBull, style = label.style_label_up, textcolor = color.white, size = size.tiny)
 
 // ---- sweep -> BOS timeout ----
 if state == 2 and bar_index - sweepBar > maxBarsSweepToBOS
@@ -483,10 +494,10 @@ if state >= 4 and zoneBar == bar_index and withinLookback
     zoneLabel = (dir == 1 ? "FVG - BUY Zone" : "FVG - SELL Zone")
     if showFVG and zoneType == "FVG"
         zoneBox := box.new(zoneBar - 2, zoneTop, bar_index, zoneBot, border_color = dir == 1 ? colFVGbull : colFVGbear, bgcolor = dir == 1 ? colFVGbull : colFVGbear)
-        zoneLbl := label.new(bar_index, math.avg(zoneTop, zoneBot), zoneLabel, color = color(na), textcolor = dir == 1 ? colFVGbull : colFVGbear, style = label.style_label_center, size = size.small)
+        zoneLbl := label.new(bar_index, math.avg(zoneTop, zoneBot), zoneLabel, color = color.new(color.black, 15), textcolor = color.white, style = label.style_label_center, size = size.small)
     if showOB and zoneType == "OB"
         zoneBox := box.new(zoneBar - 1, zoneTop, bar_index, zoneBot, border_color = dir == 1 ? colOBbull : colOBbear, bgcolor = dir == 1 ? colOBbull : colOBbear)
-        zoneLbl := label.new(bar_index, math.avg(zoneTop, zoneBot), dir == 1 ? "OB - BUY Zone" : "OB - SELL Zone", color = color(na), textcolor = dir == 1 ? colOBbull : colOBbear, style = label.style_label_center, size = size.small)
+        zoneLbl := label.new(bar_index, math.avg(zoneTop, zoneBot), dir == 1 ? "OB - BUY Zone" : "OB - SELL Zone", color = color.new(color.black, 15), textcolor = color.white, style = label.style_label_center, size = size.small)
 
 if state >= 4 and state < 7 and not na(zoneBox) and withinLookback
     box.set_right(zoneBox, bar_index)
@@ -623,7 +634,7 @@ if showDashboard and barstate.islast
 // =====================================================================================
 // ALERTS
 // =====================================================================================
-alertcondition(sweepHighRaw or sweepLowRaw, "Liquidity sweep detected", "ICT Silver Bullet: liquidity sweep detected")
+alertcondition(armHigh or armLow, "Liquidity sweep detected", "ICT Silver Bullet: liquidity sweep detected")
 alertcondition(bosUp or bosDown, "BOS confirmed", "ICT Silver Bullet: BOS confirmed")
 alertcondition(state == 4 and zoneBar == bar_index, "Displacement confirmed", "ICT Silver Bullet: displacement confirmed")
 alertcondition(state == 4 and zoneBar == bar_index and zoneType == "FVG", "FVG created", "ICT Silver Bullet: FVG created")
