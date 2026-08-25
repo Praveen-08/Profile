@@ -92,7 +92,9 @@ showFVG          = input.bool(true, "Show FVG zones", group = "Visuals")
 showOB           = input.bool(true, "Show OB zones", group = "Visuals")
 showEntry        = input.bool(true, "Show entries", group = "Visuals")
 showInvalidation = input.bool(false, "Show invalidations", group = "Visuals")
-showKillzoneBg   = input.bool(true, "Shade active killzone windows on chart", group = "Visuals")
+showKillzoneBg   = input.bool(false, "Shade active killzone windows on chart", group = "Visuals")
+showKillzoneLines = input.bool(true, "Show killzone start/end vertical lines", group = "Visuals")
+showSilverBulletBanner = input.bool(true, "Show \"SILVER BULLET ZONE\" banner", group = "Visuals")
 restrictToKillzone = input.bool(true, "Only draw sweep/timeout signals inside killzone windows", group = "Visuals")
 lookbackDays = input.int(0, "History to display (days, 0 = show all)", minval = 0, group = "Visuals",
  tooltip = "Display only -- Strategy Tester always uses full history regardless of this setting.")
@@ -120,6 +122,25 @@ bgcolor(showKillzoneBg and anyWindowActive ? color.new(color.blue, 92) : na, tit
 
 withinLookback = lookbackDays <= 0 or time >= timenow - lookbackDays * 86400000
 showKZ = not restrictToKillzone or anyWindowActive
+
+// ---- Killzone start/end vertical lines + "SILVER BULLET ZONE" banner ----
+if showKillzoneLines and withinLookback and anyWindowActive and not anyWindowActive[1]
+    line.new(bar_index, close, bar_index, close + 1, color = color.new(color.gray, 40), style = line.style_dashed, extend = extend.both)
+if showKillzoneLines and withinLookback and not anyWindowActive and anyWindowActive[1]
+    line.new(bar_index, close, bar_index, close + 1, color = color.new(color.gray, 40), style = line.style_dashed, extend = extend.both)
+
+var int   kzBannerStartBar = na
+var float kzBannerLow = na
+var label kzBannerLbl = na
+if anyWindowActive
+    if not anyWindowActive[1]
+        kzBannerStartBar := bar_index
+        kzBannerLow := low
+    else
+        kzBannerLow := math.min(kzBannerLow, low)
+    if showSilverBulletBanner and withinLookback
+        label.delete(kzBannerLbl)
+        kzBannerLbl := label.new(int(math.avg(kzBannerStartBar, bar_index)), kzBannerLow, "SILVER BULLET ZONE", color = color(na), textcolor = color.white, style = label.style_label_up, size = size.normal)
 
 // =====================================================================================
 // ATR / pip size
@@ -338,6 +359,8 @@ var float zoneBot = na
 var string zoneType = ""
 var int   zoneBar = na
 var bool  zoneClosedOutside = false
+var box   zoneBox = na
+var label zoneLbl = na
 var float targetLevel = na
 
 if state == 0 and sweepHighRaw and (not requireSweepInsideKZ or anyWindowActive)
@@ -363,7 +386,10 @@ bosDown = dir == -1 and state == 2 and anyWindowActive and not na(lastSwingLow) 
 if bosUp or bosDown
     state := 3
     if showBOS and withinLookback
-        label.new(bar_index, bosUp ? low : high, "BOS", color = colBOS, style = bosUp ? label.style_label_up : label.style_label_down, textcolor = color.white, size = size.small)
+        bosFromBar = bosUp ? lastSwingHighBar : lastSwingLowBar
+        bosLevel = bosUp ? lastSwingHigh : lastSwingLow
+        line.new(bosFromBar, bosLevel, bar_index, bosLevel, color = colBOS, style = line.style_arrow_right, width = 2)
+        label.new(int(math.avg(bosFromBar, bar_index)), bosLevel, "BOS", color = color(na), textcolor = colBOS, style = bosUp ? label.style_label_down : label.style_label_up, size = size.small)
 
 dispStrengthOk = not requireDisplacementFilter or ((high - low) >= atrVal * dispAtrMult and math.abs(close - open) / (high - low) * 100 >= dispMinBodyPct)
 fvgSizeOk = not ignoreTinyFvg or (bosUp and (low - high[2]) >= atrVal * minFvgSizeAtrFrac) or (bosDown and (low[2] - high) >= atrVal * minFvgSizeAtrFrac)
@@ -418,11 +444,18 @@ if state == 3 and bosDown
         state := 0
         dir := 0
 
-if state >= 4 and state < 8 and zoneBar == bar_index and withinLookback
+if state >= 4 and zoneBar == bar_index and withinLookback
+    zoneLabel = (dir == 1 ? "FVG - BUY Zone" : "FVG - SELL Zone")
     if showFVG and zoneType == "FVG"
-        box.new(zoneBar - 2, zoneTop, bar_index, zoneBot, border_color = dir == 1 ? colFVGbull : colFVGbear, bgcolor = dir == 1 ? colFVGbull : colFVGbear)
+        zoneBox := box.new(zoneBar - 2, zoneTop, bar_index, zoneBot, border_color = dir == 1 ? colFVGbull : colFVGbear, bgcolor = dir == 1 ? colFVGbull : colFVGbear)
+        zoneLbl := label.new(bar_index, math.avg(zoneTop, zoneBot), zoneLabel, color = color(na), textcolor = dir == 1 ? colFVGbull : colFVGbear, style = label.style_label_center, size = size.small)
     if showOB and zoneType == "OB"
-        box.new(zoneBar - 1, zoneTop, bar_index, zoneBot, border_color = dir == 1 ? colOBbull : colOBbear, bgcolor = dir == 1 ? colOBbull : colOBbear)
+        zoneBox := box.new(zoneBar - 1, zoneTop, bar_index, zoneBot, border_color = dir == 1 ? colOBbull : colOBbear, bgcolor = dir == 1 ? colOBbull : colOBbear)
+        zoneLbl := label.new(bar_index, math.avg(zoneTop, zoneBot), dir == 1 ? "OB - BUY Zone" : "OB - SELL Zone", color = color(na), textcolor = dir == 1 ? colOBbull : colOBbear, style = label.style_label_center, size = size.small)
+
+if state >= 4 and state < 7 and not na(zoneBox) and withinLookback
+    box.set_right(zoneBox, bar_index)
+    label.set_x(zoneLbl, int(math.avg(zoneBar, bar_index)))
 
 if state == 4
     refEdge = dir == 1 ? zoneTop : zoneBot
