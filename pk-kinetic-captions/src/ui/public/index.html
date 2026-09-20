@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PK Kinetic Captions</title>
+<link rel="icon" href="/favicon.ico" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <span class="mark"></span>
+    <span class="wordmark">PK <strong>Kinetic Captions</strong></span>
+    <span class="by">PK Visuals</span>
+  </div>
+  <div class="modes" role="tablist" aria-label="Interface mode">
+    <button class="mode is-on" data-mode="quick" role="tab" aria-selected="true">Quick</button>
+    <button class="mode" data-mode="advanced" role="tab" aria-selected="false">Advanced</button>
+  </div>
+  <div class="bar-right">
+    <span id="env" class="env"></span>
+    <button id="generate" class="primary">Generate</button>
+  </div>
+</header>
+
+<main>
+  <!-- Styles ------------------------------------------------------- -->
+  <aside class="rail" aria-label="Styles">
+    <div class="rail-head">
+      <h2>Styles</h2>
+      <button id="import-template" class="ghost sm" title="Import a .pkcaption file">Import</button>
+    </div>
+    <div class="group-label">Built-in</div>
+    <div id="builtin-list" class="tlist"></div>
+    <div class="group-label">My templates <span id="user-count" class="count"></span></div>
+    <div id="user-list" class="tlist"></div>
+    <div class="rail-foot">
+      <button id="save-template" class="ghost">Save as template</button>
+      <button id="update-template" class="ghost" disabled>Update</button>
+      <div class="row2">
+        <button id="duplicate-template" class="ghost sm">Duplicate</button>
+        <button id="export-template" class="ghost sm">Export</button>
+        <button id="delete-template" class="ghost sm danger" disabled>Delete</button>
+      </div>
+      <p id="store-path" class="hint"></p>
+    </div>
+  </aside>
+
+  <!-- Stage --------------------------------------------------------- -->
+  <section class="stage">
+    <div class="stage-top">
+      <div class="seg" id="aspect-seg" role="group" aria-label="Frame">
+        <button data-aspect="9:16" class="is-on">9:16</button>
+        <button data-aspect="4:5">4:5</button>
+        <button data-aspect="1:1">1:1</button>
+        <button data-aspect="16:9">16:9</button>
+      </div>
+      <label class="check"><input type="checkbox" id="safe-area" checked> Safe area</label>
+      <label class="check"><input type="checkbox" id="guides"> Guides</label>
+      <label class="check"><input type="checkbox" id="plate-toggle"> Reference frame</label>
+      <input type="file" id="plate-file" accept="image/*" hidden>
+      <span class="spacer"></span>
+      <span id="stats" class="stats"></span>
+    </div>
+
+    <div class="viewport">
+      <div id="canvas" class="canvas" aria-label="Preview"></div>
+    </div>
+
+    <div class="transport">
+      <button id="play" class="ghost sm" aria-label="Play">▶</button>
+      <input id="scrub" type="range" min="0" max="10" step="0.02" value="0">
+      <span id="time" class="mono">0.00s</span>
+    </div>
+
+    <!-- Word editor ------------------------------------------------- -->
+    <div class="words-panel">
+      <div class="words-head">
+        <h2>Words</h2>
+        <span class="hint">Click a word to change its level. Shift-click to open overrides.</span>
+        <span class="spacer"></span>
+        <button id="reset-overrides" class="ghost sm">Reset all</button>
+      </div>
+      <div id="words" class="words" tabindex="0"></div>
+    </div>
+  </section>
+
+  <!-- Inspector ------------------------------------------------------ -->
+  <aside class="inspector" aria-label="Inspector">
+    <!-- Quick -->
+    <div class="panel" data-for="quick">
+      <h2>Quick</h2>
+      <label class="field"><span>Template</span><select id="q-template"></select></label>
+
+      <div class="field">
+        <span>Accent</span>
+        <div class="accent-row">
+          <input type="color" id="q-accent" value="#c9a84c">
+          <input type="text" id="q-accent-hex" class="mono" spellcheck="false" value="#c9a84c">
+          <button id="pick-colour" class="ghost sm" title="Load a still and click a pixel">Pick from video</button>
+        </div>
+        <label class="check tight"><input type="checkbox" id="q-palette"> Generate the whole palette from it</label>
+        <div id="palette-strip" class="palette"></div>
+      </div>
+
+      <label class="field"><span>Emphasis</span>
+        <div class="seg wide" id="q-emphasis">
+          <button data-v="subtle">Subtle</button><button data-v="balanced" class="is-on">Balanced</button><button data-v="strong">Strong</button>
+        </div>
+      </label>
+      <label class="field"><span>Caption density</span>
+        <div class="seg wide" id="q-density">
+          <button data-v="low">Low</button><button data-v="medium" class="is-on">Medium</button><button data-v="high">High</button>
+        </div>
+      </label>
+      <label class="field"><span>Animation</span><select id="q-animation"></select></label>
+      <label class="field"><span>Text interaction</span><select id="q-interaction"></select>
+        <p id="interaction-note" class="hint"></p>
+      </label>
+      <label class="check"><input type="checkbox" id="q-realestate"> Real-estate intelligence</label>
+      <label class="check"><input type="checkbox" id="q-normalise"> Set figures typographically (4 BEDROOMS, 650m², $1.95M)</label>
+    </div>
+
+    <!-- Advanced -->
+    <div class="panel" data-for="advanced" hidden>
+      <h2>Advanced</h2>
+      <details open><summary>Typography</summary><div id="adv-type" class="grid"></div></details>
+      <details><summary>Hierarchy</summary><div id="adv-hier" class="grid"></div></details>
+      <details><summary>Colour</summary><div id="adv-colour" class="grid"></div></details>
+      <details><summary>Position</summary><div id="adv-position" class="grid"></div></details>
+      <details><summary>Spacing &amp; scale</summary><div id="adv-space" class="grid"></div></details>
+      <details><summary>Animation</summary><div id="adv-motion" class="grid"></div></details>
+      <details><summary>Subject interaction</summary><div id="adv-subject" class="grid"></div></details>
+      <details><summary>Glow, shadow &amp; outline</summary><div id="adv-deco" class="grid"></div></details>
+    </div>
+
+    <!-- Source + export -->
+    <div class="panel">
+      <h2>Source</h2>
+      <label class="field"><span>Transcript</span>
+        <textarea id="transcript" rows="6" spellcheck="false" placeholder="Paste an SRT, VTT, Whisper JSON, or plain text…"></textarea>
+      </label>
+      <div class="row2">
+        <button id="load-file" class="ghost sm">Open file…</button>
+        <button id="load-sample" class="ghost sm">Sample script</button>
+      </div>
+      <input type="file" id="transcript-file" accept=".srt,.vtt,.json,.txt,.fcpxml" hidden>
+
+      <h2 class="mt">Export</h2>
+      <label class="field"><span>Folder</span><input type="text" id="out-dir" class="mono" spellcheck="false"></label>
+      <button id="export" class="primary wide">Export FCPXML</button>
+      <p id="export-note" class="hint"></p>
+    </div>
+  </aside>
+</main>
+
+<div id="toast" class="toast" hidden></div>
+
+<!-- Colour capture ------------------------------------------------- -->
+<dialog id="capture-dialog">
+  <h3>Pick an accent from the footage</h3>
+  <p class="hint">Export a still from Final Cut (Share ▸ Save Current Frame), open it here, then click the colour you want — a shirt, a logo, the sky.</p>
+  <input type="file" id="capture-file" accept="image/*">
+  <canvas id="capture-canvas"></canvas>
+  <div class="capture-foot">
+    <span id="capture-swatch" class="swatch"></span>
+    <span id="capture-hex" class="mono">—</span>
+    <span class="spacer"></span>
+    <button id="capture-cancel" class="ghost sm">Cancel</button>
+    <button id="capture-use" class="primary sm" disabled>Use this colour</button>
+  </div>
+</dialog>
+
+<!-- Word overrides -------------------------------------------------- -->
+<dialog id="word-dialog">
+  <h3 id="word-title">Word</h3>
+  <div class="grid">
+    <label class="field"><span>Text</span><input type="text" id="w-text" spellcheck="false"></label>
+    <label class="field"><span>Level</span>
+      <div class="seg wide" id="w-level">
+        <button data-v="normal">Normal</button><button data-v="emphasis">Emphasis</button><button data-v="hero">Hero</button>
+      </div>
+    </label>
+    <label class="field"><span>Colour</span><div class="accent-row"><input type="color" id="w-colour"><button id="w-colour-clear" class="ghost sm">Use template</button></div></label>
+    <label class="field"><span>Scale ×</span><input type="number" id="w-scale" step="0.05" min="0.2" max="6"></label>
+    <label class="field"><span>Font</span><select id="w-font"></select></label>
+    <label class="field"><span>Weight</span><select id="w-weight"></select></label>
+    <label class="field"><span>Depth</span><select id="w-depth"><option value="">Template</option><option value="foreground">In front</option><option value="background">Behind subject</option></select></label>
+    <label class="field"><span>Start / end (s)</span><div class="row2"><input type="number" id="w-start" step="0.02" class="mono"><input type="number" id="w-end" step="0.02" class="mono"></div></label>
+  </div>
+  <div class="capture-foot">
+    <button id="w-reset" class="ghost sm">Reset to template</button>
+    <span class="spacer"></span>
+    <button id="w-close" class="primary sm">Done</button>
+  </div>
+</dialog>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

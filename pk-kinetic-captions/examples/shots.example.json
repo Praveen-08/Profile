@@ -1,0 +1,29 @@
+[
+  {
+    "start": 0,
+    "end": 8.4,
+    "kind": "talkingHead",
+    "face": {
+      "x": 0.1,
+      "y": 0.2,
+      "w": 0.22,
+      "h": 0.16
+    },
+    "subject": {
+      "x": 0.18,
+      "y": -0.05,
+      "w": 0.5,
+      "h": 0.8
+    }
+  },
+  {
+    "start": 8.4,
+    "end": 19,
+    "kind": "drone"
+  },
+  {
+    "start": 19,
+    "end": 32,
+    "kind": "property"
+  }
+]
