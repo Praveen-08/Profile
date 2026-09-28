@@ -11,8 +11,8 @@ the shot, and export a Final Cut project.
 It is not a subtitle tool. There is no mode in which every word comes out the
 same size in the same place.
 
-```
-pkkc ui
+```bash
+node bin/pkkc.js app     # builds the Mac app — then keep it in your dock
 ```
 
 Nothing is uploaded. The video is read straight off your Mac and never
@@ -57,10 +57,10 @@ uses, not a second implementation that drifts.
 **A template store** outside Final Cut, so a style survives quitting the
 app, a new library, a new project and a reboot.
 
-**109 tests** covering colour maths, frame-exact timing, transcript ingest,
+**116 tests** covering colour maths, frame-exact timing, transcript ingest,
 phrasing invariants, hierarchy budgets, typography, layout, motion, blend
 mapping, determinism, template persistence, packaging, export, and the
-browser/server boundary the app depends on.
+browser/server boundary the app depends on, and the macOS bundle.
 
 ### Honest limits of this release
 
@@ -135,6 +135,7 @@ src/render/       deterministic SVG renderer
 src/export/       FCPXML · installer and environment checks
 src/ui/           local server + the design interface
 src/cli/          pkkc
+app/              the macOS .app bundle: icon artwork, launcher, builder
 ```
 
 ---
@@ -150,7 +151,31 @@ node bin/pkkc.js install
 node bin/pkkc.js check
 ```
 
-Optionally put `pkkc` on your path:
+### The dock icon
+
+```bash
+node bin/pkkc.js app                 # → ~/Applications/PK Kinetic Captions.app
+node bin/pkkc.js app --out /Applications
+```
+
+Open it once with **right-click ▸ Open** — the app is not code-signed, so
+macOS refuses a plain double-click the first time and then trusts it forever.
+After that it behaves like any other app: click it, the window opens, quit it
+and the server stops. Drag it to the dock.
+
+It launches the same server as `pkkc ui`; the app is a launcher, not a
+separate program. The one thing it does that a shell alias cannot: a
+double-clicked app gets no login shell, so `node` is almost never on its PATH.
+The launcher looks where Node actually lives — Homebrew on both architectures,
+nvm, fnm, Volta, asdf, MacPorts — picks the newest version it finds, and only
+then falls back to asking a login shell. If anything goes wrong it says so in
+a dialog rather than failing silently, and writes the detail to
+`~/Library/Logs/PK Kinetic Captions.log`.
+
+Rebuild it after moving the project folder: the path is baked into the
+launcher.
+
+Optionally put `pkkc` on your path as well:
 
 ```bash
 npm link             # then just: pkkc ui
@@ -450,6 +475,10 @@ preview.
 **Behind-subject needs one manual step** — Final Cut's Magnetic Mask on the
 top copy of the shot. The exporter builds the rest.
 
+**The Mac app is not code-signed.** Opening it needs one right-click ▸ Open.
+Signing it so it opens on any Mac without that needs a paid Apple Developer
+account; it is a distribution problem, not a working-on-your-own-Mac problem.
+
 **English only.** The function-word list, morphology and real-estate lexicon
 are English. Timing, typography, layout, colour and motion are
 language-neutral; only emphasis scoring would need work.
@@ -513,7 +542,7 @@ pkkc demo                         one demo project per built-in style
 ## Development
 
 ```bash
-npm test          # 109 tests
+npm test          # 116 tests
 npm run typecheck # tsc over the JSDoc types
 npm run demo      # six projects and preview sheets
 ```

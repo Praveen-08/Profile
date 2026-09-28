@@ -81,8 +81,34 @@ export async function startServer(opts = {}) {
   const url = `http://${host}:${port}/`;
   if (opts.open !== false) {
     console.log(`\n  PK Kinetic Captions\n  ${url}\n\n  Templates: ${store.paths().templates}\n  Ctrl-C to stop.\n`);
+    await openInBrowser(url);
   }
   return { server, url };
+}
+
+/**
+ * Show the interface.
+ *
+ * The app bundle in app/ runs `pkkc ui` and nothing else, so opening the
+ * window is the server's job — otherwise double-clicking the dock icon starts
+ * a process and appears to do nothing at all.
+ *
+ * Failing to open is never fatal: the URL is on stdout and in the log.
+ *
+ * @param {string} url
+ */
+async function openInBrowser(url) {
+  const commands = {
+    darwin: ['open', [url]],
+    win32: ['cmd', ['/c', 'start', '', url]],
+    linux: ['xdg-open', [url]],
+  };
+  const chosen = commands[process.platform];
+  if (!chosen) return;
+  try {
+    const { spawn } = await import('node:child_process');
+    spawn(chosen[0], chosen[1], { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
+  } catch { /* the URL is printed above */ }
 }
 
 /* ------------------------------------------------------------------ *

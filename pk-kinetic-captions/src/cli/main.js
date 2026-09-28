@@ -9,6 +9,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseArgs, numberOr, oneOf } from './args.js';
 import { ingest } from '../transcript/ingest.js';
 import { compose, describePlan } from '../engine/compose.js';
@@ -53,6 +54,7 @@ export async function run(argv) {
     case 'install': return cmdInstall(flags);
     case 'where': return cmdWhere();
     case 'ui': return cmdUI(flags);
+    case 'app': return cmdApp(flags);
     case 'demo': return cmdDemo(flags);
     case 'help': case '--help': case '-h': default: return usage();
   }
@@ -344,6 +346,25 @@ async function cmdUI(flags) {
   await startServer({ port: numberOr(flags.port, 7847), open: flags.open !== false });
 }
 
+async function cmdApp(flags) {
+  const { buildApp, APP_NAME } = await import('../../app/build-app.mjs');
+  const { app, warnings } = await buildApp({
+    outDir: flags.out ? String(flags.out) : undefined,
+    projectDir: fileURLToPath(new URL('../..', import.meta.url)),
+  });
+
+  console.log(`\n  Built ${app}\n`);
+  for (const w of warnings) console.log(`  ! ${w}`);
+  if (process.platform === 'darwin') {
+    console.log('  Open it from Applications, then drag it to the dock.');
+    console.log(`  The first time, right-click ▸ Open — it is not code-signed, so double-clicking is refused once.`);
+    console.log(`\n  If it does not start, the reason is in ~/Library/Logs/${APP_NAME}.log`);
+  } else {
+    console.log('  Copy it to a Mac, into /Applications or ~/Applications.');
+  }
+  console.log('');
+}
+
 async function cmdDemo(flags) {
   const outDir = String(flags.out ?? path.join(process.cwd(), 'pk-captions-demo'));
   await fs.mkdir(outDir, { recursive: true });
@@ -380,6 +401,7 @@ PK Kinetic Captions — kinetic typography for Final Cut Pro          PK Visuals
   pkkc install                        Create the store and Motion folders
   pkkc where                          Where templates are stored
   pkkc ui [--port 7847]               Open the design interface
+  pkkc app [--out ~/Applications]     Build the Mac app you can put in the dock
   pkkc demo                           Write one demo project per built-in style
 
 Generate options
