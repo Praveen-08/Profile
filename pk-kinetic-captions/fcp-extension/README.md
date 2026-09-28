@@ -46,7 +46,7 @@ Only that file should need changing — everything else talks to the
 `TimelineBridge` protocol, so once those calls compile the panel works.
 
 **The panel is useful before that is solved.** Dragging a clip in goes through
-the pasteboard (`DragContainerView`), not the host API, so the read path works
+the pasteboard (`DragWebView`), not the host API, so the read path works
 independently. If the send call is what needs fixing, you can still design
 captions and export FCPXML.
 
@@ -56,7 +56,7 @@ captions and export FCPXML.
 Panel/                  the panel's own HTML, CSS and JS
 Extension/
   PKCaptionsViewController  WKWebView host, message routing
-  DragContainerView         claims com.apple.finalcutpro.xml off the pasteboard
+  DragWebView               claims com.apple.finalcutpro.xml off the pasteboard
   TimelineBridge            the protocol everything else talks to, plus a mock
   ProExtensionTimelineBridge   ← the only file touching Apple's API
   TemplateStore             styles, in the folder the CLI and app already use

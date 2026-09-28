@@ -1,0 +1,104 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { frameFromFCPXML, nearestAspect } from '../fcp-extension/Panel/frame.js';
+import { collectModules } from '../fcp-extension/scripts/bundle-web.mjs';
+
+const EXT = fileURLToPath(new URL('../fcp-extension/', import.meta.url));
+const FALLBACK = { width: 1080, height: 1920, fps: 30, aspect: '9:16' };
+
+test('the frame is read from the sequence Final Cut actually uses', () => {
+  // A library can declare several formats. Taking the first one would design
+  // against whatever happened to be listed earliest.
+  const xml = '<format id="r1" width="640" height="480" frameDuration="1/30s"/>'
+    + '<format id="r2" width="1080" height="1920" frameDuration="1001/24000s"/>'
+    + '<sequence format="r2"/>';
+  assert.deepEqual(frameFromFCPXML(xml, FALLBACK), { width: 1080, height: 1920, fps: 23.976, aspect: '9:16' });
+});
+
+test('attribute order does not matter', () => {
+  const a = frameFromFCPXML('<format id="r1" width="1920" height="1080" frameDuration="1/25s"/><sequence format="r1"/>', FALLBACK);
+  const b = frameFromFCPXML('<format id="r1" height="1080" frameDuration="1/25s" width="1920"/><sequence format="r1"/>', FALLBACK);
+  assert.deepEqual(a, b);
+  assert.equal(a.width, 1920);
+});
+
+test('the awkward frame rates come back as themselves', () => {
+  // These are the ones that matter. Reading 1001/30000 as 30 drifts a whole
+  // frame every 33 seconds against the picture.
+  for (const [duration, timebase, expected] of [
+    [1001, 30000, 29.97], [1001, 24000, 23.976], [1001, 60000, 59.94],
+    [1, 25, 25], [1, 30, 30], [1, 60, 60], [100, 3000, 30],
+  ]) {
+    const xml = `<format id="r1" width="1920" height="1080" frameDuration="${duration}/${timebase}s"/><sequence format="r1"/>`;
+    assert.equal(frameFromFCPXML(xml, FALLBACK).fps, expected, `${duration}/${timebase}`);
+  }
+});
+
+test('a timeline with no usable format leaves the frame alone', () => {
+  assert.deepEqual(frameFromFCPXML('<fcpxml/>', FALLBACK), FALLBACK);
+  assert.deepEqual(frameFromFCPXML('', FALLBACK), FALLBACK);
+  assert.deepEqual(frameFromFCPXML(null, FALLBACK), FALLBACK);
+});
+
+test('aspect follows the real dimensions', () => {
+  assert.equal(nearestAspect(1080 / 1920), '9:16');
+  assert.equal(nearestAspect(1920 / 1080), '16:9');
+  assert.equal(nearestAspect(1), '1:1');
+  assert.equal(nearestAspect(0.8), '4:5');
+});
+
+test('a real Final Cut export is read correctly end to end', async () => {
+  const xml = await fs.readFile(new URL('../examples/timeline-export.fcpxml', import.meta.url), 'utf8');
+  const frame = frameFromFCPXML(xml, { width: 1, height: 1, fps: 1, aspect: '1:1' });
+  assert.equal(frame.width, 1080);
+  assert.equal(frame.height, 1920);
+  assert.equal(frame.fps, 30);        // 100/3000s
+  assert.equal(frame.aspect, '9:16');
+});
+
+test('everything the panel loads can run without Node', async () => {
+  // The panel runs in a WKWebView. A top-level Node import in any of these
+  // is a blank panel inside Final Cut with a console message nobody sees.
+  const { modules, nodeImports } = await collectModules();
+  assert.deepEqual(nodeImports, [], `Node imports reached the panel: ${JSON.stringify(nodeImports)}`);
+  assert.ok(modules.length >= 20, `only ${modules.length} modules collected`);
+  assert.ok(modules.includes('engine/compose.js') && modules.includes('export/fcpxml.js'));
+});
+
+test('the extension declares itself to Final Cut correctly', async () => {
+  const plist = await fs.readFile(path.join(EXT, 'Extension/Info.plist'), 'utf8');
+  assert.match(plist, /com\.apple\.FinalCut\.WorkflowExtension/, 'wrong extension point — Final Cut will not list the panel');
+  assert.match(plist, /PKCaptionsViewController/);
+  assert.match(plist, /ProExtensionPrincipalViewControllerClass/);
+});
+
+test('the drag destination is the view that actually receives the drop', async () => {
+  const swift = await fs.readFile(path.join(EXT, 'Extension/DragWebView.swift'), 'utf8');
+
+  // The web view fills the panel and is top-most, so it has to be the
+  // destination. A container behind it would never see the drag.
+  assert.match(swift, /final class DragWebView: WKWebView/, 'the drag destination must be the web view itself');
+  assert.match(swift, /com\.apple\.finalcutpro\.xml/, 'Final Cut\'s pasteboard type is not claimed');
+  for (const method of ['draggingEntered', 'draggingUpdated', 'performDragOperation']) {
+    assert.ok(swift.includes(`override func ${method}`), `${method} is not overridden`);
+  }
+  // Anything that is not Final Cut data must still reach the web view.
+  assert.match(swift, /super\.performDragOperation/, 'ordinary web drags would be swallowed');
+});
+
+test('the panel is told which event fired', async () => {
+  const swift = await fs.readFile(path.join(EXT, 'Extension/PKCaptionsViewController.swift'), 'utf8');
+  // Passing the payload as the event name meant no unprompted message from
+  // Swift ever reached the panel — a drop would arrive and nothing happened.
+  assert.match(swift, /receive\(\\\(event\.swiftQuoted\)/, 'the event name is not passed to the panel');
+});
+
+test('no private API is used to make the panel transparent', async () => {
+  const swift = await fs.readFile(path.join(EXT, 'Extension/PKCaptionsViewController.swift'), 'utf8');
+  // setValue(_:forKey:) on WKWebView.drawsBackground raises if the key goes
+  // away, killing the panel on launch for a cosmetic reason.
+  assert.ok(!swift.includes('forKey: "drawsBackground"'), 'drawsBackground is not public API');
+});

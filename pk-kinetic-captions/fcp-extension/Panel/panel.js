@@ -17,6 +17,7 @@ import { ingest } from './transcript/ingest.js';
 import { merge } from './templates/schema.js';
 import { BUILTIN_TEMPLATES } from './templates/builtin/index.js';
 import { parseColour, toHex } from './core/colour.js';
+import { frameFromFCPXML } from './frame.js';
 
 const $ = (sel) => /** @type {any} */ (document.querySelector(sel));
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -109,27 +110,8 @@ function useTimelineXML(xml, how) {
 
 /** Design against the sequence's real dimensions and rate, not a guess. */
 function adoptFrameFrom(xml) {
-  const format = /<format\b[^>]*width="(\d+)"[^>]*height="(\d+)"/.exec(xml)
-    ?? /<format\b[^>]*height="(\d+)"[^>]*width="(\d+)"/.exec(xml);
-  if (format) {
-    const [a, b] = [Number(format[1]), Number(format[2])];
-    const width = /width="\d+"[^>]*height/.test(format[0]) ? a : b;
-    const height = width === a ? b : a;
-    if (width > 0 && height > 0) {
-      state.frame.width = width;
-      state.frame.height = height;
-      state.frame.aspect = nearestAspect(width / height);
-    }
-  }
-  const fd = /frameDuration="(\d+)\/(\d+)s"/.exec(xml);
-  if (fd) {
-    const fps = Number(fd[2]) / Number(fd[1]);
-    if (Number.isFinite(fps) && fps > 1) state.frame.fps = Math.round(fps * 1000) / 1000;
-  }
+  state.frame = { ...state.frame, ...frameFromFCPXML(xml, state.frame) };
 }
-
-const nearestAspect = (ratio) => [['9:16', 9 / 16], ['4:5', 0.8], ['1:1', 1], ['16:9', 16 / 9]]
-  .sort((a, b) => Math.abs(a[1] - ratio) - Math.abs(b[1] - ratio))[0][0];
 
 /* ------------------------------------------------------------------ *
  * Design
@@ -290,4 +272,4 @@ callNative('listTemplates')
   })
   .catch(() => { /* built-ins are enough */ });
 
-export { state, useTimelineXML, adoptFrameFrom, nearestAspect };
+export { state, useTimelineXML, adoptFrameFrom };

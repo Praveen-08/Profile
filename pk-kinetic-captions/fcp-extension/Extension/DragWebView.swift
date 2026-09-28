@@ -1,4 +1,5 @@
 import Cocoa
+import WebKit
 
 /// The panel's drag destination.
 ///
@@ -11,27 +12,37 @@ import Cocoa
 /// A web view cannot do this. Browsers only expose the standard web drag
 /// types, so Apple's own flavour never reaches a page. It has to be claimed
 /// natively, which is most of the reason this panel exists.
-final class DragContainerView: NSView {
+///
+/// **Why this subclasses WKWebView rather than sitting behind one.** The web
+/// view fills the panel and is the top-most view, so it is what the drag
+/// lands on — a plain container underneath would never see the drop at all.
+/// Overriding here intercepts first, and anything that is not Final Cut data
+/// falls through to `super` so ordinary web drags keep working.
+///
+/// If a future WebKit routes drags past these overrides, the fallback is an
+/// `NSView` layered above the web view with `registerForDraggedTypes`.
+final class DragWebView: WKWebView {
 
-    var onDrop: ((String) -> Void)?
+    /// Final Cut's own pasteboard type.
+    static let fcpxmlType = NSPasteboard.PasteboardType("com.apple.finalcutpro.xml")
 
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        registerForDraggedTypes([PKCaptionsViewController.fcpxmlType, .fileURL, .string])
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        registerForDraggedTypes([PKCaptionsViewController.fcpxmlType, .fileURL, .string])
-    }
+    var onFCPXML: ((String) -> Void)?
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        fcpxml(from: sender) != nil ? .copy : []
+        fcpxml(from: sender) != nil ? .copy : super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        fcpxml(from: sender) != nil ? .copy : super.draggingUpdated(sender)
+    }
+
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        fcpxml(from: sender) != nil ? true : super.prepareForDragOperation(sender)
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        guard let xml = fcpxml(from: sender) else { return false }
-        onDrop?(xml)
+        guard let xml = fcpxml(from: sender) else { return super.performDragOperation(sender) }
+        onFCPXML?(xml)
         return true
     }
 
@@ -43,7 +54,7 @@ final class DragContainerView: NSView {
     private func fcpxml(from sender: NSDraggingInfo) -> String? {
         let board = sender.draggingPasteboard
 
-        if let direct = board.string(forType: PKCaptionsViewController.fcpxmlType), direct.contains("<fcpxml") {
+        if let direct = board.string(forType: Self.fcpxmlType), direct.contains("<fcpxml") {
             return direct
         }
 

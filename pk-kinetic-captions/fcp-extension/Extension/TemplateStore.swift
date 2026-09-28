@@ -33,9 +33,9 @@ struct TemplateStore {
     }
 
     /// Every saved style, as raw JSON for the panel to parse.
-    func list() throws -> [String] {
+    func list() -> [String] {
         guard let names = try? FileManager.default.contentsOfDirectory(atPath: templates.path) else { return [] }
-        return try names.filter { $0.hasSuffix(".json") }.sorted().compactMap {
+        return names.filter { $0.hasSuffix(".json") }.sorted().compactMap {
             try? String(contentsOf: templates.appendingPathComponent($0), encoding: .utf8)
         }
     }

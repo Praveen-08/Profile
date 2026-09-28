@@ -16,16 +16,12 @@ import UniformTypeIdentifiers
 ///   · read and write the styles folder
 final class PKCaptionsViewController: NSViewController {
 
-    private var webView: WKWebView!
+    private var webView: DragWebView!
     private var bridge: TimelineBridge = MockTimelineBridge()
     private let store = TemplateStore()
 
     /// The FCPXML the panel last produced, held so it can be dragged out.
     private var pendingFCPXML: String?
-
-    /// Final Cut's own pasteboard type. A clip dragged out of the browser or
-    /// the timeline carries the timeline as FCPXML under this name.
-    static let fcpxmlType = NSPasteboard.PasteboardType("com.apple.finalcutpro.xml")
 
     // MARK: - Lifecycle
 
@@ -37,12 +33,19 @@ final class PKCaptionsViewController: NSViewController {
         for name in WebBridge.Message.allCases { controller.add(self, name: name.rawValue) }
         config.userContentController = controller
 
-        webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 420, height: 720), configuration: config)
-        webView.setValue(false, forKey: "drawsBackground")   // let the panel's own dark surface show
-        webView.registerForDraggedTypes([Self.fcpxmlType, .fileURL, .string])
+        let web = DragWebView(frame: NSRect(x: 0, y: 0, width: 420, height: 720), configuration: config)
+        web.onFCPXML = { [weak self] xml in self?.receiveDraggedFCPXML(xml) }
+        web.registerForDraggedTypes([DragWebView.fcpxmlType, .fileURL, .string])
 
-        let container = DragContainerView()
-        container.onDrop = { [weak self] xml in self?.receiveDraggedFCPXML(xml) }
+        // `drawsBackground` is not public API on WKWebView. Setting it through
+        // KVC raises if the key ever goes away, and the panel would die on
+        // launch inside Final Cut for a purely cosmetic reason — so the page's
+        // own CSS paints the surface instead.
+        if #available(macOS 12.0, *) { web.underPageBackgroundColor = .clear }
+
+        webView = web
+
+        let container = NSView()
         container.addSubview(webView)
         webView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -89,7 +92,7 @@ final class PKCaptionsViewController: NSViewController {
     private func send(event: String, payload: [String: Any]) {
         guard let data = try? JSONSerialization.data(withJSONObject: payload),
               let json = String(data: data, encoding: .utf8) else { return }
-        webView.evaluateJavaScript("window.pkkc && window.pkkc.receive(\(json.swiftQuoted), \(json))") { _, error in
+        webView.evaluateJavaScript("window.pkkc && window.pkkc.receive(\(event.swiftQuoted), \(json))") { _, error in
             if let error { NSLog("[PKKC] bridge send failed: %@", error.localizedDescription) }
         }
     }
@@ -144,7 +147,7 @@ extension PKCaptionsViewController: WKScriptMessageHandler {
             }
 
         case .listTemplates:
-            let all = (try? store.list()) ?? []
+            let all = store.list()
             reply(to: id, ok: true, payload: ["templates": all])
 
         case .saveTemplate:
