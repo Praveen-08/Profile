@@ -110,6 +110,26 @@ test('a transcription correction does not disturb the timing around it', () => {
   assert.equal(transcript.words.at(-1).start, before.at(-1)[1], 'later words must not move');
 });
 
+test('captions come back frame-exact from a Final Cut XML export', async () => {
+  const fs = await import('node:fs/promises');
+  const url = new URL('../examples/timeline-export.fcpxml', import.meta.url);
+  const t = ingest(await fs.readFile(url, 'utf8'));
+
+  assert.equal(t.source, 'fcpxml');
+  assert.ok(t.words.length > 10);
+
+  // Final Cut writes rational times; they must survive as the exact seconds
+  // they denote, or every caption drifts against the picture.
+  assert.ok(Math.abs(t.words[0].start - 12012 / 30000) < 1e-9, `first word at ${t.words[0].start}`);
+  const third = t.words.find((w) => /Four/.test(w.text));
+  assert.ok(third && Math.abs(third.start - 210210 / 30000) < 1e-9, `third caption at ${third?.start}`);
+
+  // And the words inside a caption must run in order without gaps or overlap.
+  for (let i = 1; i < t.words.length; i++) {
+    assert.ok(t.words[i].start >= t.words[i - 1].end - 1e-9, `word ${i} overlaps its predecessor`);
+  }
+});
+
 test('normalisation is off unless it is asked for', () => {
   const t = ingest('four bedrooms', { format: 'text' });
   const { transcript } = normalize(t, { realEstate: true, collapse: false });
