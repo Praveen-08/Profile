@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT = path.resolve(HERE, '../..');
 const SRC = path.join(PROJECT, 'src');
+const PANEL = path.resolve(HERE, '../Panel');
 const OUT = path.resolve(HERE, '../Extension/Resources/web');
 
 /** The two doors into the engine. Everything else is pulled in by following imports. */
@@ -60,6 +61,10 @@ export async function bundle(opts = {}) {
     );
   }
 
+  // Resources/web is generated in full every time, so nothing stale can
+  // survive a rename. That is exactly why the panel's own sources live in
+  // Panel/ and are copied in — keeping them here would mean this line
+  // deleted them.
   await fs.rm(OUT, { recursive: true, force: true });
   for (const rel of modules) {
     const dest = path.join(OUT, rel);
@@ -67,17 +72,16 @@ export async function bundle(opts = {}) {
     await fs.copyFile(path.join(SRC, rel), dest);
   }
 
-  // The interface, minus the parts that only make sense with a local server.
-  const ui = path.join(SRC, 'ui/public');
-  for (const file of ['styles.css']) {
-    await fs.copyFile(path.join(ui, file), path.join(OUT, file));
-  }
+  // Shared styling, then the panel's own sources.
+  await fs.copyFile(path.join(SRC, 'ui/public/styles.css'), path.join(OUT, 'styles.css'));
+
+  const panelFiles = await fs.readdir(PANEL);
+  for (const file of panelFiles) await fs.copyFile(path.join(PANEL, file), path.join(OUT, file));
 
   if (!opts.silent) {
-    console.log(`Bundled ${modules.length} engine modules into Extension/Resources/web`);
-    for (const m of modules) console.log(`  ${m}`);
+    console.log(`Bundled ${modules.length} engine modules + ${panelFiles.length} panel files into Extension/Resources/web`);
   }
-  return { modules, out: OUT };
+  return { modules, panel: panelFiles, out: OUT };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

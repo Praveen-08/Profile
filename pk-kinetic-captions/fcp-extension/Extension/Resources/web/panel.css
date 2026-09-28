@@ -1,0 +1,34 @@
+/* Panel-specific layout. Final Cut gives an extension a narrow column, so
+   this is a single scrolling stack — no side rails, and no video preview,
+   because Final Cut's own viewer is the preview. */
+
+body.panel { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--panel); }
+.pbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.ptitle { font-size: 12px; font-weight: 600; }
+.plink { font-size: 10px; color: var(--muted); }
+.plink.is-live { color: var(--ok); }
+
+.pstep { padding: 12px; border-bottom: 1px solid var(--line); }
+.pstep:last-of-type { flex: 1; min-height: 0; overflow-y: auto; }
+.pstep h2 { margin-bottom: 8px; }
+
+.pdrop {
+  display: grid; place-items: center; gap: 2px; padding: 22px 12px; margin-bottom: 8px;
+  border: 1px dashed var(--line-strong); border-radius: var(--radius); text-align: center;
+}
+.pdrop.is-hot { border-color: var(--gold); background: rgba(201,168,76,.06); }
+.pdrop strong { font-size: 13px; font-weight: 500; }
+.pdrop span { font-size: 11px; color: var(--muted); }
+
+.pstyles { display: flex; flex-direction: column; gap: 4px; }
+.pstyle {
+  display: block; width: 100%; text-align: left; padding: 7px 9px; font: inherit; color: inherit;
+  background: var(--panel-2); border: 1px solid transparent; border-radius: 5px; cursor: pointer;
+}
+.pstyle:hover { background: var(--raise); }
+.pstyle.is-on { border-color: var(--gold); background: var(--raise); }
+.pstyle b { display: block; font-size: 12px; font-weight: 500; }
+.pstyle i { display: block; font-size: 10px; color: var(--muted); font-style: normal; margin-top: 1px; }
+
+.pfoot { padding: 12px; border-top: 1px solid var(--line); }
+.wide { width: 100%; }

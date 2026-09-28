@@ -1,0 +1,86 @@
+# XcodeGen project definition.
+#
+# A hand-written project.pbxproj is thousands of lines of generated UUIDs that
+# nobody can review and any merge will corrupt. This is the same project in a
+# form you can read and diff:
+#
+#   brew install xcodegen
+#   cd fcp-extension && xcodegen && open PKKineticCaptions.xcodeproj
+#
+# The host app exists only because macOS requires an app extension to ship
+# inside one. It launches, tells you the panel is installed, and gets out of
+# the way.
+
+name: PKKineticCaptions
+
+options:
+  bundleIdPrefix: nz.pkvisuals
+  deploymentTarget:
+    macOS: "12.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    # Set this to your team, or leave it and pick the team in Xcode's
+    # Signing & Capabilities tab on first build.
+    # DEVELOPMENT_TEAM: XXXXXXXXXX
+    ENABLE_HARDENED_RUNTIME: YES
+
+targets:
+
+  PKKineticCaptions:
+    type: application
+    platform: macOS
+    sources:
+      - path: Host
+    info:
+      path: Host/Info.plist
+      properties:
+        CFBundleName: PK Kinetic Captions
+        CFBundleDisplayName: PK Kinetic Captions
+        LSApplicationCategoryType: public.app-category.video
+        NSHighResolutionCapable: true
+        NSPrincipalClass: NSApplication
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: nz.pkvisuals.kinetic-captions
+        INFOPLIST_KEY_NSHumanReadableCopyright: PK Visuals
+    dependencies:
+      - target: PKCaptionsExtension
+        embed: true
+        codeSign: true
+
+  PKCaptionsExtension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Extension
+        excludes:
+          - Resources/**
+      # The engine and panel, copied in by scripts/bundle-web.mjs. They go in
+      # as a folder reference so the directory layout survives — the modules
+      # import each other by relative path.
+      - path: Extension/Resources/web
+        type: folder
+        buildPhase: resources
+    info:
+      path: Extension/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: nz.pkvisuals.kinetic-captions.extension
+        SKIP_INSTALL: YES
+    preBuildScripts:
+      - name: Bundle the caption engine
+        script: |
+          # Keeps the panel's engine identical to the CLI's. Fails the build
+          # rather than shipping a panel whose design decisions have drifted.
+          if command -v node >/dev/null 2>&1; then
+            node "$SRCROOT/scripts/bundle-web.mjs" || exit 1
+          else
+            echo "warning: node not found; Extension/Resources/web was not refreshed"
+          fi
+        basedOnDependencyAnalysis: false

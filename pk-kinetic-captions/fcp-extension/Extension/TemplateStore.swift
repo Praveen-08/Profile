@@ -1,0 +1,68 @@
+import Foundation
+
+/// Where saved styles live.
+///
+/// Deliberately the same folder the command line and the standalone app use,
+/// so a style saved in one is available in the others. A style is a file, not
+/// a database row: an editor can back the folder up by dragging it, and if
+/// this software disappears the styles are still readable JSON.
+///
+///   ~/Library/Application Support/PK Visuals/Kinetic Captions/
+///     templates/<id>.json
+///     thumbnails/<id>.svg
+///     brand.json
+struct TemplateStore {
+
+    let root: URL
+
+    init() {
+        let support = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        root = support
+            .appendingPathComponent("PK Visuals", isDirectory: true)
+            .appendingPathComponent("Kinetic Captions", isDirectory: true)
+    }
+
+    private var templates: URL { root.appendingPathComponent("templates", isDirectory: true) }
+    private var thumbnails: URL { root.appendingPathComponent("thumbnails", isDirectory: true) }
+
+    func prepare() throws {
+        for dir in [templates, thumbnails] {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+    }
+
+    /// Every saved style, as raw JSON for the panel to parse.
+    func list() throws -> [String] {
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: templates.path) else { return [] }
+        return try names.filter { $0.hasSuffix(".json") }.sorted().compactMap {
+            try? String(contentsOf: templates.appendingPathComponent($0), encoding: .utf8)
+        }
+    }
+
+    /// Write atomically so an interrupted save cannot leave half a style behind.
+    func save(id: String, json: String) throws {
+        try prepare()
+        try json.write(to: templates.appendingPathComponent("\(safe(id)).json"), atomically: true, encoding: .utf8)
+    }
+
+    func saveThumbnail(id: String, svg: String) throws {
+        try prepare()
+        try svg.write(to: thumbnails.appendingPathComponent("\(safe(id)).svg"), atomically: true, encoding: .utf8)
+    }
+
+    func delete(id: String) throws {
+        try? FileManager.default.removeItem(at: templates.appendingPathComponent("\(safe(id)).json"))
+        try? FileManager.default.removeItem(at: thumbnails.appendingPathComponent("\(safe(id)).svg"))
+    }
+
+    /// An id becomes a filename, and ids can arrive from an imported style
+    /// someone else made, so it must never be able to escape the folder.
+    private func safe(_ id: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "._-"))
+        let cleaned = String(id.unicodeScalars.map { allowed.contains($0) ? Character($0) : "-" })
+            .replacingOccurrences(of: "..", with: "-")
+        let trimmed = cleaned.trimmingCharacters(in: CharacterSet(charactersIn: ".-"))
+        return trimmed.isEmpty ? "untitled" : String(trimmed.prefix(120))
+    }
+}

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>PK Kinetic Captions</string>
+  <key>CFBundleDisplayName</key><string>PK Kinetic Captions</string>
+  <key>CFBundleIdentifier</key><string>nz.pkvisuals.kinetic-captions.extension</string>
+  <key>CFBundlePackageType</key><string>XPC!</string>
+  <key>CFBundleShortVersionString</key><string>1.1.0</string>
+  <key>CFBundleVersion</key><string>1</string>
+
+  <key>NSExtension</key>
+  <dict>
+    <!-- This is what makes Final Cut list the panel under Window ▸ Extensions. -->
+    <key>NSExtensionPointIdentifier</key>
+    <string>com.apple.FinalCut.WorkflowExtension</string>
+    <key>NSExtensionPrincipalClass</key>
+    <string>$(PRODUCT_MODULE_NAME).PKCaptionsViewController</string>
+    <key>NSExtensionAttributes</key>
+    <dict>
+      <key>ProExtensionPrincipalClass</key>
+      <string>$(PRODUCT_MODULE_NAME).PKCaptionsViewController</string>
+      <key>ProExtensionPrincipalViewControllerClass</key>
+      <string>$(PRODUCT_MODULE_NAME).PKCaptionsViewController</string>
+      <key>ProExtensionHostDisplayName</key>
+      <string>Final Cut Pro</string>
+      <key>ProExtensionHostBundleIdentifier</key>
+      <string>com.apple.FinalCut</string>
+    </dict>
+  </dict>
+</dict>
+</plist>

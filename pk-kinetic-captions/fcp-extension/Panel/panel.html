@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PK Kinetic Captions</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="panel.css">
+</head>
+<body class="panel">
+<header class="pbar">
+  <span class="mark"></span>
+  <span class="ptitle">Kinetic Captions</span>
+  <span class="spacer"></span>
+  <span id="link" class="plink">not connected</span>
+</header>
+
+<section class="pstep" id="step-source">
+  <div id="pdrop" class="pdrop">
+    <strong>Drag a clip here</strong>
+    <span>from the browser or the timeline</span>
+  </div>
+  <button id="read-timeline" class="ghost sm wide">Or read the open timeline</button>
+  <p id="source-note" class="hint"></p>
+</section>
+
+<section class="pstep">
+  <h2>Style</h2>
+  <div id="styles" class="pstyles"></div>
+</section>
+
+<section class="pstep">
+  <h2>Accent</h2>
+  <div class="accent-row">
+    <input type="color" id="accent" value="#c9a84c">
+    <input type="text" id="accent-hex" class="mono" spellcheck="false" value="#c9a84c">
+  </div>
+
+  <h2 class="mt">Emphasis</h2>
+  <div class="seg wide" id="emphasis">
+    <button data-v="subtle">Subtle</button><button data-v="balanced" class="is-on">Balanced</button><button data-v="strong">Strong</button>
+  </div>
+
+  <h2 class="mt">Density</h2>
+  <div class="seg wide" id="density">
+    <button data-v="low">Low</button><button data-v="medium" class="is-on">Medium</button><button data-v="high">High</button>
+  </div>
+</section>
+
+<section class="pstep">
+  <h2>Words <span id="wstats" class="hint"></span></h2>
+  <div id="words" class="words"></div>
+</section>
+
+<footer class="pfoot">
+  <button id="apply" class="primary wide" disabled>Send to timeline</button>
+  <p id="status" class="hint"></p>
+</footer>
+
+<script type="module" src="panel.js"></script>
+</body>
+</html>
