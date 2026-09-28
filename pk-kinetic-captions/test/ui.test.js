@@ -110,9 +110,24 @@ test('a transparent plate leaves the video visible underneath', () => {
 test('the app markup has the pieces the interface script binds to', async () => {
   const html = await fs.readFile(path.join(PUBLIC, 'index.html'), 'utf8');
   for (const id of ['drop', 'video', 'canvas', 'scrub', 'play', 'fps', 'video-file', 'transcript-file',
-    'capture-canvas', 'pick-colour', 'words', 'q-template', 'q-accent', 'export', 'media-info']) {
+    'capture-canvas', 'pick-colour', 'words', 'q-template', 'q-accent', 'export', 'media-info',
+    'needs-captions', 'needs-choose', 'needs-sample']) {
     assert.ok(html.includes(`id="${id}"`), `index.html is missing #${id}`);
   }
+});
+
+test('a sample script is never left running under real footage', async () => {
+  const app = await fs.readFile(path.join(PUBLIC, 'app.js'), 'utf8');
+  // Loading a clip with no captions must clear the specimen text, or it reads
+  // as a failed transcription of that clip.
+  const loadVideo = /function loadVideo\(file\) \{([\s\S]*?)\n\}/.exec(app)?.[1] ?? '';
+  assert.ok(loadVideo, 'loadVideo not found');
+  assert.match(loadVideo, /if \(!app\.captionsName\)/, 'loadVideo does not check whether captions exist');
+  assert.match(loadVideo, /\$\('#transcript'\)\.value = ''/, 'loadVideo does not clear the sample');
+  assert.match(loadVideo, /updateCaptionsPrompt\(\)/, 'loadVideo does not raise the captions prompt');
+
+  // And the sample, when deliberately chosen, has to say what it is.
+  assert.match(app, /Sample script \(not from your video\)/);
 });
 
 test('the overlay is not cut off from the video by a stacking context', async () => {

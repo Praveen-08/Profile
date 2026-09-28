@@ -80,6 +80,20 @@
       <div id="stage-media" class="media" hidden>
         <video id="video" playsinline preload="metadata"></video>
         <div id="canvas" class="overlay" aria-label="Caption preview"></div>
+        <div id="needs-captions" class="needs" hidden>
+          <div class="needs-inner">
+            <h3>Now drop the captions</h3>
+            <p>PK Kinetic Captions designs the typography — Final Cut does the transcription.</p>
+            <ol>
+              <li>In Final Cut, select this clip</li>
+              <li><strong>Transcribe to Captions</strong></li>
+              <li><strong>File ▸ Export Captions…</strong> as SRT</li>
+              <li>Drop that file on this window</li>
+            </ol>
+            <button id="needs-choose" class="ghost sm">Choose captions file…</button>
+            <button id="needs-sample" class="ghost sm">Use a sample script instead</button>
+          </div>
+        </div>
       </div>
     </div>
 

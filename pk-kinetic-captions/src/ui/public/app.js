@@ -478,6 +478,18 @@ function wireMedia() {
   $('#guides-safe').onchange = (e) => { $('#stage-media').classList.toggle('hide-video', !e.target.checked); };
 
   $('#fps').onchange = () => { app.video.fps = Number($('#fps').value); regenerate(); };
+
+  $('#needs-choose').onclick = () => $('#transcript-file').click();
+  $('#needs-sample').onclick = () => useSample();
+}
+
+/** Load the built-in specimen script, for judging a style without a transcript. */
+function useSample() {
+  $('#transcript').value = SAMPLE;
+  app.captionsName = 'Sample script (not from your video)';
+  markFiles();
+  updateCaptionsPrompt();
+  regenerate();
 }
 
 /** @param {File[]} files */
@@ -489,6 +501,7 @@ async function acceptFiles(files) {
       $('#transcript').value = await f.text();
       app.captionsName = f.name;
       markFiles();
+      updateCaptionsPrompt();
       regenerate();
       toast(`Captions loaded from ${f.name}.`);
     } else {
@@ -510,7 +523,23 @@ function loadVideo(file) {
   video.src = app.video.url;
   $('#drop').hidden = true;
   $('#stage-media').hidden = false;
+
+  // The sample script exists so the styles can be judged before any files are
+  // loaded. Once there is real footage on screen it becomes actively
+  // misleading — it reads as a failed transcription of this clip — so it is
+  // cleared until real captions arrive.
+  if (!app.captionsName) {
+    $('#transcript').value = '';
+    regenerate();
+  }
+  updateCaptionsPrompt();
   markFiles();
+}
+
+/** Show the "now drop the captions" panel while footage has no captions. */
+function updateCaptionsPrompt() {
+  const waiting = !!app.video.url && !app.captionsName;
+  $('#needs-captions').hidden = !waiting;
 }
 
 function markFiles() {
@@ -924,15 +953,11 @@ function wireSource() {
   $('#transcript').oninput = () => {
     app.captionsName = app.captionsName ?? 'Typed by hand';
     markFiles();
+    updateCaptionsPrompt();
     clearTimeout(timer);
     timer = setTimeout(regenerate, 420);
   };
-  $('#load-sample').onclick = () => {
-    $('#transcript').value = SAMPLE;
-    app.captionsName = 'Sample script';
-    markFiles();
-    regenerate();
-  };
+  $('#load-sample').onclick = () => useSample();
   $('#load-file').onclick = () => $('#transcript-file').click();
   $('#transcript-file').onchange = (e) => acceptFiles([...e.target.files]);
 
