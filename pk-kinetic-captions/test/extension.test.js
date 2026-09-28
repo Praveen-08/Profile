@@ -96,6 +96,30 @@ test('the panel is told which event fired', async () => {
   assert.match(swift, /receive\(\\\(event\.swiftQuoted\)/, 'the event name is not passed to the panel');
 });
 
+test('one unreadable saved style does not take the rest with it', async () => {
+  const panel = await fs.readFile(path.join(EXT, 'Panel/panel.js'), 'utf8');
+  const block = /callNative\('listTemplates'\)([\s\S]*?)\.catch/.exec(panel)?.[1] ?? '';
+  assert.ok(block, 'the template loader was not found');
+
+  // A bare templates.map(JSON.parse) throws on the first bad file, the whole
+  // promise rejects, and every saved style silently disappears.
+  assert.ok(!/\.map\(\s*\(?\w+\)?\s*=>\s*JSON\.parse/.test(block), 'one bad file would reject the whole load');
+  assert.match(block, /try\s*\{/, 'parsing is not guarded per file');
+  assert.match(block, /unreadable/, 'skipped styles are not reported');
+});
+
+test('a dropped file is actually read, not just prevented', async () => {
+  const panel = await fs.readFile(path.join(EXT, 'Panel/panel.js'), 'utf8');
+  const handler = /addEventListener\('drop',([\s\S]*?)\n\}\);/.exec(panel)?.[1] ?? '';
+  assert.ok(handler, 'the drop handler was not found');
+
+  // The status offers "drag an .fcpxml in to try it" when there is no host.
+  // A handler that only calls preventDefault makes that a lie.
+  assert.match(handler, /dataTransfer\?\.files/, 'a dropped file is ignored');
+  assert.match(handler, /useTimelineXML/, 'a dropped timeline is never used');
+  assert.match(handler, /<fcpxml/, 'the drop does not check what it got');
+});
+
 test('no private API is used to make the panel transparent', async () => {
   const swift = await fs.readFile(path.join(EXT, 'Extension/PKCaptionsViewController.swift'), 'utf8');
   // setValue(_:forKey:) on WKWebView.drawsBackground raises if the key goes

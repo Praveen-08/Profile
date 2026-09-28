@@ -216,7 +216,31 @@ for (const evt of ['dragenter', 'dragover']) {
   document.addEventListener(evt, (e) => { e.preventDefault(); drop.classList.add('is-hot'); });
 }
 document.addEventListener('dragleave', () => drop.classList.remove('is-hot'));
-document.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('is-hot'); });
+
+/**
+ * Inside Final Cut, DragWebView intercepts a dragged clip natively and this
+ * never fires. It matters anyway: it is the path when the panel is opened
+ * outside Final Cut for development, and when someone drags an exported
+ * .fcpxml file in from Finder rather than a clip from the browser.
+ */
+document.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  drop.classList.remove('is-hot');
+
+  const file = [...(e.dataTransfer?.files ?? [])][0];
+  if (file) {
+    const text = await file.text();
+    if (!text.includes('<fcpxml')) return setStatus(`${file.name} is not a Final Cut XML export.`, true);
+    return useTimelineXML(text, `from ${file.name}`);
+  }
+
+  for (const type of [...(e.dataTransfer?.types ?? [])]) {
+    const payload = e.dataTransfer.getData(type);
+    if (payload?.includes('<fcpxml')) return useTimelineXML(payload, 'dragged in');
+  }
+
+  setStatus('That drop carried no timeline data.', true);
+});
 
 $('#read-timeline').onclick = async () => {
   try {
@@ -267,8 +291,23 @@ callNative('status')
 
 callNative('listTemplates')
   .then(({ templates }) => {
-    state.userTemplates = templates.map((t) => JSON.parse(t)).filter(Boolean);
+    /** @type {any[]} */
+    const loaded = [];
+    let unreadable = 0;
+    for (const raw of templates ?? []) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.id && parsed?.name) loaded.push(parsed);
+        else unreadable++;
+      } catch {
+        // One hand-edited or half-written file must not take the rest of
+        // someone's saved styles with it.
+        unreadable++;
+      }
+    }
+    state.userTemplates = loaded;
     buildStyles();
+    if (unreadable) setStatus(`${unreadable} saved style${unreadable === 1 ? '' : 's'} could not be read and were skipped.`, true);
   })
   .catch(() => { /* built-ins are enough */ });
 
