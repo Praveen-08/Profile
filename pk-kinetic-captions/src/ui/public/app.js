@@ -449,7 +449,7 @@ function wireMedia() {
   document.addEventListener('drop', (e) => {
     e.preventDefault();
     drop.classList.remove('is-hot');
-    acceptFiles([...(e.dataTransfer?.files ?? [])]);
+    acceptDrop(e.dataTransfer);
   });
 
   $('#choose-video').onclick = () => $('#video-file').click();
@@ -490,6 +490,64 @@ function useSample() {
   markFiles();
   updateCaptionsPrompt();
   regenerate();
+}
+
+/**
+ * Handle a drop.
+ *
+ * Files are the ordinary case. But dragging a compound clip out of Final
+ * Cut's browser is not a file drag — the timeline data rides on the macOS
+ * pasteboard, and how much of that reaches a web page is not something the
+ * web platform guarantees. So rather than assume, this reads every flavour
+ * the drop offers and uses anything that turns out to be FCPXML.
+ *
+ * If nothing usable arrives it says which flavours it *did* see, which is the
+ * information needed to decide whether the native panel has to do this
+ * instead.
+ *
+ * @param {DataTransfer|null} dt
+ */
+async function acceptDrop(dt) {
+  if (!dt) return;
+
+  const files = [...(dt.files ?? [])];
+  if (files.length) return acceptFiles(files);
+
+  // No files: look for timeline data on the other flavours.
+  const flavours = [...(dt.types ?? [])];
+  for (const type of flavours) {
+    let payload = '';
+    try { payload = dt.getData(type); } catch { continue; }
+    if (!payload) continue;
+
+    if (payload.includes('<fcpxml') || payload.includes('DOCTYPE fcpxml')) {
+      $('#transcript').value = payload;
+      app.captionsName = `Dragged from Final Cut (${type})`;
+      markFiles();
+      updateCaptionsPrompt();
+      regenerate();
+      return toast('Timeline data read straight from the drag — no export needed.');
+    }
+  }
+
+  reportUnusableDrop(flavours);
+}
+
+/**
+ * Say what a drop actually contained. Without this a failed drag is silent,
+ * and silence is the one thing that makes it impossible to tell whether the
+ * data did not arrive or the app ignored it.
+ * @param {string[]} flavours
+ */
+function reportUnusableDrop(flavours) {
+  const seen = flavours.length ? flavours.join(', ') : 'nothing readable';
+  console.info('[PK] drop carried:', seen);
+  toast(
+    flavours.length
+      ? `That drop carried: ${seen} — no timeline data in it. Use File ▸ Export XML… and drop the file.`
+      : 'That drag carried nothing a web page can read. Use File ▸ Export XML… and drop the file instead.',
+    true,
+  );
 }
 
 /** @param {File[]} files */

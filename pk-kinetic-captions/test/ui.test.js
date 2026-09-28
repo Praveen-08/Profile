@@ -130,6 +130,19 @@ test('a sample script is never left running under real footage', async () => {
   assert.match(app, /Sample script \(not from your video\)/);
 });
 
+test('a drop is inspected for timeline data, not just for files', async () => {
+  const app = await fs.readFile(path.join(PUBLIC, 'app.js'), 'utf8');
+  const handler = /async function acceptDrop\(dt\) \{([\s\S]*?)\n\}/.exec(app)?.[1] ?? '';
+  assert.ok(handler, 'acceptDrop not found');
+
+  // Dragging a compound clip out of Final Cut is not a file drag. Reading
+  // only dataTransfer.files would silently ignore it.
+  assert.match(handler, /dt\.types/, 'the drop handler ignores non-file flavours');
+  assert.match(handler, /getData/, 'the drop handler never reads the flavours it finds');
+  assert.match(handler, /<fcpxml/, 'the drop handler does not recognise FCPXML');
+  assert.match(handler, /reportUnusableDrop/, 'an unusable drop must say what it carried');
+});
+
 test('the overlay is not cut off from the video by a stacking context', async () => {
   // Blend modes only composite against the footage while .media stays a plain
   // stacking context. `isolation`, `opacity` or `filter` on it would silently
