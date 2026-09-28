@@ -12,11 +12,12 @@ It is not a subtitle tool. There is no mode in which every word comes out the
 same size in the same place.
 
 ```bash
-node bin/pkkc.js app     # builds the Mac app — then keep it in your dock
+node bin/pkkc.js app     # once. After that it is a dock icon.
 ```
 
-Nothing is uploaded. The video is read straight off your Mac and never
-leaves it.
+No terminal after that, and nothing to install — the package has no runtime
+dependencies. Nothing is uploaded either: the video is read straight off your
+Mac and never leaves it.
 
 ---
 
@@ -146,8 +147,17 @@ Requires **Node 20 or newer**. Final Cut Pro 10.6+ for the export.
 
 ```bash
 cd pk-kinetic-captions
-npm install          # only a type checker; nothing at runtime
-node bin/pkkc.js install
+node bin/pkkc.js app
+```
+
+That is the whole setup, and the only time you need a terminal. There is
+nothing to install first: the package has **no runtime dependencies**, so it
+runs straight from a checkout. (`npm install` fetches a type checker, which
+only `npm run typecheck` needs.)
+
+Worth running once to see what this Mac has:
+
+```bash
 node bin/pkkc.js check
 ```
 
@@ -157,6 +167,8 @@ node bin/pkkc.js check
 node bin/pkkc.js app                 # → ~/Applications/PK Kinetic Captions.app
 node bin/pkkc.js app --out /Applications
 ```
+
+This is the only command you need. Everything below is optional.
 
 Open it once with **right-click ▸ Open** — the app is not code-signed, so
 macOS refuses a plain double-click the first time and then trusts it forever.
@@ -542,7 +554,7 @@ pkkc demo                         one demo project per built-in style
 ## Development
 
 ```bash
-npm test          # 116 tests
-npm run typecheck # tsc over the JSDoc types
-npm run demo      # six projects and preview sheets
+node --test test/*.test.js   # 116 tests, no install needed
+npm install && npm run typecheck   # tsc over the JSDoc types
+node bin/pkkc.js demo              # six projects and preview sheets
 ```
