@@ -32,6 +32,17 @@ import { parseColour, toHex, generatePalette, harmonies, captureColour } from '.
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(HERE, 'public');
+const SRC = path.resolve(HERE, '..');
+
+/**
+ * Engine modules that are safe to run in a browser: no Node imports at the
+ * top level, no filesystem, no process. They are served under /lib so the
+ * page can draw captions with the *same* renderer that writes the FCPXML,
+ * instead of a second implementation that drifts from it.
+ */
+const BROWSER_SAFE = new Set([
+  'render/svg.js', 'engine/motion.js', 'engine/fonts.js', 'core/colour.js',
+]);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -62,8 +73,15 @@ export async function startServer(opts = {}) {
     server.listen(port, host, () => { server.off('error', onError); resolve(undefined); });
   });
 
+  // Read the port the OS actually bound. Passing 0 asks for any free port —
+  // which the tests do — and reporting the requested one would be a lie.
+  const bound = server.address();
+  if (bound && typeof bound === 'object') port = bound.port;
+
   const url = `http://${host}:${port}/`;
-  console.log(`\n  PK Kinetic Captions\n  ${url}\n\n  Templates: ${store.paths().templates}\n  Ctrl-C to stop.\n`);
+  if (opts.open !== false) {
+    console.log(`\n  PK Kinetic Captions\n  ${url}\n\n  Templates: ${store.paths().templates}\n  Ctrl-C to stop.\n`);
+  }
   return { server, url };
 }
 
@@ -78,6 +96,16 @@ async function handle(req, res) {
   if (route.startsWith('/api/')) {
     const body = req.method === 'POST' ? await readJSON(req) : {};
     return api(route, body, url, res);
+  }
+
+  if (route.startsWith('/lib/')) {
+    const rel = route.slice('/lib/'.length);
+    if (!BROWSER_SAFE.has(rel)) return send(res, 404, 'text/plain', 'Not a browser-safe module');
+    try {
+      return send(res, 200, MIME['.js'], await fs.readFile(path.join(SRC, rel)));
+    } catch {
+      return send(res, 404, 'text/plain', 'Not found');
+    }
   }
 
   if (route === '/favicon.ico') {

@@ -18,7 +18,13 @@
     "resolveJsonModule": true,
     "types": [
       "node"
-    ]
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "/lib/*": [
+        "src/*"
+      ]
+    }
   },
   "include": [
     "src/**/*.js",

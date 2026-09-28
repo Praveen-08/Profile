@@ -58,20 +58,38 @@
       </div>
       <label class="check"><input type="checkbox" id="safe-area" checked> Safe area</label>
       <label class="check"><input type="checkbox" id="guides"> Guides</label>
-      <label class="check"><input type="checkbox" id="plate-toggle"> Reference frame</label>
-      <input type="file" id="plate-file" accept="image/*" hidden>
+      <label class="check"><input type="checkbox" id="guides-safe" checked> Show video</label>
       <span class="spacer"></span>
       <span id="stats" class="stats"></span>
     </div>
 
     <div class="viewport">
-      <div id="canvas" class="canvas" aria-label="Preview"></div>
+      <div id="drop" class="drop">
+        <div class="drop-inner">
+          <div class="drop-mark"></div>
+          <h3>Drop your video here</h3>
+          <p>Then drop the captions file beside it — in Final Cut, <strong>Transcribe to Captions</strong>, then <strong>File ▸ Export Captions…</strong> as SRT.</p>
+          <div class="drop-actions">
+            <button id="choose-video" class="primary sm">Choose video…</button>
+            <button id="choose-captions" class="ghost sm">Choose captions…</button>
+          </div>
+          <p class="drop-note">Nothing is uploaded. The video is read straight off your Mac.</p>
+        </div>
+      </div>
+
+      <div id="stage-media" class="media" hidden>
+        <video id="video" playsinline preload="metadata"></video>
+        <div id="canvas" class="overlay" aria-label="Caption preview"></div>
+      </div>
     </div>
 
     <div class="transport">
       <button id="play" class="ghost sm" aria-label="Play">▶</button>
-      <input id="scrub" type="range" min="0" max="10" step="0.02" value="0">
-      <span id="time" class="mono">0.00s</span>
+      <input id="scrub" type="range" min="0" max="10" step="0.01" value="0">
+      <span id="time" class="mono">0.00 / 0.00</span>
+      <span class="sep"></span>
+      <label class="check tight"><input type="checkbox" id="mute" checked> Mute</label>
+      <span id="media-info" class="mono dim"></span>
     </div>
 
     <!-- Word editor ------------------------------------------------- -->
@@ -138,14 +156,27 @@
     <!-- Source + export -->
     <div class="panel">
       <h2>Source</h2>
-      <label class="field"><span>Transcript</span>
-        <textarea id="transcript" rows="6" spellcheck="false" placeholder="Paste an SRT, VTT, Whisper JSON, or plain text…"></textarea>
-      </label>
-      <div class="row2">
-        <button id="load-file" class="ghost sm">Open file…</button>
-        <button id="load-sample" class="ghost sm">Sample script</button>
+      <div id="source-files" class="files">
+        <div class="file-row" data-kind="video"><span class="dot"></span><span class="fname">No video</span></div>
+        <div class="file-row" data-kind="captions"><span class="dot"></span><span class="fname">No captions</span></div>
       </div>
+      <label class="field"><span>Frame rate</span>
+        <select id="fps">
+          <option value="23.976">23.976</option><option value="24">24</option>
+          <option value="25">25</option><option value="29.97">29.97</option>
+          <option value="30" selected>30</option><option value="50">50</option>
+          <option value="59.94">59.94</option><option value="60">60</option>
+        </select>
+      </label>
+      <details><summary>Edit the transcript text</summary>
+        <textarea id="transcript" rows="6" spellcheck="false" placeholder="SRT, VTT, Whisper JSON, or plain text…"></textarea>
+        <div class="row2">
+          <button id="load-file" class="ghost sm">Open file…</button>
+          <button id="load-sample" class="ghost sm">Sample script</button>
+        </div>
+      </details>
       <input type="file" id="transcript-file" accept=".srt,.vtt,.json,.txt,.fcpxml" hidden>
+      <input type="file" id="video-file" accept="video/*" hidden>
 
       <h2 class="mt">Export</h2>
       <label class="field"><span>Folder</span><input type="text" id="out-dir" class="mono" spellcheck="false"></label>
@@ -159,9 +190,9 @@
 
 <!-- Colour capture ------------------------------------------------- -->
 <dialog id="capture-dialog">
-  <h3>Pick an accent from the footage</h3>
-  <p class="hint">Export a still from Final Cut (Share ▸ Save Current Frame), open it here, then click the colour you want — a shirt, a logo, the sky.</p>
-  <input type="file" id="capture-file" accept="image/*">
+  <h3>Pick an accent from your footage</h3>
+  <p class="hint">This is the frame you are parked on. Click the colour you want — a shirt, a logo, the sky, the brand on the sign. Close this, scrub elsewhere and reopen it to pick from a different shot.</p>
+  <input type="file" id="capture-file" accept="image/*" hidden>
   <canvas id="capture-canvas"></canvas>
   <div class="capture-foot">
     <span id="capture-swatch" class="swatch"></span>

@@ -15,6 +15,9 @@
 // loose and the interface is covered by the browser integration test instead.
 
 /** @param {string} sel @returns {any} */
+import { renderFrame } from '/lib/render/svg.js';
+
+/** @param {string} sel @returns {any} */
 const $ = (sel) => document.querySelector(sel);
 /** @param {string} sel @returns {any[]} */
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -40,9 +43,10 @@ const app = {
   playing: false,
   aspect: '9:16',
   accent: '',
-  plate: null,
   activeWord: null,
   project: 'default',
+  video: { url: null, name: null, width: 0, height: 0, duration: 0, fps: 30, measured: false },
+  captionsName: null,
 };
 
 /* ------------------------------------------------------------------ *
@@ -66,6 +70,7 @@ async function init() {
   buildQuickControls();
   buildAdvanced();
   wireStage();
+  wireMedia();
   wireTemplateActions();
   wireSource();
   wireDialogs();
@@ -173,7 +178,6 @@ function buildQuickControls() {
   $('#q-palette').onchange = () => regenerate();
   $('#q-realestate').onchange = (e) => setPatch('realEstate.enabled', e.target.checked);
   $('#q-normalise').onchange = (e) => setPatch('realEstate.collapse', e.target.checked);
-  $('#pick-colour').onclick = () => $('#capture-dialog').showModal();
 
   $$('.mode').forEach((b) => {
     b.onclick = () => {
@@ -383,16 +387,12 @@ function wireStage() {
   seg('#aspect-seg', (v) => { app.aspect = v; regenerate(); }, 'aspect');
   $('#safe-area').onchange = () => regenerate();
   $('#guides').onchange = () => draw();
-  $('#plate-toggle').onchange = (e) => { if (e.target.checked) $('#plate-file').click(); else { app.plate = null; draw(); } };
-  $('#plate-file').onchange = async (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    app.plate = await fileToDataURL(f);
+  const scrub = $('#scrub');
+  scrub.oninput = () => {
+    app.time = Number(scrub.value);
+    if (app.video.url) $('#video').currentTime = app.time;
     draw();
   };
-
-  const scrub = $('#scrub');
-  scrub.oninput = () => { app.time = Number(scrub.value); draw(); };
   $('#play').onclick = togglePlay;
 
   document.addEventListener('keydown', (e) => {
@@ -401,8 +401,19 @@ function wireStage() {
   });
 }
 
-/** @type {any} */ let raf = 0;
+/** @type {any} */ /** @type {any} */ let raf = 0;
+
 function togglePlay() {
+  const video = $('#video');
+  if (app.video.url) {
+    // With footage loaded the video is the clock; everything follows it.
+    if (video.paused) video.play().catch((e) => toast(message(e), true));
+    else video.pause();
+    return;
+  }
+
+  // No footage yet: run the plan's own timeline so the styles can still be
+  // judged before a video is dropped in.
   app.playing = !app.playing;
   $('#play').textContent = app.playing ? '❚❚' : '▶';
   if (!app.playing) return cancelAnimationFrame(raf);
@@ -414,7 +425,7 @@ function togglePlay() {
     app.time += (now - last) / 1000;
     last = now;
     if (app.time > total) app.time = 0;
-      $('#scrub').value = String(app.time);
+    $('#scrub').value = String(app.time);
     draw();
     raf = requestAnimationFrame(step);
   };
@@ -422,11 +433,169 @@ function togglePlay() {
 }
 
 /* ------------------------------------------------------------------ *
+ * The video
+ * ------------------------------------------------------------------ */
+
+function wireMedia() {
+  const video = $('#video');
+  const drop = $('#drop');
+
+  // Drag and drop anywhere on the window, and accept both files at once —
+  // dropping the clip and its captions together is the common case.
+  for (const evt of ['dragenter', 'dragover']) {
+    document.addEventListener(evt, (e) => { e.preventDefault(); drop.classList.add('is-hot'); });
+  }
+  document.addEventListener('dragleave', (e) => { if (e.target === drop) drop.classList.remove('is-hot'); });
+  document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('is-hot');
+    acceptFiles([...(e.dataTransfer?.files ?? [])]);
+  });
+
+  $('#choose-video').onclick = () => $('#video-file').click();
+  $('#choose-captions').onclick = () => $('#transcript-file').click();
+  $('#video-file').onchange = (e) => acceptFiles([...e.target.files]);
+
+  video.addEventListener('loadedmetadata', () => {
+    app.video.width = video.videoWidth;
+    app.video.height = video.videoHeight;
+    app.video.duration = video.duration;
+    measureFrameRate(video);
+    adoptVideoFrame();
+    regenerate();
+  });
+
+  video.addEventListener('seeked', () => { if (!app.playing) syncFromVideo(); });
+  video.addEventListener('timeupdate', () => { if (!app.playing) syncFromVideo(); });
+  video.addEventListener('play', () => { app.playing = true; $('#play').textContent = '❚❚'; loop(); });
+  video.addEventListener('pause', () => { app.playing = false; $('#play').textContent = '▶'; });
+  video.addEventListener('ended', () => { app.playing = false; $('#play').textContent = '▶'; });
+  video.addEventListener('error', () => toast(`Could not play ${app.video.name}. Final Cut exports play fine; some camera codecs do not.`, true));
+
+  $('#mute').onchange = (e) => { video.muted = e.target.checked; };
+  video.muted = true;
+
+  $('#guides-safe').onchange = (e) => { $('#stage-media').classList.toggle('hide-video', !e.target.checked); };
+
+  $('#fps').onchange = () => { app.video.fps = Number($('#fps').value); regenerate(); };
+}
+
+/** @param {File[]} files */
+async function acceptFiles(files) {
+  for (const f of files) {
+    if (f.type.startsWith('video/') || /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(f.name)) {
+      loadVideo(f);
+    } else if (/\.(srt|vtt|json|txt|fcpxml)$/i.test(f.name)) {
+      $('#transcript').value = await f.text();
+      app.captionsName = f.name;
+      markFiles();
+      regenerate();
+      toast(`Captions loaded from ${f.name}.`);
+    } else {
+      toast(`${f.name} is not a video or a captions file.`, true);
+    }
+  }
+}
+
+/**
+ * Point the page at a local file. `createObjectURL` reads it straight off
+ * disk — nothing is copied, nothing is uploaded, and a 4K clip opens as fast
+ * as a thumbnail.
+ * @param {File} file
+ */
+function loadVideo(file) {
+  const video = $('#video');
+  if (app.video.url) URL.revokeObjectURL(app.video.url);
+  app.video = { ...app.video, url: URL.createObjectURL(file), name: file.name, measured: false };
+  video.src = app.video.url;
+  $('#drop').hidden = true;
+  $('#stage-media').hidden = false;
+  markFiles();
+}
+
+function markFiles() {
+  const rows = $$('.file-row');
+  rows[0].querySelector('.fname').textContent = app.video.name ?? 'No video';
+  rows[0].classList.toggle('is-set', !!app.video.name);
+  rows[1].querySelector('.fname').textContent = app.captionsName ?? 'No captions file';
+  rows[1].classList.toggle('is-set', !!app.captionsName);
+}
+
+/**
+ * Take the frame from the footage instead of making the editor describe it.
+ * The aspect buttons stay available for designing a different cut.
+ */
+function adoptVideoFrame() {
+  const { width, height } = app.video;
+  if (!width || !height) return;
+  const ratio = width / height;
+  const nearest = Object.entries(ASPECT_SIZES)
+    .map(([k, [w, h]]) => ({ k, d: Math.abs(w / h - ratio) }))
+    .sort((a, b) => a.d - b.d)[0];
+  app.aspect = nearest.k;
+  for (const b of $$('#aspect-seg button')) b.classList.toggle('is-on', b.dataset.aspect === app.aspect);
+  showMediaInfo();
+}
+
+function showMediaInfo() {
+  $('#media-info').textContent = app.video.width
+    ? `${app.video.width}×${app.video.height} · ${app.video.fps}fps · ${app.video.duration.toFixed(1)}s`
+    : '';
+}
+
+/**
+ * Measure the real frame rate from the decoder.
+ *
+ * It matters more than it looks: the exporter snaps every caption to a frame
+ * boundary, and snapping 29.97 footage onto a 30fps grid drifts by a whole
+ * frame every 33 seconds. `requestVideoFrameCallback` reports presented
+ * frames against media time, which settles the question in about a second.
+ * Where the browser does not support it, the frame-rate menu stands.
+ *
+ * @param {any} video
+ */
+function measureFrameRate(video) {
+  if (app.video.measured || typeof video.requestVideoFrameCallback !== 'function') return;
+  let first = null;
+  const step = (_now, meta) => {
+    if (!first) { first = meta; video.requestVideoFrameCallback(step); return; }
+    const frames = meta.presentedFrames - first.presentedFrames;
+    const span = meta.mediaTime - first.mediaTime;
+    if (span < 0.9 || frames < 10) { video.requestVideoFrameCallback(step); return; }
+
+    const measured = frames / span;
+    const known = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60];
+    const best = known.reduce((a, b) => (Math.abs(b - measured) < Math.abs(a - measured) ? b : a));
+    // Only trust it when it lands convincingly on a real rate; a dropped
+    // frame or a busy machine can skew a short sample.
+    if (Math.abs(best - measured) < 0.6) {
+      app.video.fps = best;
+      app.video.measured = true;
+      $('#fps').value = String(best);
+      showMediaInfo();
+      regenerate();
+    }
+  };
+  video.requestVideoFrameCallback(step);
+}
+
+function syncFromVideo() {
+  const video = $('#video');
+  app.time = video.currentTime;
+  $('#scrub').value = String(app.time);
+  draw();
+}
+
+/* ------------------------------------------------------------------ *
  * Generate and draw
  * ------------------------------------------------------------------ */
 
 function requestBody(extra = {}) {
-  const [w, h] = ASPECT_SIZES[app.aspect];
+  const [dw, dh] = ASPECT_SIZES[app.aspect];
+  // Design against the footage's real pixel dimensions when there is footage,
+  // so the type in the overlay is the type Final Cut will lay down.
+  const width = app.video.width || dw;
+  const height = app.video.height || dh;
   return {
     text: $('#transcript').value,
     templateId: app.templateId,
@@ -434,7 +603,7 @@ function requestBody(extra = {}) {
     overrides: app.overrides,
     accent: app.accent,
     generatePalette: $('#q-palette').checked,
-    frame: { width: w, height: h, fps: 30, aspect: app.aspect, safeArea: $('#safe-area').checked },
+    frame: { width, height, fps: Number($('#fps').value) || 30, aspect: app.aspect, safeArea: $('#safe-area').checked },
     ...extra,
   };
 }
@@ -448,12 +617,17 @@ async function regenerate() {
     if (pending !== body) return;                     // a newer request already went out
     app.plan = r.plan;
 
-    const total = Math.max(1, ...r.plan.phrases.map((p) => p.end));
+    // The scrubber spans the footage when there is footage — captions rarely
+    // run to the last frame, and a scrubber that stops short of the end of
+    // the clip is a bug report waiting to happen.
+    const captionEnd = Math.max(1, ...r.plan.phrases.map((p) => p.end));
+    const total = app.video.duration || captionEnd;
     const scrub = $('#scrub');
     scrub.max = String(total.toFixed(2));
     // Land on a frame that shows the hierarchy rather than on an empty one:
     // opening a design tool on a blank canvas tells the editor nothing.
-    if (app.time > total || app.time === 0) app.time = firstInterestingTime(r.plan);
+    if (!app.video.url && (app.time > total || app.time === 0)) app.time = firstInterestingTime(r.plan);
+    if (app.time > total) app.time = 0;
     scrub.value = String(app.time);
 
     const s = r.plan.stats;
@@ -467,29 +641,39 @@ async function regenerate() {
   }
 }
 
-let drawing = false, drawAgain = false;
-async function draw() {
+/**
+ * Draw the caption layer for the current time.
+ *
+ * This runs locally, in the page, using the engine module served from /lib —
+ * the same `renderFrame` the CLI uses for preview sheets and the same
+ * keyframe sampling the FCPXML exporter bakes. Asking the server for every
+ * frame would cap the preview at a few frames a second and, worse, would let
+ * a second renderer drift away from the exporter. There is only one.
+ */
+function draw() {
   if (!app.plan) return;
-  if (drawing) { drawAgain = true; return; }
-  drawing = true;
+  const total = app.video.duration || Number($('#scrub').max) || 1;
+  $('#time').textContent = `${app.time.toFixed(2)} / ${total.toFixed(2)}`;
+  highlightLiveWords();
+
   try {
-    $('#time').textContent = `${app.time.toFixed(2)}s`;
-    highlightLiveWords();
-    const svg = await apiText('/api/render', requestBody({
-      time: app.time, guides: $('#guides').checked, plate: app.plate ? undefined : '#16191c',
-    }));
-    const host = $('#canvas');
-    host.innerHTML = svg;
-    if (app.plate) {
-      const el = /** @type {any} */ (host.querySelector('svg'));
-      if (el) { el.style.background = `url(${app.plate}) center/cover`; el.querySelector('rect')?.setAttribute('fill', 'transparent'); }
-    }
+    $('#canvas').innerHTML = renderFrame(app.plan, {
+      time: app.time,
+      plate: app.video.url ? 'none' : '#16191c',
+      guides: $('#guides').checked,
+      scale: 1,
+      standalone: true,
+    });
   } catch (e) {
     toast(message(e), true);
-  } finally {
-    drawing = false;
-    if (drawAgain) { drawAgain = false; draw(); }
   }
+}
+
+/** Follow the video while it plays. */
+function loop() {
+  if (!app.playing) return;
+  syncFromVideo();
+  raf = requestAnimationFrame(loop);
 }
 
 /** The moment the plan is most worth looking at: the first hero word, else the first emphasis. */
@@ -597,10 +781,38 @@ function wireDialogs() {
   };
   $('#w-close').onclick = () => $('#word-dialog').close();
 
-  // --- colour capture ---
+  // --- colour capture, straight off the frame you are parked on ---
   /** @type {HTMLCanvasElement} */
   const canvas = $('#capture-canvas');
   let picked = null;
+
+  /** Copy the current video frame into the picker canvas. */
+  function grabCurrentFrame() {
+    const video = $('#video');
+    if (!app.video.url || !video.videoWidth) return false;
+    const max = 1400;
+    const k = Math.min(1, max / Math.max(video.videoWidth, video.videoHeight));
+    canvas.width = Math.round(video.videoWidth * k);
+    canvas.height = Math.round(video.videoHeight * k);
+    /** @type {any} */ (canvas.getContext('2d')).drawImage(video, 0, 0, canvas.width, canvas.height);
+    return true;
+  }
+
+  $('#pick-colour').onclick = () => {
+    picked = null;
+    $('#capture-use').disabled = true;
+    $('#capture-hex').textContent = '—';
+    $('#capture-swatch').style.background = 'transparent';
+    const fromVideo = grabCurrentFrame();
+    $('#capture-file').hidden = fromVideo;
+    if (!fromVideo) {
+      canvas.width = 0; canvas.height = 0;
+      toast('No video loaded — open a still instead.');
+    }
+    $('#capture-dialog').showModal();
+  };
+
+  // Fallback for picking from a still when there is no footage in the app yet.
   $('#capture-file').onchange = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -615,18 +827,23 @@ function wireDialogs() {
   };
 
   canvas.onclick = async (e) => {
+    if (!canvas.width) return;
     const rect = canvas.getBoundingClientRect();
     const x = Math.round(((e.clientX - rect.left) / rect.width) * canvas.width);
     const y = Math.round(((e.clientY - rect.top) / rect.height) * canvas.height);
-    const r = 14;   // sample a patch, not one pixel — one pixel picks up noise
+
+    // Sample a patch, not a pixel. One pixel picks up sensor noise and
+    // compression artefacts; a small patch picks up the colour of the shirt.
+    const r = 14;
     const sx = Math.max(0, x - r), sy = Math.max(0, y - r);
     const sw = Math.min(canvas.width - sx, r * 2), sh = Math.min(canvas.height - sy, r * 2);
     if (sw <= 0 || sh <= 0) return;
+
     const data = /** @type {any} */ (canvas.getContext('2d')).getImageData(sx, sy, sw, sh).data;
     const res = await api('/api/capture', { pixels: [...data] });
     picked = res.colour;
     $('#capture-swatch').style.background = res.colour;
-    $('#capture-hex').textContent = res.chromatic ? res.colour : `${res.colour} (little colour here)`;
+    $('#capture-hex').textContent = res.chromatic ? res.colour : `${res.colour} — little colour here, try a stronger area`;
     $('#capture-use').disabled = false;
   };
 
@@ -704,15 +921,20 @@ function wireTemplateActions() {
 
 function wireSource() {
   /** @type {any} */ let timer = 0;
-  $('#transcript').oninput = () => { clearTimeout(timer); timer = setTimeout(regenerate, 420); };
-  $('#load-sample').onclick = () => { $('#transcript').value = SAMPLE; regenerate(); };
-  $('#load-file').onclick = () => $('#transcript-file').click();
-  $('#transcript-file').onchange = async (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    $('#transcript').value = await f.text();
+  $('#transcript').oninput = () => {
+    app.captionsName = app.captionsName ?? 'Typed by hand';
+    markFiles();
+    clearTimeout(timer);
+    timer = setTimeout(regenerate, 420);
+  };
+  $('#load-sample').onclick = () => {
+    $('#transcript').value = SAMPLE;
+    app.captionsName = 'Sample script';
+    markFiles();
     regenerate();
   };
+  $('#load-file').onclick = () => $('#transcript-file').click();
+  $('#transcript-file').onchange = (e) => acceptFiles([...e.target.files]);
 
   $('#export').onclick = async () => {
     try {

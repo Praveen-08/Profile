@@ -41,7 +41,7 @@ export function buildPackage(template, extras = {}) {
     magic: PACKAGE_MAGIC,
     packageVersion: PACKAGE_VERSION,
     exported: new Date().toISOString(),
-    generator: 'PK Kinetic Captions 1.0.0',
+    generator: 'PK Kinetic Captions 1.1.0',
     template: { ...template, kind: 'user' },
     ...(extras.thumbnail ? { thumbnail: extras.thumbnail } : {}),
     ...(extras.brand ? { brand: extras.brand } : {}),

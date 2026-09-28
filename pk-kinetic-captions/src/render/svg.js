@@ -26,7 +26,7 @@ const CSS_BLEND = {
 /**
  * @typedef {object} RenderOptions
  * @property {number} time                Seconds on the plan's timeline.
- * @property {string} [plate]             Background CSS colour behind the type.
+ * @property {string} [plate]             Background colour behind the type; "none" leaves it transparent so the page can show video underneath.
  * @property {string} [plateImage]        Optional image href, drawn to fill.
  * @property {ShotAnalysis|null} [shot]   Draws subject/face guides when `guides` is on.
  * @property {boolean} [guides]           Zone, safe-area and subject overlays.
@@ -56,7 +56,11 @@ export function renderFrame(plan, opts) {
   live.sort((a, b) => (a.depth === b.depth ? a.lane - b.lane : a.depth === 'background' ? -1 : 1));
 
   const parts = [];
-  parts.push(`<rect width="${width}" height="${height}" fill="${opts.plate ?? '#101214'}"/>`);
+  // A transparent plate is what makes the overlay usable on top of a playing
+  // video — and it is what lets the blend modes composite against the actual
+  // footage rather than against a flat swatch.
+  const plate = opts.plate ?? '#101214';
+  if (plate !== 'none') parts.push(`<rect width="${width}" height="${height}" fill="${plate}"/>`);
   if (opts.plateImage) {
     parts.push(`<image href="${escapeAttr(opts.plateImage)}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"/>`);
   }
@@ -71,7 +75,7 @@ export function renderFrame(plan, opts) {
   // so the editor can see the type disappear behind it.
   if (behind.length && opts.shot?.subject) {
     const s = opts.shot.subject;
-    parts.push(`<rect x="${(0.5 + s.x - s.w / 2) * width}" y="${(0.5 - s.y - s.h / 2) * height}" width="${s.w * width}" height="${s.h * height}" rx="${s.w * width * 0.14}" fill="${opts.plate ?? '#101214'}" opacity="0.94"/>`);
+    parts.push(`<rect x="${(0.5 + s.x - s.w / 2) * width}" y="${(0.5 - s.y - s.h / 2) * height}" width="${s.w * width}" height="${s.h * height}" rx="${s.w * width * 0.14}" fill="${plate === 'none' ? '#101214' : plate}" opacity="0.94"/>`);
   }
 
   for (const w of front) parts.push(drawWord(w, t, plan));

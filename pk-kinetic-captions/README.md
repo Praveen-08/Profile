@@ -2,15 +2,21 @@
 
 **Turn spoken words into designed motion typography, inside Final Cut Pro.**
 
-PK Visuals · v1.0.0
+PK Visuals · v1.1.0
 
-Generate a transcript once. PK Kinetic Captions reads it, decides which words
-are supporting type and which are the point, assigns typography, colour,
-scale, position and motion from a style you control, and writes a Final Cut
-project you import and play.
+Drop a clip in. Drop its captions beside it. Watch the type land on your
+actual footage, click the words that matter, pull the accent colour out of
+the shot, and export a Final Cut project.
 
 It is not a subtitle tool. There is no mode in which every word comes out the
 same size in the same place.
+
+```
+pkkc ui
+```
+
+Nothing is uploaded. The video is read straight off your Mac and never
+leaves it.
 
 ---
 
@@ -41,16 +47,20 @@ language, and optionally sets figures typographically: *four bedrooms* →
 `4 BEDROOMS`, *six hundred and fifty square metres* → `650m²`, *one point
 nine five million dollars* → `$1.95M`.
 
-**A design interface** (`pkkc ui`) with Quick and Advanced modes, a live
-preview rendered by the same code that writes the FCPXML, a word-level
-editor, colour capture from a frame, and full template management.
+**A design app** (`pkkc ui`) where you drop a clip and its captions and watch
+the typography land on the real footage — Quick and Advanced modes, a
+word-level editor, accent colour picked straight from the playhead, and full
+template management. The preview is drawn by the engine module the page
+imports from the server, so it is literally the same renderer the exporter
+uses, not a second implementation that drifts.
 
 **A template store** outside Final Cut, so a style survives quitting the
 app, a new library, a new project and a reboot.
 
-**102 tests** covering colour maths, frame-exact timing, transcript ingest,
+**109 tests** covering colour maths, frame-exact timing, transcript ingest,
 phrasing invariants, hierarchy budgets, typography, layout, motion, blend
-mapping, determinism, template persistence, packaging and export.
+mapping, determinism, template persistence, packaging, export, and the
+browser/server boundary the app depends on.
 
 ### Honest limits of this release
 
@@ -159,22 +169,32 @@ alphabetically close.
 
 ## 4. Generating captions
 
-Get a transcript however you already do — Final Cut's own **Transcribe to
-Captions** (then Export Captions), Whisper, or a scripted voice-over as plain
-text.
-
-### In the interface
+### The app
 
 ```bash
 pkkc ui
 ```
 
-1. Paste or open the transcript.
-2. Pick a style.
-3. Set the accent, or capture one from the footage.
-4. Press **Generate**.
-5. Scrub, fix any word that is wrong.
-6. **Export FCPXML**.
+1. **Drop your clip on the window.** The app reads its dimensions, measures
+   its real frame rate off the decoder, and sets the frame to match.
+2. **Drop the captions beside it.** In Final Cut: select the clip, *Transcribe
+   to Captions*, then **File ▸ Export Captions…** as SRT. Drop that file in.
+   (Both files can be dropped together.)
+3. **Pick a style.** The preview redraws on your footage as you click.
+4. **Set the accent** — or press *Pick from video*, which hands you the frame
+   you are parked on. Click the shirt, the logo, the sky.
+5. **Click any word** to cycle it between normal, emphasis and hero.
+   Shift-click for colour, font, scale, timing.
+6. **Export FCPXML.**
+
+The caption layer sits over the real video, so the compositing modes preview
+honestly: *Invert* inverts the actual footage underneath, *Ghost* disappears
+over real highlights. That is why the blend choices are worth making here
+rather than guessing at them in the timeline.
+
+Why Final Cut's own transcription rather than something built in: it is free,
+already on your Mac, genuinely accurate, and it means no API key, no monthly
+bill, and no client's property footage leaving your machine.
 
 ### From the command line
 
@@ -259,10 +279,11 @@ Hover a word to see why it scored the way it did.
 
 ## 7. Capturing a colour from the video
 
-In Final Cut, **Share ▸ Save Current Frame** on a shot with the colour you
-want — an agent's shirt, a logo, the sky, the brand on the sign.
+Scrub to the shot you want, press **Pick from video**, and click the colour —
+an agent's shirt, a logo, the sky, the brand on the sign. The app grabs the
+frame you are parked on; there is no still to export.
 
-In the interface: **Pick from video**, open the still, click the colour.
+(With no clip loaded it falls back to opening an image file.)
 
 The picker does not average the region. Averaging a teal shirt against a grey
 wall returns grey. It bins the pixels perceptually, discards crushed blacks
@@ -492,7 +513,7 @@ pkkc demo                         one demo project per built-in style
 ## Development
 
 ```bash
-npm test          # 102 tests
+npm test          # 109 tests
 npm run typecheck # tsc over the JSDoc types
 npm run demo      # six projects and preview sheets
 ```
