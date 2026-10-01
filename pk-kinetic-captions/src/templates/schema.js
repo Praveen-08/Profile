@@ -26,7 +26,9 @@ export const TEMPLATE_VERSION = 1;
  * @property {string} [description]
  * @property {"neutral"|"luxury"|"social"} mood
  * @property {Record<Level, FontSpec>} fonts
- * @property {{primary:string, accent:string, secondary:string, hero:string, neutral:string}} colours
+ * @property {{primary:string, accent:string, secondary:string, hero:string, neutral:string, pattern?:string[], patternScope?:"highlights"|"all"|"phrases"}} colours
+ *   `pattern`: colours cycled in order — over highlighted words, every word, or
+ *   whole phrases (`patternScope`). Empty means no pattern.
  * @property {{base:number, normal:number, emphasis:number, hero:number, minPt:number, maxPt:number}} scale  `base` is a normal word's cap height as a fraction of the frame's SHORT edge.
  * @property {{wordGap:number, lineGap:number, blockPadding:number}} spacing
  * @property {PositionConfig} position
@@ -80,6 +82,7 @@ export const TEMPLATE_VERSION = 1;
  * @typedef {object} InteractionConfig
  * @property {import('../core/types.js').Interaction} preset
  * @property {import('../core/types.js').BlendMode} [blendOverride]
+ * @property {import('../core/types.js').Interaction} [emphasisPreset]  Look for emphasis words, when it differs from the main text's.
  * @property {import('../core/types.js').Interaction} [heroPreset]
  * @property {boolean} heroBehindSubject
  */
@@ -185,6 +188,9 @@ const ENUMS = {
   'hierarchy.emphasisDensity': ['subtle', 'balanced', 'strong'],
   'motion.style': ['minimal', 'smooth', 'editorial', 'cinematic', 'luxury', 'punchy', 'energetic'],
   'interaction.preset': ['clean', 'invert', 'cinematic', 'ghost', 'editorial', 'knockout', 'luminous', 'ink'],
+  'interaction.emphasisPreset': ['clean', 'invert', 'cinematic', 'ghost', 'editorial', 'knockout', 'luminous', 'ink'],
+  'interaction.heroPreset': ['clean', 'invert', 'cinematic', 'ghost', 'editorial', 'knockout', 'luminous', 'ink'],
+  'colours.patternScope': ['highlights', 'all', 'phrases'],
 };
 
 /**
@@ -212,6 +218,13 @@ export function validateTemplate(t) {
   for (const role of ['primary', 'accent', 'secondary', 'hero', 'neutral']) {
     const c = at(`colours.${role}`);
     if (typeof c !== 'string' || !/^#?[0-9a-fA-F]{3,8}$/.test(c)) errors.push(`colours.${role}: "${c}" is not a hex colour.`);
+  }
+  const pattern = at('colours.pattern');
+  if (pattern !== undefined) {
+    if (!Array.isArray(pattern)) errors.push('colours.pattern must be a list of hex colours.');
+    else for (const c of pattern) {
+      if (typeof c !== 'string' || !/^#?[0-9a-fA-F]{3,8}$/.test(c)) errors.push(`colours.pattern: "${c}" is not a hex colour.`);
+    }
   }
 
   const s = at('scale');

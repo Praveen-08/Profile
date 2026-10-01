@@ -191,3 +191,16 @@ test('drags from current Final Cut are accepted', async () => {
   assert.match(swift, /com\.apple\.finalcutpro\.xml\.v1-/);
   assert.match(swift, /hasPrefix\(Self\.fcpxmlType\.rawValue\)/);
 });
+
+test('a dragged project is read at its own frame rate, not a compound clip\'s', () => {
+  // A project carries its compound clips' sequences first. One of audio only
+  // has a format with no rate, and taking it designed a 23.976 project at 30.
+  const xml = '<format id="r1" frameDuration="1001/24000s" width="1080" height="1920"/>'
+    + '<format id="r3" name="FFVideoFormatRateUndefined"/>'
+    + '<media id="m1"><sequence format="r3"><spine/></sequence></media>'
+    + '<event><project name="P"><sequence format="r1"><spine/></sequence></project></event>';
+  assert.deepEqual(frameFromFCPXML(xml, FALLBACK), { width: 1080, height: 1920, fps: 23.976, aspect: '9:16' });
+  // Without a project, the first sequence with a real rate.
+  const clip = xml.replace(/<event>[\s\S]*<\/event>/, '<media id="m2"><sequence format="r1"/></media>');
+  assert.equal(frameFromFCPXML(clip, FALLBACK).fps, 23.976);
+});

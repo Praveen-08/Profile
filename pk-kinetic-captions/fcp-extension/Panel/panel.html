@@ -28,11 +28,36 @@
 </section>
 
 <section class="pstep">
-  <h2>Accent</h2>
-  <div class="accent-row">
+  <h2>Text size <span id="size-orient" class="hint"></span></h2>
+  <div class="size-row">
+    <input type="range" id="size" min="50" max="200" step="5" value="100">
+    <span id="size-val" class="mono">100%</span>
+  </div>
+  <p class="hint">Remembered separately for vertical and horizontal video.</p>
+
+  <h2 class="mt">Main text</h2>
+  <div class="seg wide" id="main-look">
+    <button data-v="clean">Normal</button><button data-v="invert">Difference</button><button data-v="luminous">Screen</button><button data-v="cinematic">Overlay</button>
+  </div>
+  <div class="accent-row mt-s">
+    <input type="color" id="main-colour" value="#f7f6f3">
+    <input type="text" id="main-colour-hex" class="mono" spellcheck="false" value="#f7f6f3">
+  </div>
+
+  <h2 class="mt">Highlights</h2>
+  <div class="seg wide" id="highlight-look">
+    <button data-v="clean">Normal</button><button data-v="invert">Difference</button><button data-v="luminous">Screen</button><button data-v="cinematic">Overlay</button>
+  </div>
+  <div class="accent-row mt-s">
     <input type="color" id="accent" value="#c9a84c">
     <input type="text" id="accent-hex" class="mono" spellcheck="false" value="#c9a84c">
   </div>
+
+  <h2 class="mt">Colour pattern</h2>
+  <div class="seg wide" id="pattern-scope">
+    <button data-v="off" class="is-on">Off</button><button data-v="highlights">Highlights</button><button data-v="all">Every word</button><button data-v="phrases">Phrases</button>
+  </div>
+  <div id="pattern" class="pattern-row mt-s"></div>
 
   <h2 class="mt">Emphasis</h2>
   <div class="seg wide" id="emphasis">
@@ -51,7 +76,10 @@
 </section>
 
 <footer class="pfoot">
-  <button id="apply" class="primary wide" disabled>Send to Final Cut</button>
+  <div id="dragout" class="dragchip is-off" title="Drag onto your Final Cut timeline, above the clip">
+    <b>Drag to timeline</b><span>drop it above your clip, like a title</span>
+  </div>
+  <button id="apply" class="ghost sm wide" disabled>Or import as a new project</button>
   <p id="status" class="hint"></p>
 </footer>
 

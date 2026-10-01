@@ -36,6 +36,54 @@ final class DragWebView: WKWebView {
 
     var onFCPXML: ((String) -> Void)?
 
+    // MARK: - Drag out
+
+    /// Set when the editor presses the panel's "Drag to timeline" chip. The
+    /// page cannot start a native drag itself, so it hands the FCPXML over
+    /// and the next mouse-drag inside the web view becomes the drag.
+    var pendingDragXML: String?
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let xml = pendingDragXML else { return super.mouseDragged(with: event) }
+        pendingDragXML = nil
+
+        // Offered as Final Cut's own types, the way Final Cut offers a clip it
+        // drags. The document says version 1.11, so that is the versioned
+        // flavour declared alongside the unversioned one.
+        let item = NSPasteboardItem()
+        for type in [Self.fcpxmlType, NSPasteboard.PasteboardType("com.apple.finalcutpro.xml.v1-11")] {
+            item.setString(xml, forType: type)
+        }
+        let dragged = NSDraggingItem(pasteboardWriter: item)
+        let image = Self.dragImage()
+        let point = convert(event.locationInWindow, from: nil)
+        dragged.setDraggingFrame(NSRect(x: point.x - image.size.width / 2, y: point.y - image.size.height / 2,
+                                        width: image.size.width, height: image.size.height), contents: image)
+        panelLog.notice("drag out started, \(xml.utf8.count) bytes")
+        beginDraggingSession(with: [dragged], event: event, source: self)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        pendingDragXML = nil
+        super.mouseUp(with: event)
+    }
+
+    /// What the editor sees under the pointer: a small clip-like label.
+    private static func dragImage() -> NSImage {
+        let size = NSSize(width: 180, height: 34)
+        return NSImage(size: size, flipped: false) { rect in
+            NSColor(calibratedRed: 0.79, green: 0.66, blue: 0.30, alpha: 0.92).setFill()
+            NSBezierPath(roundedRect: rect, xRadius: 6, yRadius: 6).fill()
+            let text = NSAttributedString(string: "PK Captions", attributes: [
+                .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
+                .foregroundColor: NSColor.black,
+            ])
+            let t = text.size()
+            text.draw(at: NSPoint(x: (rect.width - t.width) / 2, y: (rect.height - t.height) / 2))
+            return true
+        }
+    }
+
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         // What the drag offers is the first question when a drop does nothing.
         let types = sender.draggingPasteboard.types?.map(\.rawValue).joined(separator: ", ") ?? "none"
@@ -64,6 +112,8 @@ final class DragWebView: WKWebView {
     /// the fallback for anything that hands over a file instead — which is
     /// what happens when someone drags in an export rather than a clip.
     private func fcpxml(from sender: NSDraggingInfo) -> String? {
+        // Our own drag-out passing back over the panel is not a new source.
+        if (sender.draggingSource as AnyObject?) === self { return nil }
         let board = sender.draggingPasteboard
 
         // Whatever versioned flavour this Final Cut offers.
@@ -84,5 +134,16 @@ final class DragWebView: WKWebView {
         }
 
         return nil
+    }
+}
+
+extension DragWebView: NSDraggingSource {
+    func draggingSession(_ session: NSDraggingSession,
+                         sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        context == .outsideApplication ? .copy : []
+    }
+
+    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        panelLog.notice("drag out ended, operation \(operation.rawValue)")
     }
 }

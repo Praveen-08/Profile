@@ -35,3 +35,25 @@ body.panel { min-height: 100vh; overflow-y: auto; background: var(--panel); }
 
 .pfoot { padding: 12px; border-top: 1px solid var(--line); }
 .wide { width: 100%; }
+
+.mt-s { margin-top: 6px; }
+.size-row { display: flex; align-items: center; gap: 10px; }
+.size-row input[type=range] { flex: 1; accent-color: var(--gold); }
+.size-row .mono { min-width: 40px; text-align: right; font-size: 11px; }
+
+.pattern-row { display: flex; gap: 6px; align-items: center; }
+.pattern-row input[type=color] { width: 32px; height: 26px; padding: 0; border: 1px solid var(--line-strong); border-radius: 5px; background: none; }
+.pattern-row button { font: inherit; font-size: 11px; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 4px 8px; cursor: pointer; }
+.pattern-row.is-off { opacity: .35; pointer-events: none; }
+
+/* The drag source. It has to be pressed and dragged, so it looks like a clip
+   rather than a button. */
+.dragchip {
+  display: grid; gap: 2px; padding: 12px; margin-bottom: 8px; text-align: center; cursor: grab;
+  border: 1px solid var(--gold); border-radius: var(--radius); background: rgba(201,168,76,.12);
+  user-select: none; -webkit-user-select: none;
+}
+.dragchip b { font-size: 13px; font-weight: 600; }
+.dragchip span { font-size: 11px; color: var(--muted); }
+.dragchip:active { cursor: grabbing; }
+.dragchip.is-off { opacity: .35; cursor: default; pointer-events: none; }

@@ -34,9 +34,18 @@ export function nearestAspect(ratio) {
 export function frameFromFCPXML(xml, fallback) {
   const source = String(xml ?? '');
 
-  // Prefer the format the sequence actually references.
-  const sequenceRef = /<sequence\b[^>]*\bformat="([^"]+)"/.exec(source)?.[1];
-  const tag = (sequenceRef && findFormat(source, sequenceRef)) || /<format\b[^>]*>/.exec(source)?.[0];
+  // Prefer the format the sequence actually references. A dragged project
+  // carries its compound clips' sequences too, listed before its own — and a
+  // compound of audio only has a format with no frame rate at all. So: the
+  // project's own sequence first, then the first sequence whose format has a
+  // real size and rate, then the first format of any kind.
+  const projectRef = /<project\b[^>]*>\s*<sequence\b[^>]*\bformat="([^"]+)"/.exec(source)?.[1];
+  const sequenceRefs = [...source.matchAll(/<sequence\b[^>]*\bformat="([^"]+)"/g)].map((m) => m[1]);
+  const usable = (tag) => tag && frameRate(tag) && /\bwidth="\d+"/.test(tag);
+  const tag = (projectRef && findFormat(source, projectRef))
+    || sequenceRefs.map((id) => findFormat(source, id)).find(usable)
+    || (sequenceRefs[0] && findFormat(source, sequenceRefs[0]))
+    || /<format\b[^>]*>/.exec(source)?.[0];
   if (!tag) return fallback;
 
   const width = number(/\bwidth="(\d+)"/.exec(tag)?.[1]);

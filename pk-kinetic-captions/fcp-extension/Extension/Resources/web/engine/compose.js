@@ -125,6 +125,20 @@ export function compose(opts) {
   /* 6 — colour ----------------------------------------------------- */
   const palette = resolvePalette(template, opts);
 
+  // A colour pattern cycles a list of colours in reading order — over the
+  // highlighted words, over every word, or phrase by phrase. Counted, never
+  // random, so the same transcript always gets the same colours.
+  const pattern = (template.colours.pattern ?? []).map((c) => parseColour(c));
+  const scope = template.colours.patternScope ?? 'highlights';
+  let patternIndex = 0;
+  /** @param {Level} level @param {number} phraseIndex */
+  const patternColour = (level, phraseIndex) => {
+    if (!pattern.length) return null;
+    if (scope === 'phrases') return pattern[phraseIndex % pattern.length];
+    if (scope === 'highlights' && level === 'normal') return null;
+    return pattern[patternIndex++ % pattern.length];
+  };
+
   /* 7..9 — place, animate, composite ------------------------------- */
   /** @type {PlacedPhrase[]} */
   const placed = [];
@@ -195,7 +209,7 @@ export function compose(opts) {
       const life = atLeastOneFrame(Math.max(end - start, 2 / frame.fps), frame.fps);
 
       const interaction = resolveInteraction(level, template, { depthOverride: o.depth });
-      let colour = o.colour ? parseColour(o.colour) : palette[level];
+      let colour = o.colour ? parseColour(o.colour) : (patternColour(level, pi) ?? palette[level]);
       const adapted = adaptColourForBlend(colour, interaction.blend);
       if (adapted.note && !warnings.includes(adapted.note)) warnings.push(adapted.note);
       colour = adapted.colour;

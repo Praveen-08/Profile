@@ -29,5 +29,10 @@ enum WebBridge {
         /// Script errors and console.error from the page. Inside Final Cut
         /// there is no inspector to see them in, so they go to the system log.
         case log
+        /// "The editor is dragging the captions out — offer this FCPXML."
+        case beginDrag
+        /// The panel's own settings (sizes per orientation, looks, colours).
+        case loadPrefs
+        case savePrefs
     }
 }

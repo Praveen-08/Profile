@@ -91,7 +91,11 @@ export const INTERACTION_ORDER = /** @type {Interaction[]} */ ([
  */
 export function resolveInteraction(level, template, opts = {}) {
   const cfg = template.interaction;
-  const preset = (level === 'hero' && cfg.heroPreset) ? cfg.heroPreset : cfg.preset;
+  // Main text, emphasis and hero can each have their own look — e.g. main text
+  // in Difference while highlights stay clean and coloured.
+  const preset = (level === 'hero' && cfg.heroPreset) ? cfg.heroPreset
+    : (level === 'emphasis' && cfg.emphasisPreset) ? cfg.emphasisPreset
+      : cfg.preset;
   const spec = INTERACTIONS[preset] ?? INTERACTIONS.clean;
   const blend = cfg.blendOverride ?? spec.blend;
 

@@ -254,6 +254,27 @@ extension PKCaptionsViewController: WKScriptMessageHandler {
                 "outputFolder": ProExtensionTimelineBridge.outputFolder.path,
             ])
 
+        case .beginDrag:
+            guard let xml = body["fcpxml"] as? String, !xml.isEmpty else {
+                return reply(to: id, ok: false, payload: ["error": "Nothing to drag yet."])
+            }
+            webView.pendingDragXML = xml
+            reply(to: id, ok: true, payload: [:])
+
+        case .loadPrefs:
+            reply(to: id, ok: true, payload: ["json": store.loadPrefs() ?? ""])
+
+        case .savePrefs:
+            guard let json = body["json"] as? String else {
+                return reply(to: id, ok: false, payload: ["error": "No settings to save."])
+            }
+            do {
+                try store.savePrefs(json)
+                reply(to: id, ok: true, payload: [:])
+            } catch {
+                reply(to: id, ok: false, payload: ["error": error.localizedDescription])
+            }
+
         case .log:
             let text = body["message"] as? String ?? "\(message.body)"
             panelLog.error("page: \(text, privacy: .public)")

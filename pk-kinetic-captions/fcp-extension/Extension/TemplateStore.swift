@@ -31,6 +31,16 @@ struct TemplateStore {
     private var templates: URL { root.appendingPathComponent("templates", isDirectory: true) }
     private var thumbnails: URL { root.appendingPathComponent("thumbnails", isDirectory: true) }
 
+    /// The panel's settings: one small JSON file beside the styles.
+    private var prefs: URL { root.appendingPathComponent("panel-prefs.json") }
+
+    func loadPrefs() -> String? { try? String(contentsOf: prefs, encoding: .utf8) }
+
+    func savePrefs(_ json: String) throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try json.write(to: prefs, atomically: true, encoding: .utf8)
+    }
+
     func prepare() throws {
         for dir in [templates, thumbnails] {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

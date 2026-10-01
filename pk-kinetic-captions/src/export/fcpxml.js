@@ -48,11 +48,18 @@ export const BASIC_TITLE_UID =
 export const PK_TITLE_UID =
   '~/Movies/Motion Templates.localized/Titles.localized/PK Visuals.localized/PK Kinetic Caption.localized/PK Kinetic Caption.moti';
 
-/** Engine blend mode -> FCPXML `adjust-blend` mode. */
+/**
+ * Engine blend mode -> FCPXML `adjust-blend` mode, in Final Cut's own form:
+ * the mode's position in the inspector's Blend Mode menu (separators counted)
+ * and its name. A bare "difference" is silently ignored — the title imports as
+ * Normal. Read back from Final Cut 12.2 for Screen (10), Difference (22) and
+ * Stencil Alpha (25); the rest follow the same menu positions. Normal writes
+ * no mode at all, as Final Cut does.
+ */
 const BLEND_NAMES = {
-  normal: 'normal', difference: 'difference', screen: 'screen', overlay: 'overlay',
-  softLight: 'soft light', multiply: 'multiply',
-  stencilAlpha: 'stencil alpha', silhouetteAlpha: 'silhouette alpha',
+  normal: '', multiply: '4 (Multiply)', screen: '10 (Screen)', overlay: '14 (Overlay)',
+  softLight: '15 (Soft Light)', difference: '22 (Difference)',
+  stencilAlpha: '25 (Stencil Alpha)', silhouetteAlpha: '27 (Silhouette Alpha)',
 };
 
 /**
@@ -63,6 +70,7 @@ const BLEND_NAMES = {
  * @property {number} [easingSamples]    Keyframes baked per transition.
  * @property {boolean} [includeGuideGap] Emit the spine gap that holds the titles.
  * @property {number} [duration]         Sequence duration; defaults to the plan's extent.
+ * @property {"project"|"clip"} [as]     A project to import, or one compound clip to drop on a timeline.
  */
 
 /**
@@ -111,23 +119,48 @@ export function exportFCPXML(plan, opts = {}) {
   const titles = words.map((w, i) => renderTitle(w, i, laneMap.get(w.id) ?? 1, plan, samples, profile)).join('\n');
   void effectName;
 
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE fcpxml>
-<fcpxml version="1.11">
-  <resources>
-    <format id="r1"${formatName ? ` name="${esc(formatName)}"` : ''} frameDuration="${frameDuration}/${timebase}s" width="${plan.frame.width}" height="${plan.frame.height}" colorSpace="1-1-1 (Rec. 709)"/>
-    <effect id="r2" name="${esc(effectName)}" uid="${esc(effectUID)}"/>
-  </resources>
-  <library>
-    <event name="${esc(opts.eventName ?? 'PK Kinetic Captions')}">
-      <project name="${esc(opts.projectName ?? `${plan.templateName} Captions`)}">
-        <sequence format="r1" duration="${toFCPTime(duration, fps)}" tcStart="0s" tcFormat="NDF" audioLayout="stereo" audioRate="48k">
+  const name = opts.projectName ?? `${plan.templateName} Captions`;
+  const seqDuration = toFCPTime(duration, fps);
+  const sequence = `<sequence format="r1" duration="${seqDuration}" tcStart="0s" tcFormat="NDF" audioLayout="stereo" audioRate="48k">
           <spine>
-            <gap name="Captions" offset="0s" start="0s" duration="${toFCPTime(duration, fps)}">
+            <gap name="Captions" offset="0s" start="0s" duration="${seqDuration}">
 ${titles}
             </gap>
           </spine>
-        </sequence>
+        </sequence>`;
+  const format = `<format id="r1"${formatName ? ` name="${esc(formatName)}"` : ''} frameDuration="${frameDuration}/${timebase}s" width="${plan.frame.width}" height="${plan.frame.height}" colorSpace="1-1-1 (Rec. 709)"/>`;
+  const effect = `<effect id="r2" name="${esc(effectName)}" uid="${esc(effectUID)}"/>`;
+
+  // "clip" is the shape Final Cut itself puts on the pasteboard when a
+  // compound clip is dragged: the titles live in a <media> resource and one
+  // top-level <ref-clip> points at it. No library, event or project, so a drop
+  // lands on the timeline as a single clip instead of importing a new project.
+  // The gap inside is transparent once the clip is connected above the video.
+  const xml = opts.as === 'clip'
+    ? `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE fcpxml>
+<fcpxml version="1.11">
+  <resources>
+    ${format}
+    ${effect}
+    <media id="r3" name="${esc(name)}">
+        ${sequence}
+    </media>
+  </resources>
+  <ref-clip ref="r3" name="${esc(name)}" duration="${seqDuration}"/>
+</fcpxml>
+`
+    : `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE fcpxml>
+<fcpxml version="1.11">
+  <resources>
+    ${format}
+    ${effect}
+  </resources>
+  <library>
+    <event name="${esc(opts.eventName ?? 'PK Kinetic Captions')}">
+      <project name="${esc(name)}">
+        ${sequence}
       </project>
     </event>
   </library>
@@ -232,8 +265,8 @@ function renderTransform(w, plan, baseX, baseY, life, fps, samples) {
 
 /** Opacity and the compositing mode. */
 function renderBlend(w, life, fps, samples) {
-  const mode = BLEND_NAMES[w.blend] ?? 'normal';
-  const modeAttr = mode === 'normal' ? '' : ` mode="${esc(mode)}"`;
+  const mode = BLEND_NAMES[w.blend] ?? '';
+  const modeAttr = mode ? ` mode="${esc(mode)}"` : '';
   const times = keyTimes(w.motion.opacity, life, samples);
 
   if (times.length <= 1) {

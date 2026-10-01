@@ -101,12 +101,12 @@ test('opacity keyframes stay inside 0..1', () => {
 test('blend modes are real compositing, not a colour trick', () => {
   const t = merge(builtinById('pk-modern'), { interaction: { preset: 'invert' } });
   const { xml } = exportFCPXML(make(t));
-  assert.ok(xml.includes('mode="difference"'), 'Invert must export as a difference blend');
+  assert.ok(xml.includes(`mode="22 (Difference)"`), 'Invert must export as a difference blend');
 
   const clean = exportFCPXML(make(merge(t, { interaction: { preset: 'clean' } }))).xml;
-  assert.ok(!clean.includes('mode="difference"'));
+  assert.ok(!clean.includes(`mode="22 (Difference)"`));
 
-  for (const [preset, mode] of [['ghost', 'screen'], ['ink', 'multiply'], ['editorial', 'soft light'], ['knockout', 'stencil alpha']]) {
+  for (const [preset, mode] of [['ghost', '10 (Screen)'], ['ink', '4 (Multiply)'], ['editorial', '15 (Soft Light)'], ['knockout', '25 (Stencil Alpha)']]) {
     assert.ok(exportFCPXML(make(merge(t, { interaction: { preset } }))).xml.includes(`mode="${mode}"`), `${preset} should export as ${mode}`);
   }
 });
@@ -272,4 +272,41 @@ test('font sizes are in Final Cut\'s 1080-line units', () => {
     const first = plan.phrases[0].words[0];
     assert.ok(Math.abs(written - first.size * (1080 / frame.height)) < 0.06, `${frame.width}x${frame.height}: wrote ${written} for size ${first.size}`);
   }
+});
+
+test('the clip form is one compound clip, the shape Final Cut drags', () => {
+  const { xml } = exportFCPXML(make(builtinById('pk-bold')), { as: 'clip', projectName: 'PK Captions' });
+  assert.ok(!/<library|<event|<project/.test(xml), 'a timeline drop must not carry a library or project');
+  assert.match(xml, /<media id="r3" name="PK Captions">\s*<sequence/);
+  assert.match(xml, /<\/resources>\s*<ref-clip ref="r3" name="PK Captions" duration="[^"]+"\/>\s*<\/fcpxml>/);
+  assert.ok((xml.match(/<title /g) ?? []).length > 0);
+});
+
+test('main text and highlights can have different blends', () => {
+  const t = merge(builtinById('pk-bold'), { interaction: { preset: 'invert', emphasisPreset: 'clean', heroPreset: 'clean' } });
+  const words = make(t).phrases.flatMap((p) => p.words);
+  assert.ok(words.some((w) => w.level !== 'normal'), 'expected some highlighted words');
+  for (const w of words) assert.equal(w.blend, w.level === 'normal' ? 'difference' : 'normal', `${w.text} (${w.level})`);
+  // Final Cut's own form: menu position and name. A bare "difference" is
+  // silently ignored and the title imports as Normal.
+  const { xml } = exportFCPXML(make(t));
+  assert.match(xml, /<adjust-blend mode="22 \(Difference\)"/);
+  assert.ok(!/mode="difference"|mode="normal"/.test(xml));
+});
+
+test('a colour pattern cycles in reading order, the same every time', () => {
+  const pattern = ['#ff0000', '#00ff00', '#0000ff'];
+  const hex = (c) => [c.r, c.g, c.b].map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+  const run = (scope) => make(merge(builtinById('pk-bold'), { colours: { pattern, patternScope: scope } })).phrases;
+
+  const all = run('all').flatMap((p) => p.words);
+  all.forEach((w, i) => assert.equal(hex(w.colour), pattern[i % 3].slice(1), `word ${i}`));
+
+  const highlights = run('highlights').flatMap((p) => p.words).filter((w) => w.level !== 'normal');
+  highlights.forEach((w, i) => assert.equal(hex(w.colour), pattern[i % 3].slice(1)));
+
+  const phrases = run('phrases');
+  phrases.forEach((p, pi) => p.words.forEach((w) => assert.equal(hex(w.colour), pattern[pi % 3].slice(1))));
+
+  assert.deepEqual(run('all').flatMap((p) => p.words).map((w) => w.colour), all.map((w) => w.colour));
 });

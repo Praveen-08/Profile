@@ -31,7 +31,26 @@ const state = {
   plan: null,
   frame: { width: 1080, height: 1920, fps: 30, aspect: '9:16', safeArea: true },
   userTemplates: [],
+  /**
+   * The editor's own settings, applied over whichever style is chosen.
+   * Sizes are kept per orientation: vertical and horizontal video want
+   * different type sizes, and switching between them should not mean
+   * re-setting the slider each time. Saved through Swift, so they survive
+   * closing the panel.
+   */
+  custom: {
+    sizeVertical: 100,
+    sizeHorizontal: 100,
+    mainLook: 'clean',
+    highlightLook: 'clean',
+    mainColour: /** @type {string|null} */ (null),
+    patternScope: 'off',
+    pattern: ['#c9a84c', '#14b8a6', '#f97362', '#a78bfa'],
+  },
 };
+
+const isVertical = () => state.frame.height > state.frame.width;
+const sizeKey = () => (isVertical() ? 'sizeVertical' : 'sizeHorizontal');
 
 /* ------------------------------------------------------------------ *
  * The native bridge
@@ -120,6 +139,7 @@ function noteSource(text, isError = false) {
 /** Design against the sequence's real dimensions and rate, not a guess. */
 function adoptFrameFrom(xml) {
   state.frame = { ...state.frame, ...frameFromFCPXML(xml, state.frame) };
+  showCustom();
 }
 
 /* ------------------------------------------------------------------ *
@@ -134,7 +154,7 @@ function currentTemplate() {
 function regenerate() {
   if (!state.transcript) return;
   try {
-    const template = merge(currentTemplate(), state.patch);
+    const template = merge(merge(currentTemplate(), state.patch), customPatch(currentTemplate()));
     state.plan = compose({
       transcript: state.transcript,
       template,
@@ -147,10 +167,79 @@ function regenerate() {
     $('#wstats').textContent = `${s.words} words · ${s.byLevel.normal}/${s.byLevel.emphasis}/${s.byLevel.hero}`;
     drawWords();
     $('#apply').disabled = s.words === 0;
+    $('#dragout').classList.toggle('is-off', s.words === 0);
     setStatus(`${state.frame.width}×${state.frame.height} · ${state.frame.fps}fps · ${s.phrases} phrases`);
   } catch (err) {
     setStatus(err.message, true);
   }
+}
+
+/** The editor's settings, as a patch over the chosen style. */
+function customPatch(base) {
+  const c = state.custom;
+  const pct = c[sizeKey()] / 100;
+  return {
+    scale: { base: base.scale.base * pct },
+    interaction: { preset: c.mainLook, emphasisPreset: c.highlightLook, heroPreset: c.highlightLook },
+    colours: {
+      ...(c.mainColour ? { primary: c.mainColour } : {}),
+      pattern: c.patternScope === 'off' ? [] : c.pattern,
+      patternScope: c.patternScope === 'off' ? 'highlights' : c.patternScope,
+    },
+  };
+}
+
+/** Put every control in step with state.custom. */
+function showCustom() {
+  const c = state.custom;
+  $('#size').value = c[sizeKey()];
+  $('#size-val').textContent = `${c[sizeKey()]}%`;
+  $('#size-orient').textContent = isVertical() ? '· vertical' : '· horizontal';
+  setSeg('#main-look', c.mainLook);
+  setSeg('#highlight-look', c.highlightLook);
+  setSeg('#pattern-scope', c.patternScope);
+  const main = c.mainColour ?? toHex(parseColour(currentTemplate().colours.primary));
+  $('#main-colour').value = main;
+  $('#main-colour-hex').value = main;
+  drawPattern();
+}
+
+function drawPattern() {
+  const host = $('#pattern');
+  host.classList.toggle('is-off', state.custom.patternScope === 'off');
+  host.replaceChildren(...state.custom.pattern.map((hex, i) => {
+    const input = document.createElement('input');
+    input.type = 'color';
+    input.value = hex;
+    input.title = 'Click to change · Alt-click to remove';
+    input.oninput = () => { state.custom.pattern[i] = input.value; changed(); };
+    input.onclick = (e) => {
+      if (!e.altKey || state.custom.pattern.length <= 2) return;
+      e.preventDefault();
+      state.custom.pattern.splice(i, 1);
+      drawPattern();
+      changed();
+    };
+    return input;
+  }));
+  if (state.custom.pattern.length < 6) {
+    const add = document.createElement('button');
+    add.textContent = '+ colour';
+    add.onclick = () => { state.custom.pattern.push('#ffffff'); drawPattern(); changed(); };
+    host.append(add);
+  }
+}
+
+function setSeg(sel, value) {
+  for (const b of $$(`${sel} button`)) b.classList.toggle('is-on', b.dataset.v === value);
+}
+
+let saveTimer = 0;
+/** Something the editor set changed: redesign, and remember it. */
+function changed() {
+  regenerate();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => callNative('savePrefs', { json: JSON.stringify(state.custom) }).catch(() => {}), 400);
 }
 
 function drawWords() {
@@ -190,6 +279,10 @@ function buildStyles() {
     el.onclick = () => {
       state.templateId = t.id;
       state.patch = {};
+      state.custom.mainColour = null;
+      state.custom.mainLook = t.interaction?.preset ?? 'clean';
+      state.custom.highlightLook = t.interaction?.heroPreset ?? t.interaction?.preset ?? 'clean';
+      showCustom();
       const accent = toHex(parseColour(t.colours.accent));
       $('#accent').value = accent;
       $('#accent-hex').value = accent;
@@ -257,7 +350,7 @@ $('#apply').onclick = async () => {
     setStatus('Building the titles…');
     const { xml, stats } = exportFCPXML(state.plan, { projectName: `${state.plan.templateName} Captions` });
     await callNative('sendToTimeline', { fcpxml: xml });
-    setStatus(`${stats.titles} titles sent to Final Cut — choose where to import them.`);
+    setStatus(`${stats.titles} titles sent to Final Cut as a new project — choose where to import them.`);
   } catch (err) {
     setStatus(err.message, true);
   }
@@ -272,6 +365,43 @@ $('#accent-hex').onchange = () => {
   } catch { setStatus('That is not a colour.', true); }
 };
 
+$('#size').oninput = () => {
+  state.custom[sizeKey()] = Number($('#size').value);
+  $('#size-val').textContent = `${$('#size').value}%`;
+  changed();
+};
+for (const [sel, key] of [['#main-look', 'mainLook'], ['#highlight-look', 'highlightLook'], ['#pattern-scope', 'patternScope']]) {
+  for (const b of $$(`${sel} button`)) {
+    b.onclick = () => { state.custom[key] = b.dataset.v; setSeg(sel, b.dataset.v); drawPattern(); changed(); };
+  }
+}
+$('#main-colour').oninput = () => {
+  state.custom.mainColour = $('#main-colour').value;
+  $('#main-colour-hex').value = $('#main-colour').value;
+  changed();
+};
+$('#main-colour-hex').onchange = () => {
+  try {
+    const hex = toHex(parseColour($('#main-colour-hex').value));
+    state.custom.mainColour = hex;
+    $('#main-colour').value = hex;
+    changed();
+  } catch { setStatus('That is not a colour.', true); }
+};
+
+/*
+ * Drag to timeline. A web page cannot start a native drag, so pressing the
+ * chip hands Swift the captions as one compound clip — the same FCPXML shape
+ * Final Cut itself puts on the pasteboard for a dragged clip — and Swift
+ * starts the drag as soon as the mouse moves.
+ */
+$('#dragout').addEventListener('mousedown', () => {
+  if (!state.plan) return;
+  const { xml } = exportFCPXML(state.plan, { as: 'clip', projectName: `${state.plan.templateName} Captions` });
+  callNative('beginDrag', { fcpxml: xml }).catch((err) => setStatus(err.message, true));
+});
+$('#dragout').addEventListener('dragstart', (e) => e.preventDefault());
+
 seg('#emphasis', (v) => { state.patch.hierarchy = { ...(state.patch.hierarchy ?? {}), emphasisDensity: v }; });
 seg('#density', (v) => { state.patch.hierarchy = { ...(state.patch.hierarchy ?? {}), captionDensity: v }; });
 
@@ -280,6 +410,17 @@ seg('#density', (v) => { state.patch.hierarchy = { ...(state.patch.hierarchy ?? 
  * ------------------------------------------------------------------ */
 
 buildStyles();
+showCustom();
+
+callNative('loadPrefs')
+  .then(({ json }) => {
+    if (!json) return;
+    const saved = JSON.parse(json);
+    state.custom = { ...state.custom, ...saved, mainColour: saved.mainColour ?? null };
+    showCustom();
+    regenerate();
+  })
+  .catch(() => { /* first run, or outside Final Cut */ });
 
 callNative('status')
   .then(({ connected }) => {
