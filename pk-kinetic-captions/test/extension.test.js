@@ -165,8 +165,13 @@ test('the panel window opens at a usable size', async () => {
   // has none, so without explicit constraints it opened {0, 28} — and Final
   // Cut saved that and restored it on every later open.
   const swift = await fs.readFile(path.join(EXT, 'Extension/PKCaptionsViewController.swift'), 'utf8');
-  assert.match(swift, /widthAnchor\.constraint\(greaterThanOrEqualToConstant: \d+\)/);
-  assert.match(swift, /heightAnchor\.constraint\(greaterThanOrEqualToConstant: \d+\)/);
+  assert.match(swift, /preferred\(container\.widthAnchor\.constraint\(equalToConstant: \d+\)\)/);
+  assert.match(swift, /preferred\(container\.heightAnchor\.constraint\(equalToConstant: \d+\)\)/);
+  // A required size breaks when Final Cut restores a smaller saved frame: the
+  // view outgrows the window and the top of the panel is clipped.
+  assert.ok(!/(width|height)Anchor\.constraint\(greaterThanOrEqualToConstant/.test(swift), 'a required minimum size clips the panel in a smaller window');
+  assert.match(swift, /priority = \.defaultLow/);
+  assert.ok(!/preferredContentSize =/.test(swift), 'preferredContentSize pins the view to one size');
 });
 
 test('the panel page is not loaded from file://', async () => {

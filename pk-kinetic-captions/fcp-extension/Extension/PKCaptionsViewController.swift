@@ -78,15 +78,19 @@ final class PKCaptionsViewController: NSViewController {
             // size, not its frame. A web view has no intrinsic size, so
             // without these the fitting size is zero and the panel opens as a
             // bare title bar (measured: {0, 28}) — which Final Cut then saves
-            // and restores on every later open. Kept in step with
-            // ContentViewMinimumWidth/Height in Info.plist.
-            container.widthAnchor.constraint(greaterThanOrEqualToConstant: 380),
-            container.heightAnchor.constraint(greaterThanOrEqualToConstant: 520),
+            // and restores on every later open.
+            //
+            // Preferred, never required: Final Cut can restore a saved frame
+            // smaller than any minimum given here, and a required height then
+            // makes the view taller than the window — AppKit's origin is the
+            // bottom left, so the top of the panel (drop zone, status) is cut
+            // off. The window's minimum is ContentViewMinimum* in Info.plist.
             preferred(container.widthAnchor.constraint(equalToConstant: 420)),
             preferred(container.heightAnchor.constraint(equalToConstant: 720)),
         ])
+        // No preferredContentSize: Final Cut held the view at exactly that
+        // size, so it neither filled a larger window nor shrank to a smaller one.
         view = container
-        preferredContentSize = container.frame.size
     }
 
     /// Sends uncaught errors, rejected promises and console.error to the
@@ -110,9 +114,11 @@ final class PKCaptionsViewController: NSViewController {
     })();
     """
 
-    /// A size the window opens at but the editor can resize away from.
+    /// A size the window opens at but the editor can resize away from. Low
+    /// enough that the window always wins, but above the fitting-size
+    /// compression priority (50), so the first open still has a size.
     private func preferred(_ constraint: NSLayoutConstraint) -> NSLayoutConstraint {
-        constraint.priority = .dragThatCannotResizeWindow
+        constraint.priority = .defaultLow
         return constraint
     }
 
@@ -150,6 +156,11 @@ final class PKCaptionsViewController: NSViewController {
     /// FCPXML, which already contains its captions with their real word
     /// timing — so nothing has to be exported, and nothing has to be typed.
     private func receiveDraggedFCPXML(_ xml: String) {
+        // Keep the last drop, so "no captions found" can be checked against
+        // what Final Cut actually sent. Inside the extension's container:
+        // ~/Library/Containers/nz.pkvisuals.kinetic-captions.extension/Data/tmp/
+        let copy = FileManager.default.temporaryDirectory.appendingPathComponent("last-drop.fcpxml")
+        try? xml.write(to: copy, atomically: true, encoding: .utf8)
         send(event: "timelineDropped", payload: ["fcpxml": xml])
     }
 

@@ -97,15 +97,24 @@ function useTimelineXML(xml, how) {
   try {
     const transcript = ingest(xml, { format: 'fcpxml' });
     if (!transcript.words.length) {
-      return setStatus('That timeline has no captions on it. Transcribe the clip in Final Cut first.', true);
+      return noteSource('That timeline has no captions on it. Transcribe the clip in Final Cut first.', true);
     }
     state.transcript = transcript;
     adoptFrameFrom(xml);
-    $('#source-note').textContent = `${transcript.words.length} words ${how}.`;
+    noteSource(`${transcript.words.length} words ${how}.`);
     regenerate();
   } catch (err) {
-    setStatus(`Could not read that timeline: ${err.message}`, true);
+    noteSource(`Could not read that timeline: ${err.message}`, true);
   }
+}
+
+/**
+ * Report on a drop right under the drop zone. The status line is at the foot
+ * of the panel, out of sight of where the editor just dropped something.
+ */
+function noteSource(text, isError = false) {
+  $('#source-note').textContent = text;
+  $('#source-note').style.color = isError ? 'var(--danger)' : '';
 }
 
 /** Design against the sequence's real dimensions and rate, not a guess. */
@@ -230,7 +239,7 @@ document.addEventListener('drop', async (e) => {
   const file = [...(e.dataTransfer?.files ?? [])][0];
   if (file) {
     const text = await file.text();
-    if (!text.includes('<fcpxml')) return setStatus(`${file.name} is not a Final Cut XML export.`, true);
+    if (!text.includes('<fcpxml')) return noteSource(`${file.name} is not a Final Cut XML export.`, true);
     return useTimelineXML(text, `from ${file.name}`);
   }
 
@@ -239,7 +248,7 @@ document.addEventListener('drop', async (e) => {
     if (payload?.includes('<fcpxml')) return useTimelineXML(payload, 'dragged in');
   }
 
-  setStatus('That drop carried no timeline data.', true);
+  noteSource('That drop carried no timeline data.', true);
 });
 
 $('#apply').onclick = async () => {

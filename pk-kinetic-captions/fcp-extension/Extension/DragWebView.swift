@@ -37,7 +37,10 @@ final class DragWebView: WKWebView {
     var onFCPXML: ((String) -> Void)?
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        fcpxml(from: sender) != nil ? .copy : super.draggingEntered(sender)
+        // What the drag offers is the first question when a drop does nothing.
+        let types = sender.draggingPasteboard.types?.map(\.rawValue).joined(separator: ", ") ?? "none"
+        panelLog.notice("drag entered, offering: \(types, privacy: .public)")
+        return fcpxml(from: sender) != nil ? .copy : super.draggingEntered(sender)
     }
 
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
@@ -50,6 +53,7 @@ final class DragWebView: WKWebView {
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         guard let xml = fcpxml(from: sender) else { return super.performDragOperation(sender) }
+        panelLog.notice("dropped FCPXML, \(xml.utf8.count) bytes")
         onFCPXML?(xml)
         return true
     }

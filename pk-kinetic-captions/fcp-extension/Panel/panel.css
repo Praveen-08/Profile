@@ -2,14 +2,17 @@
    this is a single scrolling stack — no side rails, and no video preview,
    because Final Cut's own viewer is the preview. */
 
-body.panel { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--panel); }
-.pbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+/* The whole stack scrolls. It used to be a 100vh flex column with only the
+   last step scrolling, so in a short window (Final Cut opened it at 480px) the
+   steps above overflowed upwards and the drop zone and status line were
+   unreachable. */
+body.panel { min-height: 100vh; overflow-y: auto; background: var(--panel); }
+.pbar { position: sticky; top: 0; z-index: 2; background: var(--panel); display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
 .ptitle { font-size: 12px; font-weight: 600; }
 .plink { font-size: 10px; color: var(--muted); }
 .plink.is-live { color: var(--ok); }
 
 .pstep { padding: 12px; border-bottom: 1px solid var(--line); }
-.pstep:last-of-type { flex: 1; min-height: 0; overflow-y: auto; }
 .pstep h2 { margin-bottom: 8px; }
 
 .pdrop {
