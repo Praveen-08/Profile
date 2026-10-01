@@ -36,5 +36,7 @@ enum WebBridge {
         case savePrefs
         /// A frame of the editor's footage for the preview.
         case frame
+        /// Ask the editor, once, for the folder or drive that holds a clip.
+        case grantAccess
     }
 }

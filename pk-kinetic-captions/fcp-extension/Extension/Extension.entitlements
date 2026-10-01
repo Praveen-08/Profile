@@ -11,6 +11,12 @@
 	     Nothing is fetched from the network. -->
 	<key>com.apple.security.network.client</key><true/>
 
+	<!-- With the hardened runtime, macOS only loads code signed by our own
+	     team. The extension must load Final Cut's ProExtension.framework,
+	     which Apple signs (team PTN9T2S29T), so library validation is relaxed
+	     for this process only. motionVFX's extensions carry the same key. -->
+	<key>com.apple.security.cs.disable-library-validation</key><true/>
+
 	<!-- Reading a dragged .fcpxml, and writing the finished one somewhere Final
 	     Cut can open it (~/Movies/PK Kinetic Captions). -->
 	<key>com.apple.security.files.user-selected.read-write</key><true/>
@@ -24,16 +30,10 @@
 		<string>/Library/Application Support/PK Visuals/</string>
 	</array>
 
-	<!-- The preview shows the editor's own footage, which lives wherever their
-	     libraries do — often an external drive. Read-only. -->
-	<key>com.apple.security.temporary-exception.files.absolute-path.read-only</key>
-	<array>
-		<string>/Volumes/</string>
-	</array>
-	<key>com.apple.security.temporary-exception.files.home-relative-path.read-only</key>
-	<array>
-		<string>/</string>
-	</array>
+	<!-- Footage: no blanket access to the disk. The editor grants a folder or
+	     drive once, in a macOS open panel, and the choice is kept as a
+	     security-scoped bookmark (MediaAccess.swift). -->
+	<key>com.apple.security.files.bookmarks.app-scope</key><true/>
 
 	<!-- Talking to Final Cut. The access group has to be one Final Cut actually
 	     publishes; library.inspection is what motionVFX's working extension

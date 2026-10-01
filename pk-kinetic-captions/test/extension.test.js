@@ -234,3 +234,34 @@ test('the preview finds the picture under the playhead, through Final Cut\'s clo
   assert.equal(pictureAt(segs, 16).still, true);
   assert.equal(pictureAt(segs, 25), null);
 });
+
+test('security: the extension asks for no blanket access to the disk', async () => {
+  const ent = await fs.readFile(path.join(EXT, 'Extension/Extension.entitlements'), 'utf8');
+  // Footage is granted per folder by the editor, kept as a bookmark.
+  assert.match(ent, /files\.bookmarks\.app-scope<\/key>\s*<true\/>/);
+  assert.ok(!/absolute-path\.read-only/.test(ent), 'no read access to every drive');
+  assert.ok(!/home-relative-path\.read-only/.test(ent), 'no read access to the whole home folder');
+  // The only exception left is the shared styles folder.
+  const exceptions = [...ent.matchAll(/temporary-exception[^<]*<\/key>\s*<array>([\s\S]*?)<\/array>/g)].map((m) => m[1].trim());
+  assert.deepEqual(exceptions, ['<string>/Library/Application Support/PK Visuals/</string>']);
+  assert.ok(!/get-task-allow/.test(ent), 'never ship the debugger entitlement');
+});
+
+test('security: release builds are Developer ID signed with the hardened runtime', async () => {
+  const yml = await fs.readFile(path.join(EXT, 'project.yml'), 'utf8');
+  assert.match(yml, /ENABLE_HARDENED_RUNTIME: YES/);
+  assert.match(yml, /CODE_SIGN_IDENTITY: "Developer ID Application:/);
+  assert.match(yml, /OTHER_CODE_SIGN_FLAGS: --timestamp/);
+  assert.match(yml, /ARCHS: "arm64 x86_64"/);
+  assert.match(yml, /CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO/);
+});
+
+test('security: untrusted input from a dropped timeline cannot crash or escape the panel', async () => {
+  const grabber = await fs.readFile(path.join(EXT, 'Extension/FrameGrabber.swift'), 'utf8');
+  assert.ok(!/URL\(string: [^)]*\)!/.test(grabber), 'no force-unwrapped URL from untrusted paths');
+  assert.match(grabber, /static func mediaURL/);
+  const vc = await fs.readFile(path.join(EXT, 'Extension/PKCaptionsViewController.swift'), 'utf8');
+  assert.match(vc, /extension PKCaptionsViewController: WKNavigationDelegate/, 'navigation must be locked to the bundle');
+  const html = await fs.readFile(path.join(EXT, 'Panel/panel.html'), 'utf8');
+  assert.match(html, /Content-Security-Policy[^>]*default-src 'self'[^>]*object-src 'none'/);
+});

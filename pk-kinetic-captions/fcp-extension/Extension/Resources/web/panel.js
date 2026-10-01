@@ -99,7 +99,9 @@ window.pkkc = {
     const entry = pending.get(payload.__id);
     if (!entry) return;
     pending.delete(payload.__id);
-    payload.__ok ? entry.resolve(payload) : entry.reject(new Error(payload.error ?? 'Final Cut refused the request.'));
+    if (payload.__ok) return entry.resolve(payload);
+    // Keep the reply's other fields (e.g. which folder needs access) on the error.
+    entry.reject(Object.assign(new Error(payload.error ?? 'Final Cut refused the request.'), payload));
   },
 };
 
@@ -360,9 +362,25 @@ function pumpFrame() {
   const height = Math.round(Math.min(1080, $('#pv').clientHeight * (window.devicePixelRatio || 1)));
   callNative('frame', { path: pic.src, time: pic.time, height })
     .then(({ image }) => { img.src = image; img.hidden = false; frameShown = { src: pic.src, time: pic.time }; })
-    .catch((err) => setStatus(`Preview: ${err.message}`, true))
+    .catch((err) => {
+      if (err.message === 'needsAccess') return askForAccess(pic.src, err.folder);
+      setStatus(`Preview: ${err.message}`, true);
+    })
     .finally(() => { frameBusy = false; pumpFrame(); });
 }
+
+/** Footage not yet allowed: offer the one-time grant on the preview itself. */
+let accessFor = '';
+function askForAccess(src, folder) {
+  accessFor = src;
+  $('#pv-access-folder').textContent = folder || 'this drive';
+  $('#pv-access').hidden = false;
+}
+$('#pv-access-btn').onclick = () => {
+  callNative('grantAccess', { path: accessFor })
+    .then(() => { $('#pv-access').hidden = true; frameShown = { src: '', time: -1 }; requestFrame(state.time); })
+    .catch((err) => setStatus(err.message, true));
+};
 
 function seek(t) {
   state.time = Math.max(0, Math.min(t, planDuration()));

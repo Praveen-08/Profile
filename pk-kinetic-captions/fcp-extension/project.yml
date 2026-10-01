@@ -25,13 +25,22 @@ settings:
     SWIFT_VERSION: "5.9"
     MARKETING_VERSION: "1.1.0"
     CURRENT_PROJECT_VERSION: "1"
-    CODE_SIGN_STYLE: Automatic
-    # Set this to your team, or leave it and pick the team in Xcode's
-    # Signing & Capabilities tab on first build.
-    # DEVELOPMENT_TEAM: XXXXXXXXXX
-    # Off for a build that runs on this Mac only. Turn it on (with a Developer
-    # ID and notarisation) before giving the app to anyone else.
-    ENABLE_HARDENED_RUNTIME: NO
+    # Signed with PK Visuals' Developer ID on every build — not ad hoc. macOS
+    # remembers a permission (such as reading an external drive) against the
+    # app's signature; an ad-hoc signature changes on every build, which is
+    # why the drive-access prompt kept coming back. A stable Developer ID
+    # signature is asked once and remembered across updates.
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: W7SLDL8U36
+    CODE_SIGN_IDENTITY: "Developer ID Application: praveenkumar subramaniyan (W7SLDL8U36)"
+    OTHER_CODE_SIGN_FLAGS: --timestamp
+    # Required for notarisation, and what makes the signature meaningful.
+    ENABLE_HARDENED_RUNTIME: YES
+    # Never ship the debugger entitlement (mExtension does — we do not).
+    CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+    # Apple Silicon and Intel: Final Cut still runs on both.
+    ARCHS: "arm64 x86_64"
+    ONLY_ACTIVE_ARCH: NO
 
 targets:
 

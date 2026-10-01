@@ -25,6 +25,7 @@ final class PKCaptionsViewController: NSViewController {
     private var bridge: TimelineBridge = MockTimelineBridge()
     private let store = TemplateStore()
     private let frames = FrameGrabber()
+    private lazy var media = MediaAccess(storeRoot: store.root)
 
     /// The FCPXML the panel last produced, held so it can be dragged out.
     private var pendingFCPXML: String?
@@ -62,6 +63,7 @@ final class PKCaptionsViewController: NSViewController {
         // Lets Safari's Develop menu attach to the panel while it runs in Final Cut.
         if #available(macOS 13.3, *) { web.isInspectable = true }
 
+        web.navigationDelegate = self
         webView = web
 
         // Final Cut sizes the extension window from this view's frame. A bare
@@ -267,11 +269,28 @@ extension PKCaptionsViewController: WKScriptMessageHandler {
                 return reply(to: id, ok: false, payload: ["error": "No clip to preview."])
             }
             let height = body["height"] as? Double ?? 720
+            // Say so plainly when the footage is somewhere not yet allowed, so
+            // the panel can offer the one-time "Allow access" instead of a
+            // black preview.
+            if let url = FrameGrabber.mediaURL(path), !media.canRead(url) {
+                let folder = media.suggestedFolder(for: url)
+                return reply(to: id, ok: false, payload: [
+                    "error": "needsAccess", "folder": folder.lastPathComponent, "path": path,
+                ])
+            }
             frames.frame(path: path, seconds: time, maxHeight: CGFloat(height)) { [weak self] result in
                 switch result {
                 case .success(let url): self?.reply(to: id, ok: true, payload: ["image": url])
                 case .failure(let error): self?.reply(to: id, ok: false, payload: ["error": error.localizedDescription])
                 }
+            }
+
+        case .grantAccess:
+            guard let path = body["path"] as? String, let url = FrameGrabber.mediaURL(path) else {
+                return reply(to: id, ok: false, payload: ["error": "No clip to grant access for."])
+            }
+            media.requestAccess(for: url, from: view.window) { [weak self] ok in
+                self?.reply(to: id, ok: ok, payload: ok ? [:] : ["error": "Access was not given."])
             }
 
         case .loadPrefs:
@@ -305,5 +324,19 @@ private extension String {
             .replacingOccurrences(of: "\"", with: "\\\"")
             .replacingOccurrences(of: "\n", with: "\\n")
         return "\"\(escaped)\""
+    }
+}
+
+// MARK: - Navigation lock
+
+/// The panel only ever shows its own bundled pages. Anything else — a link, a
+/// redirect, a dropped URL — is refused, so nothing from outside can run with
+/// the panel's access to the bridge.
+extension PKCaptionsViewController: WKNavigationDelegate {
+    func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        let allowed = action.request.url?.scheme == PanelSchemeHandler.scheme
+        if !allowed { panelLog.error("blocked navigation to \(action.request.url?.absoluteString ?? "?", privacy: .public)") }
+        decisionHandler(allowed ? .allow : .cancel)
     }
 }

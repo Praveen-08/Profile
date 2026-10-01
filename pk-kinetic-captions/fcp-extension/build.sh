@@ -106,9 +106,18 @@ bold "Generating the Xcode project"
 ok "$APP_NAME.xcodeproj"
 
 bold "Building"
-# Ad-hoc signing ("-"), not unsigned: macOS refuses to register an unsigned
-# app extension, and refuses it silently — an empty Extensions menu with no
-# error anywhere. Ad-hoc is enough for a panel running on this Mac only.
+# Signed with the Developer ID set in project.yml. Without that certificate
+# (another developer's Mac) fall back to ad-hoc — never unsigned: macOS refuses
+# an unsigned extension silently. An ad-hoc build works on this Mac only, and
+# macOS will ask for permissions again after every rebuild.
+DEV_ID="Developer ID Application: praveenkumar subramaniyan (W7SLDL8U36)"
+SIGN_ARGS=()
+if security find-identity -v -p codesigning | grep -q "$DEV_ID"; then
+  ok "signing as $DEV_ID"
+else
+  bad "Developer ID not in this keychain — signing ad hoc (this Mac only)"
+  SIGN_ARGS=(CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS="")
+fi
 BUILD_DIR="$HERE/.build"
 BUILT="$BUILD_DIR/Build/Products/Release/$APP_NAME.app"
 APPEX="Contents/PlugIns/PKCaptionsExtension.appex"
@@ -119,12 +128,11 @@ xcodebuild \
   -project "$HERE/$APP_NAME.xcodeproj" \
   -scheme "$APP_NAME" \
   -configuration Release \
+  -destination 'generic/platform=macOS' \
   -derivedDataPath "$BUILD_DIR" \
-  CODE_SIGN_IDENTITY="-" \
-  CODE_SIGN_STYLE=Manual \
-  DEVELOPMENT_TEAM="" \
   CODE_SIGNING_REQUIRED=YES \
   CODE_SIGNING_ALLOWED=YES \
+  ${SIGN_ARGS[@]+"${SIGN_ARGS[@]}"} \
   build > "$HERE/.build.log" 2>&1
 STATUS=$?
 grep -E "error:|warning: .*(Swift|Info.plist)" "$HERE/.build.log" | sort -u | head -20
@@ -145,6 +153,9 @@ PLIST="$BUILT/$APPEX/Contents/Info.plist"
 codesign -d --entitlements - "$BUILT/$APPEX" 2>/dev/null | grep -q "com.apple.security.app-sandbox" \
   && ok "sandboxed" \
   || die "The extension is not sandboxed, and macOS refuses unsandboxed extensions. Check CODE_SIGN_ENTITLEMENTS in project.yml."
+codesign -d --entitlements - "$BUILT/$APPEX" 2>/dev/null | grep -q "get-task-allow" \
+  && die "The extension carries the debugger entitlement (get-task-allow). Never ship that." \
+  || ok "no debugger entitlement"
 otool -L "$BUILT/$APPEX/Contents/MacOS/"* 2>/dev/null | grep -q "ProExtension.framework" \
   && ok "links Final Cut's ProExtension.framework" \
   || die "The extension does not link ProExtension.framework, so it would crash on launch inside Final Cut."

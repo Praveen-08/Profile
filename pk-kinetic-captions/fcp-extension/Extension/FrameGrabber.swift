@@ -19,11 +19,16 @@ final class FrameGrabber {
     ///   - maxHeight: pixel height of the returned frame.
     func frame(path: String, seconds: Double, maxHeight: CGFloat,
                completion: @escaping (Result<String, Error>) -> Void) {
+        // The path comes from a dropped FCPXML, which is untrusted input: parse
+        // it without force-unwrapping (a malformed one crashed the panel) and
+        // read nothing that is not a video or image file.
+        guard let url = Self.mediaURL(path) else {
+            return completion(.failure(FrameError.notMedia))
+        }
         queue.async {
-            let url = path.hasPrefix("file://") ? URL(string: path)! : URL(fileURLWithPath: path)
             // A still on the timeline is an image file, which AVFoundation
             // cannot read as an asset.
-            if ["png", "jpg", "jpeg", "heic", "tif", "tiff", "gif", "bmp", "webp"].contains(url.pathExtension.lowercased()) {
+            if Self.stills.contains(url.pathExtension.lowercased()) {
                 let result: Result<String, Error> = Self.still(url: url, maxHeight: maxHeight)
                 return DispatchQueue.main.async { completion(result) }
             }
@@ -43,6 +48,25 @@ final class FrameGrabber {
         }
     }
 
+    enum FrameError: LocalizedError {
+        case notMedia
+        var errorDescription: String? { "That is not a video or image file." }
+    }
+
+    static let stills: Set<String> = ["png", "jpg", "jpeg", "heic", "heif", "tif", "tiff", "gif", "bmp", "webp"]
+    static let movies: Set<String> = ["mov", "mp4", "m4v", "mxf", "avi", "mts", "m2ts", "3gp", "hevc", "braw", "r3d", "insv", "lrv"]
+
+    /// A local video or image file named by `path`, or nil.
+    static func mediaURL(_ path: String) -> URL? {
+        let url: URL?
+        if path.hasPrefix("file://") { url = URL(string: path) }
+        else if path.hasPrefix("/") { url = URL(fileURLWithPath: path) }
+        else { url = nil }
+        guard let url, url.isFileURL else { return nil }
+        let ext = url.pathExtension.lowercased()
+        return stills.contains(ext) || movies.contains(ext) ? url.standardizedFileURL : nil
+    }
+
     private static func still(url: URL, maxHeight: CGFloat) -> Result<String, Error> {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
@@ -58,7 +82,7 @@ final class FrameGrabber {
     private func generator(for path: String, maxHeight: CGFloat) -> AVAssetImageGenerator {
         let key = "\(path)#\(Int(maxHeight))"
         if let g = generators[key] { return g }
-        let url = path.hasPrefix("file://") ? URL(string: path)! : URL(fileURLWithPath: path)
+        let url = Self.mediaURL(path) ?? URL(fileURLWithPath: "/dev/null")
         let g = AVAssetImageGenerator(asset: AVURLAsset(url: url))
         g.appliesPreferredTrackTransform = true
         g.maximumSize = CGSize(width: 0, height: maxHeight)

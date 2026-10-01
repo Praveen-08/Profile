@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- Everything is local: scripts and styles from the bundle only, frames as
+     data: images from Swift, and no network connections at all. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>PK Kinetic Captions</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="panel.css">
@@ -28,6 +31,10 @@
     <div id="pv-svg"></div>
     <div id="pv-sel" class="pv-sel" hidden></div>
     <p id="pv-empty" class="pv-empty">No video in what was dropped — drag the project for a picture.</p>
+    <div id="pv-access" class="pv-access" hidden>
+      <p>Allow the panel to read your footage on <b id="pv-access-folder"></b> to preview over it. You'll only be asked once.</p>
+      <button id="pv-access-btn" class="pv-btn">Allow access…</button>
+    </div>
   </div>
   <div class="pv-bar">
     <button id="pv-play" class="pv-btn" title="Play / pause">▶</button>
