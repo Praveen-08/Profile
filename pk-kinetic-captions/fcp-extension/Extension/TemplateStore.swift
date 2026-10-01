@@ -16,8 +16,13 @@ struct TemplateStore {
     let root: URL
 
     init() {
-        let support = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        // The real ~/Library, not FileManager's: inside the sandbox that
+        // answers with the container's Application Support, and a style saved
+        // there would never reach the CLI or the app. Reaching the real folder
+        // is what the home-relative-path exception in the entitlements is for.
+        let support = ProExtensionTimelineBridge.realHome
+            .appendingPathComponent("Library", isDirectory: true)
+            .appendingPathComponent("Application Support", isDirectory: true)
         root = support
             .appendingPathComponent("PK Visuals", isDirectory: true)
             .appendingPathComponent("Kinetic Captions", isDirectory: true)

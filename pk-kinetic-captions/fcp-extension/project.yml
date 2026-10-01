@@ -16,7 +16,8 @@ name: PKKineticCaptions
 options:
   bundleIdPrefix: nz.pkvisuals
   deploymentTarget:
-    macOS: "12.0"
+    # Final Cut 12.2 itself needs 15.6, and ProExtension.framework is built for it.
+    macOS: "15.6"
   createIntermediateGroups: true
 
 settings:
@@ -28,7 +29,9 @@ settings:
     # Set this to your team, or leave it and pick the team in Xcode's
     # Signing & Capabilities tab on first build.
     # DEVELOPMENT_TEAM: XXXXXXXXXX
-    ENABLE_HARDENED_RUNTIME: YES
+    # Off for a build that runs on this Mac only. Turn it on (with a Developer
+    # ID and notarisation) before giving the app to anyone else.
+    ENABLE_HARDENED_RUNTIME: NO
 
 targets:
 
@@ -37,18 +40,15 @@ targets:
     platform: macOS
     sources:
       - path: Host
-    info:
-      path: Host/Info.plist
-      properties:
-        CFBundleName: PK Kinetic Captions
-        CFBundleDisplayName: PK Kinetic Captions
-        LSApplicationCategoryType: public.app-category.video
-        NSHighResolutionCapable: true
-        NSPrincipalClass: NSApplication
+    # No `info:` block, here or below. With one, xcodegen regenerates the
+    # plist on every run — and for the extension that silently deleted
+    # NSExtension, so Final Cut never listed the panel. The plists are
+    # hand-maintained and referenced directly instead.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: nz.pkvisuals.kinetic-captions
-        INFOPLIST_KEY_NSHumanReadableCopyright: PK Visuals
+        INFOPLIST_FILE: Host/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
     dependencies:
       - target: PKCaptionsExtension
         embed: true
@@ -61,18 +61,36 @@ targets:
       - path: Extension
         excludes:
           - Resources/**
+          - Extension.entitlements
       # The engine and panel, copied in by scripts/bundle-web.mjs. They go in
       # as a folder reference so the directory layout survives — the modules
       # import each other by relative path.
       - path: Extension/Resources/web
         type: folder
         buildPhase: resources
-    info:
-      path: Extension/Info.plist
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: nz.pkvisuals.kinetic-captions.extension
+        INFOPLIST_FILE: Extension/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Extension/Extension.entitlements
         SKIP_INSTALL: YES
+        # Final Cut's own ProExtension.framework defines the two classes the
+        # extension point names: ProExtensionRequestHandling (the principal
+        # class) and ProExtensionRemoteContext (the context class). Without
+        # them in this image, ExtensionFoundation traps at launch: "Unable to
+        # find NSExtensionContextClass". The framework ships no headers, so
+        # this is link-only and the classes are reached with NSClassFromString.
+        # The path has spaces, hence the embedded quotes; and plain -framework
+        # can be dropped as unused, hence -needed_framework.
+        FRAMEWORK_SEARCH_PATHS:
+          - $(inherited)
+          - '"/Applications/Final Cut Pro.app/Contents/Frameworks"'
+        OTHER_LDFLAGS: "-Wl,-needed_framework,ProExtension"
+        LD_RUNPATH_SEARCH_PATHS:
+          - $(inherited)
+          - "@executable_path/../../../../Frameworks"
+          - '"/Applications/Final Cut Pro.app/Contents/Frameworks"'
     preBuildScripts:
       - name: Bundle the caption engine
         script: |

@@ -126,3 +126,63 @@ test('no private API is used to make the panel transparent', async () => {
   // away, killing the panel on launch for a cosmetic reason.
   assert.ok(!swift.includes('forKey: "drawsBackground"'), 'drawsBackground is not public API');
 });
+
+// Each test below pins a fault found the first time the panel ran inside
+// Final Cut 12.2. Every one of them failed silently: an empty Extensions menu,
+// a zero-width window, or a blank panel — with nothing on screen to say why.
+
+test('xcodegen never regenerates the Info.plists', async () => {
+  // With an `info:` block, every xcodegen run rewrote Extension/Info.plist and
+  // dropped NSExtension, so Final Cut never listed the panel.
+  const yml = await fs.readFile(path.join(EXT, 'project.yml'), 'utf8');
+  assert.ok(!/^\s+info:\s*$/m.test(yml), 'project.yml has an info: block — it will overwrite the hand-written plist');
+  assert.match(yml, /INFOPLIST_FILE: Extension\/Info\.plist/);
+  assert.match(yml, /GENERATE_INFOPLIST_FILE: NO/);
+});
+
+test('the extension can load inside Final Cut', async () => {
+  const yml = await fs.readFile(path.join(EXT, 'project.yml'), 'utf8');
+  // Without ProExtension linked, the process traps looking for NSExtensionContextClass.
+  assert.match(yml, /-needed_framework,ProExtension/);
+  assert.match(yml, /CODE_SIGN_ENTITLEMENTS: Extension\/Extension\.entitlements/);
+
+  const ent = await fs.readFile(path.join(EXT, 'Extension/Extension.entitlements'), 'utf8');
+  // PlugInKit ignores an unsandboxed extension.
+  assert.match(ent, /com\.apple\.security\.app-sandbox<\/key>\s*<true\/>/);
+  // WKWebView's network process crashes in the sandbox without it.
+  assert.match(ent, /com\.apple\.security\.network\.client<\/key>\s*<true\/>/);
+
+  const swift = await fs.readFile(path.join(EXT, 'Extension/PKCaptionsViewController.swift'), 'utf8');
+  // Info.plist names the class without a module prefix.
+  assert.match(swift, /@objc\(PKCaptionsViewController\)/);
+  // Final Cut never calls in; the host is pulled from ProExtensionRequestHandling.
+  const bridge = await fs.readFile(path.join(EXT, 'Extension/ProExtensionTimelineBridge.swift'), 'utf8');
+  assert.match(bridge, /NSClassFromString\("ProExtensionRequestHandling"\)/);
+});
+
+test('the panel window opens at a usable size', async () => {
+  // Final Cut sizes the window from the Auto Layout fitting size. A web view
+  // has none, so without explicit constraints it opened {0, 28} — and Final
+  // Cut saved that and restored it on every later open.
+  const swift = await fs.readFile(path.join(EXT, 'Extension/PKCaptionsViewController.swift'), 'utf8');
+  assert.match(swift, /widthAnchor\.constraint\(greaterThanOrEqualToConstant: \d+\)/);
+  assert.match(swift, /heightAnchor\.constraint\(greaterThanOrEqualToConstant: \d+\)/);
+});
+
+test('the panel page is not loaded from file://', async () => {
+  // WebKit will not run a module script from a file:// page: the panel was
+  // blank, with "could not load <script> …/panel.js" in the log.
+  const swift = await fs.readFile(path.join(EXT, 'Extension/PKCaptionsViewController.swift'), 'utf8');
+  assert.ok(!swift.includes('loadFileURL'), 'loadFileURL breaks the ES-module engine');
+  assert.match(swift, /setURLSchemeHandler\(PanelSchemeHandler/);
+  const html = await fs.readFile(path.join(EXT, 'Panel/panel.html'), 'utf8');
+  assert.match(html, /<script type="module"/);
+});
+
+test('drags from current Final Cut are accepted', async () => {
+  // Final Cut 12.2 drags as com.apple.finalcutpro.xml.v1-14; a view registered
+  // only for the unversioned type rejects the drag before it becomes a drop.
+  const swift = await fs.readFile(path.join(EXT, 'Extension/DragWebView.swift'), 'utf8');
+  assert.match(swift, /com\.apple\.finalcutpro\.xml\.v1-/);
+  assert.match(swift, /hasPrefix\(Self\.fcpxmlType\.rawValue\)/);
+});

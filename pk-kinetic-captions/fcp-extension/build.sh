@@ -41,7 +41,13 @@ if ! command -v xcodebuild >/dev/null 2>&1; then
   die "xcodebuild not found. Open Xcode once to finish its setup, then try again."
 fi
 
-# The command line tools alone cannot build an app extension.
+# The command line tools alone cannot build an app extension. When Xcode is
+# installed but not selected — the usual state after installing the CLT —
+# use it for this run rather than asking for sudo to switch globally.
+if ! xcodebuild -version >/dev/null 2>&1 && [ -d /Applications/Xcode.app/Contents/Developer ]; then
+  export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+  note "using /Applications/Xcode.app (xcode-select points at the Command Line Tools)"
+fi
 if ! xcodebuild -version >/dev/null 2>&1; then
   die "xcodebuild will not run. This usually means only the Command Line Tools are
 installed, not Xcode itself. Install Xcode from the App Store, then:
@@ -104,7 +110,12 @@ bold "Building"
 # app extension, and refuses it silently — an empty Extensions menu with no
 # error anywhere. Ad-hoc is enough for a panel running on this Mac only.
 BUILD_DIR="$HERE/.build"
-if ! xcodebuild \
+BUILT="$BUILD_DIR/Build/Products/Release/$APP_NAME.app"
+APPEX="Contents/PlugIns/PKCaptionsExtension.appex"
+# A previous build's product would otherwise pass the checks below even when
+# this build failed.
+rm -rf "$BUILT"
+xcodebuild \
   -project "$HERE/$APP_NAME.xcodeproj" \
   -scheme "$APP_NAME" \
   -configuration Release \
@@ -114,27 +125,42 @@ if ! xcodebuild \
   DEVELOPMENT_TEAM="" \
   CODE_SIGNING_REQUIRED=YES \
   CODE_SIGNING_ALLOWED=YES \
-  build 2>&1 | tee "$HERE/.build.log" | grep -E "error:|warning: .*(Swift|Info.plist)" ; then
-  :
-fi
+  build > "$HERE/.build.log" 2>&1
+STATUS=$?
+grep -E "error:|warning: .*(Swift|Info.plist)" "$HERE/.build.log" | sort -u | head -20
 
-BUILT="$BUILD_DIR/Build/Products/Release/$APP_NAME.app"
-if [ ! -d "$BUILT" ]; then
+if [ $STATUS -ne 0 ] || [ ! -d "$BUILT" ]; then
   echo
-  die "The build did not produce $APP_NAME.app.
-The full log is at $HERE/.build.log — the errors are near the end:
-  grep -n 'error:' $HERE/.build.log
-
-Expect ProExtensionTimelineBridge.swift to need the real selector names from
-Final Cut's SDK. Everything else talks to the TimelineBridge protocol, so it
-should be the only file to change."
+  die "The build failed. The full log is at $HERE/.build.log:
+  grep -n 'error:' $HERE/.build.log"
 fi
 ok "built $BUILT"
+
+# Each of these, if missing, gives an empty Extensions menu and no error.
+bold "Checking the extension"
+PLIST="$BUILT/$APPEX/Contents/Info.plist"
+[ "$(/usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' "$PLIST" 2>/dev/null)" = "com.apple.FinalCut.WorkflowExtension" ] \
+  && ok "declares the Final Cut extension point" \
+  || die "The built extension has no NSExtension point. Extension/Info.plist was overwritten — restore it from git."
+codesign -d --entitlements - "$BUILT/$APPEX" 2>/dev/null | grep -q "com.apple.security.app-sandbox" \
+  && ok "sandboxed" \
+  || die "The extension is not sandboxed, and macOS refuses unsandboxed extensions. Check CODE_SIGN_ENTITLEMENTS in project.yml."
+otool -L "$BUILT/$APPEX/Contents/MacOS/"* 2>/dev/null | grep -q "ProExtension.framework" \
+  && ok "links Final Cut's ProExtension.framework" \
+  || die "The extension does not link ProExtension.framework, so it would crash on launch inside Final Cut."
 
 bold "Installing"
 rm -rf "${DEST:?}/$APP_NAME.app"
 cp -R "$BUILT" "$DEST/" || die "Could not copy into $DEST. Try again with sudo, or install to ~/Applications."
 ok "$DEST/$APP_NAME.app"
+
+# Replacing the bundle invalidates its Launch Services record, and PlugInKit
+# will not register an extension it cannot look up. PlugInKit must also not be
+# left holding the build copy, or Final Cut runs that one instead.
+LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+"$LSREG" -f "$DEST/$APP_NAME.app"
+pluginkit -r "$BUILT/$APPEX" 2>/dev/null || true
+pluginkit -a "$DEST/$APP_NAME.app/$APPEX" 2>/dev/null || true
 
 # macOS only registers an extension once its host app has run.
 open "$DEST/$APP_NAME.app" || die "Could not launch the app. Open it from Finder once — that is what registers the panel."
@@ -147,16 +173,17 @@ if pluginkit -m -p com.apple.FinalCut.WorkflowExtension 2>/dev/null | grep -q "$
   echo
   bold "Done. In Final Cut: Window ▸ Extensions ▸ PK Kinetic Captions."
   note "If Final Cut was already open, quit and reopen it."
+  note "To reload a new build later, toggle the panel off and on in that menu —"
+  note "never kill its process: Final Cut then refuses to relaunch it until restarted."
 else
   bad "still not registered"
   echo
   note "Try, in order:"
-  note "  pluginkit -a '$DEST/$APP_NAME.app/Contents/PlugIns/PKCaptionsExtension.appex'"
+  note "  pluginkit -a '$DEST/$APP_NAME.app/$APPEX'"
   note "  open '$DEST/$APP_NAME.app'   # launch it once more"
   note "  quit and reopen Final Cut Pro"
   note ""
-  note "If it still does not appear, the extension point in Extension/Info.plist"
-  note "may not match this version of Final Cut. Check what your Final Cut accepts:"
-  note "  pluginkit -m -p com.apple.FinalCut.WorkflowExtension -vvv"
+  note "PlugInKit says why it refused an extension in the system log:"
+  note "  log show --last 5m --predicate 'process == \"pkd\"' | grep -i kinetic"
 fi
 echo

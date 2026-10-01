@@ -1,31 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<!--
+  Hand-maintained. project.yml points INFOPLIST_FILE here and deliberately has
+  no `info:` block for this target: with one, every `xcodegen` run rewrote this
+  file from scratch and silently dropped NSExtension — and without NSExtension
+  Final Cut never lists the panel, however clean the build.
+
+  The keys below are the ones a working workflow extension uses inside Final
+  Cut 12.2 (verified with the 08 Track panel). Final Cut's own definition of
+  the point is in
+  Final Cut Pro.app/Contents/Frameworks/ProExtension.framework/Resources/Info.plist.
+-->
 <dict>
-  <key>CFBundleName</key><string>PK Kinetic Captions</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
   <key>CFBundleDisplayName</key><string>PK Kinetic Captions</string>
-  <key>CFBundleIdentifier</key><string>nz.pkvisuals.kinetic-captions.extension</string>
+  <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+  <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>CFBundleName</key><string>PK Kinetic Captions</string>
   <key>CFBundlePackageType</key><string>XPC!</string>
-  <key>CFBundleShortVersionString</key><string>1.1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
+  <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
+  <key>LSMinimumSystemVersion</key><string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 
   <key>NSExtension</key>
   <dict>
     <!-- This is what makes Final Cut list the panel under Window ▸ Extensions. -->
     <key>NSExtensionPointIdentifier</key>
     <string>com.apple.FinalCut.WorkflowExtension</string>
-    <key>NSExtensionPrincipalClass</key>
-    <string>$(PRODUCT_MODULE_NAME).PKCaptionsViewController</string>
-    <key>NSExtensionAttributes</key>
+    <!-- A plain Objective-C name: the class is declared @objc(PKCaptionsViewController). -->
+    <key>ProExtensionPrincipalViewControllerClass</key>
+    <string>PKCaptionsViewController</string>
+    <key>ProExtensionAttributes</key>
     <dict>
-      <key>ProExtensionPrincipalClass</key>
-      <string>$(PRODUCT_MODULE_NAME).PKCaptionsViewController</string>
-      <key>ProExtensionPrincipalViewControllerClass</key>
-      <string>$(PRODUCT_MODULE_NAME).PKCaptionsViewController</string>
-      <key>ProExtensionHostDisplayName</key>
-      <string>Final Cut Pro</string>
-      <key>ProExtensionHostBundleIdentifier</key>
-      <string>com.apple.FinalCut</string>
+      <key>ContentViewMinimumWidth</key><integer>380</integer>
+      <key>ContentViewMinimumHeight</key><integer>520</integer>
     </dict>
   </dict>
 </dict>

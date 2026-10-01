@@ -26,6 +26,14 @@ final class DragWebView: WKWebView {
     /// Final Cut's own pasteboard type.
     static let fcpxmlType = NSPasteboard.PasteboardType("com.apple.finalcutpro.xml")
 
+    /// Final Cut also offers versioned flavours, and 12.2 drags as
+    /// `com.apple.finalcutpro.xml.v1-14`. A view registered for only the
+    /// unversioned name has the drag rejected before it becomes a drop — no
+    /// error, nothing reaches the view. Listed up to a version beyond the
+    /// current one; `fcpxml(from:)` reads any `com.apple.finalcutpro.xml*`.
+    static let fcpxmlTypes: [NSPasteboard.PasteboardType] =
+        [fcpxmlType] + (9...20).map { NSPasteboard.PasteboardType("com.apple.finalcutpro.xml.v1-\($0)") }
+
     var onFCPXML: ((String) -> Void)?
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
@@ -54,8 +62,11 @@ final class DragWebView: WKWebView {
     private func fcpxml(from sender: NSDraggingInfo) -> String? {
         let board = sender.draggingPasteboard
 
-        if let direct = board.string(forType: Self.fcpxmlType), direct.contains("<fcpxml") {
-            return direct
+        // Whatever versioned flavour this Final Cut offers.
+        for type in board.types ?? [] where type.rawValue.hasPrefix(Self.fcpxmlType.rawValue) {
+            if let direct = board.string(forType: type), direct.contains("<fcpxml") { return direct }
+            if let data = board.data(forType: type),
+               let direct = String(data: data, encoding: .utf8), direct.contains("<fcpxml") { return direct }
         }
 
         if let urls = board.readObjects(forClasses: [NSURL.self]) as? [URL] {

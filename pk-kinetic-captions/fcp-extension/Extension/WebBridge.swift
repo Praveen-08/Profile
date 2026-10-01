@@ -1,4 +1,12 @@
 import Foundation
+import os
+
+/// The extension's log. Messages are marked public: NSLog's arguments are
+/// redacted in the unified log, which made the first run inside Final Cut
+/// look as if the view controller never loaded.
+///
+///   log stream --predicate 'subsystem == "nz.pkvisuals.kinetic-captions"'
+let panelLog = Logger(subsystem: "nz.pkvisuals.kinetic-captions", category: "panel")
 
 /// The message names the panel and the native side agree on.
 ///
@@ -18,5 +26,8 @@ enum WebBridge {
         case deleteTemplate
         /// Whether Final Cut is attached, and where styles are stored.
         case status
+        /// Script errors and console.error from the page. Inside Final Cut
+        /// there is no inspector to see them in, so they go to the system log.
+        case log
     }
 }

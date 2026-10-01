@@ -242,23 +242,13 @@ document.addEventListener('drop', async (e) => {
   setStatus('That drop carried no timeline data.', true);
 });
 
-$('#read-timeline').onclick = async () => {
-  try {
-    setStatus('Asking Final Cut for the timeline…');
-    const { fcpxml } = await callNative('readTimeline');
-    useTimelineXML(fcpxml, 'read from the timeline');
-  } catch (err) {
-    setStatus(err.message, true);
-  }
-};
-
 $('#apply').onclick = async () => {
   if (!state.plan) return;
   try {
     setStatus('Building the titles…');
     const { xml, stats } = exportFCPXML(state.plan, { projectName: `${state.plan.templateName} Captions` });
     await callNative('sendToTimeline', { fcpxml: xml });
-    setStatus(`${stats.titles} titles sent to the timeline.`);
+    setStatus(`${stats.titles} titles sent to Final Cut — choose where to import them.`);
   } catch (err) {
     setStatus(err.message, true);
   }

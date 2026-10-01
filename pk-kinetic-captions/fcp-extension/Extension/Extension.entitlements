@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- An app extension must be sandboxed. PlugInKit refuses one that is not:
+	     "Ignoring mis-configured plugin … plug-ins must be sandboxed". -->
+	<key>com.apple.security.app-sandbox</key><true/>
+
+	<!-- WKWebView runs its own network process even for local files, and in a
+	     sandbox it crashes at launch without this (NetworkProcessProxy::didClose).
+	     Nothing is fetched from the network. -->
+	<key>com.apple.security.network.client</key><true/>
+
+	<!-- Reading a dragged .fcpxml, and writing the finished one somewhere Final
+	     Cut can open it (~/Movies/PK Kinetic Captions). -->
+	<key>com.apple.security.files.user-selected.read-write</key><true/>
+	<key>com.apple.security.assets.movies.read-write</key><true/>
+
+	<!-- Saved styles live in the same folder the CLI and the Mac app use. A
+	     sandboxed process's Application Support is inside its container, so
+	     the real folder needs an exception to be shared. -->
+	<key>com.apple.security.temporary-exception.files.home-relative-path.read-write</key>
+	<array>
+		<string>/Library/Application Support/PK Visuals/</string>
+	</array>
+
+	<!-- Talking to Final Cut. The access group has to be one Final Cut actually
+	     publishes; library.inspection is what motionVFX's working extension
+	     and the 08 Track panel use. -->
+	<key>com.apple.security.automation.apple-events</key><true/>
+	<key>com.apple.security.scripting-targets</key>
+	<dict>
+		<key>com.apple.FinalCut</key>
+		<array><string>com.apple.FinalCut.library.inspection</string></array>
+		<key>com.apple.FinalCutTrial</key>
+		<array><string>com.apple.FinalCut.library.inspection</string></array>
+	</dict>
+</dict>
+</plist>

@@ -14,6 +14,11 @@ import UniformTypeIdentifiers
 ///   · talk to Final Cut
 ///   · accept a clip dragged in, and offer the result to drag out
 ///   · read and write the styles folder
+///
+/// `@objc(PKCaptionsViewController)` gives it a plain Objective-C name, which
+/// is what `ProExtensionPrincipalViewControllerClass` in Info.plist names.
+/// Without it the runtime name is module-mangled and Final Cut finds nothing.
+@objc(PKCaptionsViewController)
 final class PKCaptionsViewController: NSViewController {
 
     private var webView: DragWebView!
@@ -31,21 +36,37 @@ final class PKCaptionsViewController: NSViewController {
         // The panel and the engine are local files; nothing is fetched.
         let controller = WKUserContentController()
         for name in WebBridge.Message.allCases { controller.add(self, name: name.rawValue) }
+        // Installed before any page script runs, so a module that fails to
+        // load or throws at the top level is still reported.
+        controller.addUserScript(WKUserScript(source: Self.errorForwarder,
+                                              injectionTime: .atDocumentStart,
+                                              forMainFrameOnly: true))
         config.userContentController = controller
+
+        // Served from the bundle under pkkc:// rather than file:// — see
+        // PanelSchemeHandler for why module scripts need it.
+        if let web = Bundle(for: Self.self).resourceURL?.appendingPathComponent("web", isDirectory: true) {
+            config.setURLSchemeHandler(PanelSchemeHandler(root: web), forURLScheme: PanelSchemeHandler.scheme)
+        }
 
         let web = DragWebView(frame: NSRect(x: 0, y: 0, width: 420, height: 720), configuration: config)
         web.onFCPXML = { [weak self] xml in self?.receiveDraggedFCPXML(xml) }
-        web.registerForDraggedTypes([DragWebView.fcpxmlType, .fileURL, .string])
+        web.registerForDraggedTypes(DragWebView.fcpxmlTypes + [.fileURL, .string])
 
         // `drawsBackground` is not public API on WKWebView. Setting it through
         // KVC raises if the key ever goes away, and the panel would die on
         // launch inside Final Cut for a purely cosmetic reason — so the page's
         // own CSS paints the surface instead.
         if #available(macOS 12.0, *) { web.underPageBackgroundColor = .clear }
+        // Lets Safari's Develop menu attach to the panel while it runs in Final Cut.
+        if #available(macOS 13.3, *) { web.isInspectable = true }
 
         webView = web
 
-        let container = NSView()
+        // Final Cut sizes the extension window from this view's frame. A bare
+        // NSView() is zero-sized, and the web view pinned inside it has no
+        // size of its own — the panel opened as a 0 px-wide title bar.
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 720))
         container.addSubview(webView)
         webView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -53,29 +74,74 @@ final class PKCaptionsViewController: NSViewController {
             webView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
             webView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            // Final Cut sizes the window from the view's Auto Layout fitting
+            // size, not its frame. A web view has no intrinsic size, so
+            // without these the fitting size is zero and the panel opens as a
+            // bare title bar (measured: {0, 28}) — which Final Cut then saves
+            // and restores on every later open. Kept in step with
+            // ContentViewMinimumWidth/Height in Info.plist.
+            container.widthAnchor.constraint(greaterThanOrEqualToConstant: 380),
+            container.heightAnchor.constraint(greaterThanOrEqualToConstant: 520),
+            preferred(container.widthAnchor.constraint(equalToConstant: 420)),
+            preferred(container.heightAnchor.constraint(equalToConstant: 720)),
         ])
         view = container
+        preferredContentSize = container.frame.size
+    }
+
+    /// Sends uncaught errors, rejected promises and console.error to the
+    /// native log. Without it a script failure inside Final Cut is a blank
+    /// panel and nothing anywhere says why.
+    private static let errorForwarder = """
+    (() => {
+      const post = (message) => {
+        try { window.webkit.messageHandlers.log.postMessage({ message: String(message) }); } catch {}
+      };
+      window.addEventListener('error', (e) => {
+        // A <script> or <link> that fails to load fires a bare Event on the
+        // element, with no message — name the resource instead.
+        const el = e.target;
+        if (el && el !== window && (el.src || el.href)) return post(`could not load <${el.tagName.toLowerCase()}> ${el.src || el.href}`);
+        post(`${e.message} at ${e.filename}:${e.lineno}:${e.colno}`);
+      }, true);
+      window.addEventListener('unhandledrejection', (e) => post(`unhandled rejection: ${e.reason && e.reason.stack || e.reason}`));
+      const original = console.error.bind(console);
+      console.error = (...args) => { post(args.map(String).join(' ')); original(...args); };
+    })();
+    """
+
+    /// A size the window opens at but the editor can resize away from.
+    private func preferred(_ constraint: NSLayoutConstraint) -> NSLayoutConstraint {
+        constraint.priority = .dragThatCannotResizeWindow
+        return constraint
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         try? store.prepare()
+        connectToHost()
 
-        guard let panel = Bundle(for: Self.self).url(forResource: "panel", withExtension: "html", subdirectory: "web") else {
+        guard Bundle(for: Self.self).url(forResource: "panel", withExtension: "html", subdirectory: "web") != nil else {
             return present(error: "The panel's web resources are missing from the bundle. Run fcp-extension/scripts/bundle-web.mjs and rebuild.")
         }
-        webView.loadFileURL(panel, allowingReadAccessTo: panel.deletingLastPathComponent())
+        webView.load(URLRequest(url: PanelSchemeHandler.entry))
     }
 
     // MARK: - Host
 
-    /// Called by Final Cut when it attaches. The name is part of the host
-    /// protocol — see ProExtensionTimelineBridge for what to reconcile.
-    @objc func hostDidConnect(_ host: AnyObject) {
-        let live = ProExtensionTimelineBridge()
-        live.host = host
+    /// Final Cut never calls in to say it has attached — reaching it is a
+    /// pull. Outside Final Cut there is nothing to reach and the mock stays.
+    private func connectToHost() {
+        guard let live = ProExtensionTimelineBridge.connect() else {
+            panelLog.notice("not running inside Final Cut; using the mock bridge")
+            return
+        }
         bridge = live
-        send(event: "hostConnected", payload: ["connected": true])
+        panelLog.notice("connected to \(live.hostDescription ?? "Final Cut", privacy: .public)")
+    }
+
+    private var hostDescription: String? {
+        (bridge as? ProExtensionTimelineBridge)?.hostDescription
     }
 
     // MARK: - Drag in
@@ -93,7 +159,7 @@ final class PKCaptionsViewController: NSViewController {
         guard let data = try? JSONSerialization.data(withJSONObject: payload),
               let json = String(data: data, encoding: .utf8) else { return }
         webView.evaluateJavaScript("window.pkkc && window.pkkc.receive(\(event.swiftQuoted), \(json))") { _, error in
-            if let error { NSLog("[PKKC] bridge send failed: %@", error.localizedDescription) }
+            if let error { panelLog.error("bridge send failed: \(error.localizedDescription, privacy: .public)") }
         }
     }
 
@@ -107,7 +173,7 @@ final class PKCaptionsViewController: NSViewController {
     }
 
     private func present(error: String) {
-        NSLog("[PKKC] %@", error)
+        panelLog.error("\(error, privacy: .public)")
         let label = NSTextField(wrappingLabelWithString: error)
         label.frame = view.bounds.insetBy(dx: 20, dy: 20)
         view.addSubview(label)
@@ -172,11 +238,17 @@ extension PKCaptionsViewController: WKScriptMessageHandler {
         case .status:
             reply(to: id, ok: true, payload: [
                 "connected": bridge.isConnected,
+                "host": hostDescription ?? "",
                 "storeRoot": store.root.path,
+                "outputFolder": ProExtensionTimelineBridge.outputFolder.path,
             ])
 
+        case .log:
+            let text = body["message"] as? String ?? "\(message.body)"
+            panelLog.error("page: \(text, privacy: .public)")
+
         case .none:
-            NSLog("[PKKC] unknown message from the panel: %@", message.name)
+            panelLog.error("unknown message from the panel: \(message.name, privacy: .public)")
         }
     }
 }
