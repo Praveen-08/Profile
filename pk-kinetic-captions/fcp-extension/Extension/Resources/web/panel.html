@@ -88,18 +88,8 @@
   </div>
   <p class="hint">Remembered separately for vertical and horizontal video.</p>
 
-  <h2 class="mt">Text style</h2>
-  <div class="seg wide" id="s-group">
-    <button data-v="normal" class="is-on">Main text</button><button data-v="highlight">Highlights</button><button data-v="hook">Hook</button><button data-v="pattern">Pattern words</button>
-  </div>
-  <div id="s-hook" class="anim-ed" hidden>
-    <label>Hook</label>
-    <div class="seg" id="s-hook-on"><button data-v="off">Off</button><button data-v="on">On</button></div>
-    <label>Opening</label>
-    <div class="rng"><input type="range" id="s-hook-sec" min="1" max="10" step="0.5"><span id="s-hook-sec-val"></span></div>
-  </div>
-  <p id="s-group-hint" class="hint"></p>
-  <div id="style-group" class="anim-ed"></div>
+  <h2 class="mt">Customise each type</h2>
+  <div id="type-cards" class="type-cards"></div>
 
   <h2 class="mt">Colour pattern</h2>
   <div class="seg wide" id="pattern-scope">
@@ -107,7 +97,7 @@
   </div>
   <div id="pattern" class="pattern-row mt-s"></div>
 
-  <h2 class="mt">Animation</h2>
+  <h2 class="mt">Motion overall</h2>
   <div class="anim-grid">
     <label>Feel</label>
     <select id="a-feel">
@@ -118,11 +108,6 @@
     <label>Words appear</label>
     <div class="seg" id="a-reveal"><button data-v="spoken">As spoken</button><button data-v="phrase">Whole phrase</button></div>
   </div>
-  <div class="seg wide mt-s" id="a-group">
-    <button data-v="normal" class="is-on">Main text</button><button data-v="high">Highlights</button><button data-v="hook">Hook</button><button data-v="pattern">Pattern words</button>
-  </div>
-  <div id="anim-group" class="anim-ed"></div>
-
   <h2 class="mt">Emphasis</h2>
   <div class="seg wide" id="emphasis">
     <button data-v="subtle">Subtle</button><button data-v="balanced" class="is-on">Balanced</button><button data-v="strong">Strong</button>

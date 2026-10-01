@@ -555,7 +555,7 @@ function showCustom() {
   drawPattern();
   $('#a-feel').value = c.anim?.feel ?? '';
   setSeg('#a-reveal', c.anim?.reveal || 'spoken');
-  groupEditor.show(c.anim?.groups?.[animGroup] ?? {});
+  showTypeCards();
 }
 
 function drawPattern() {
@@ -738,6 +738,10 @@ window.addEventListener('resize', () => drawPreview());
  * Text style editor — one block, used for each group and for a word
  * ------------------------------------------------------------------ */
 
+const IN_ANIMS = [['fade', 'Fade'], ['rise', 'Rise'], ['slide', 'Slide'], ['scale', 'Scale up'], ['pop', 'Pop'], ['stretch', 'Stretch'], ['reveal', 'Reveal']];
+const OUT_ANIMS = [['fade', 'Fade'], ['scale', 'Grow'], ['shrink', 'Shrink'], ['slide', 'Slide away'], ['maskExit', 'Cut']];
+const IN_EASES = [['out', 'Smooth'], ['outSoft', 'Soft'], ['outSlow', 'Slow settle'], ['inOut', 'Even'], ['back', 'Bouncy'], ['backHard', 'Springy'], ['linear', 'Linear']];
+const OUT_EASES = [['inOut', 'Smooth'], ['in', 'Accelerate'], ['linear', 'Linear']];
 /** Caption fonts that read well and pair well — the research shortlist. */
 const RECOMMENDED_FONTS = ['Montserrat', 'Anton', 'Poppins', 'Bebas Neue', 'League Spartan', 'Inter',
   'Playfair Display', 'Cormorant Garamond', 'Avenir Next', 'Futura', 'Helvetica Neue', 'Didot'];
@@ -855,39 +859,89 @@ function styleEditor(host, { blank }, onChange) {
   return { show };
 }
 
-let styleGroup = 'normal';
-const GROUP_HINTS = {
-  normal: 'Every word that is not a highlight.',
-  highlight: 'Emphasis and hero words.',
-  hook: 'The opening line — phrases that start in the first seconds. Make it stop the scroll.',
-  pattern: 'Words the colour pattern picks out. Their colours come from the pattern above.',
-};
-const groupStyle = styleEditor($('#style-group'), { blank: 'Style default' }, (v) => {
-  state.custom.groups = { ...state.custom.groups, [styleGroup]: v };
-  changed();
-});
-function showGroupStyle() {
-  setSeg('#s-group', styleGroup);
-  $('#s-group-hint').textContent = GROUP_HINTS[styleGroup];
-  $('#s-hook').hidden = styleGroup !== 'hook';
+const TYPES = [
+  { key: 'normal', anim: 'normal', title: 'Main text', hint: 'Every word that is not a highlight.', level: 'normal' },
+  { key: 'highlight', anim: 'high', title: 'Highlights', hint: 'Emphasis and hero words.', level: 'emphasis' },
+  { key: 'hook', anim: 'hook', title: 'Hook', hint: 'The opening line — phrases that start in the first seconds. Make it stop the scroll.', level: 'normal' },
+  { key: 'pattern', anim: 'pattern', title: 'Pattern words', hint: 'Words the colour pattern picks out; their colours come from the pattern.', level: 'emphasis' },
+];
+
+/** Build one card per type: its look and its animation, together. */
+const typeCards = {};
+{
+  const host = $('#type-cards');
+  const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+  for (const t of TYPES) {
+    const summaryLine = el('i');
+    const lookHost = el('div', { className: 'anim-ed' });
+    const animHost = el('div', { className: 'anim-ed' });
+    const extra = [];
+    if (t.key === 'hook') {
+      const on = el('div', { className: 'seg' }, [Object.assign(el('button', { textContent: 'Off' }), {}), el('button', { textContent: 'On' })]);
+      on.children[0].dataset.v = 'off'; on.children[1].dataset.v = 'on';
+      const sec = el('input', { type: 'range', min: 1, max: 10, step: 0.5 });
+      const secVal = el('span');
+      for (const b of on.children) {
+        b.onclick = () => { state.custom.hook = { ...(state.custom.hook ?? { seconds: 3 }), enabled: b.dataset.v === 'on' }; showTypeCards(); changed(); };
+      }
+      sec.oninput = () => { state.custom.hook = { ...(state.custom.hook ?? { enabled: true }), seconds: Number(sec.value) }; secVal.textContent = `first ${sec.value}s`; changed(); };
+      extra.push(el('div', { className: 'anim-ed' }, [el('label', { textContent: 'Hook' }), on, el('label', { textContent: 'Opening' }), el('div', { className: 'rng' }, [sec, secVal])]));
+      typeCards.hookControls = { on, sec, secVal };
+    }
+    const card = el('details', { className: 'type-card' }, [
+      el('summary', {}, [el('b', { textContent: t.title }), summaryLine, el('span', { className: 'chev', textContent: '›' })]),
+      el('div', { className: 'card-body' }, [
+        el('p', { className: 'hint', textContent: t.hint }), ...extra,
+        el('div', { className: 'ed-sub', textContent: 'Look' }), lookHost,
+        el('div', { className: 'ed-sub', textContent: 'Animation' }), animHost,
+      ]),
+    ]);
+    if (t.key === 'normal') card.open = true;
+    host.append(card);
+    const look = styleEditor(lookHost, { blank: 'Style default' }, (v) => {
+      state.custom.groups = { ...state.custom.groups, [t.key]: v };
+      changed();
+      summarise(t);
+    });
+    const anim = animEditor(animHost, 'Style default', (v) => {
+      state.custom.anim.groups = { ...(state.custom.anim.groups ?? {}), [t.anim]: v };
+      changed();
+      replayCurrentPhrase();
+      summarise(t);
+    });
+    typeCards[t.key] = { look, anim, summaryLine };
+  }
+}
+
+/** The one-line summary on a closed card: font, colour, animation. */
+function summarise(t) {
+  const g = state.custom.groups?.[t.key] ?? {};
+  const a = state.custom.anim.groups?.[t.anim] ?? {};
+  const parts = [];
+  if (t.key === 'hook') parts.push(state.custom.hook?.enabled ? `on · first ${state.custom.hook.seconds}s` : 'off');
+  parts.push(g.fontFamily ? `${g.fontFamily}${g.fontFace ? ' ' + g.fontFace : ''}` : 'style font');
+  if (g.scale) parts.push(`${Math.round(g.scale * 100)}%`);
+  if (g.colour) parts.push(g.colour);
+  if (g.look) parts.push(LOOKS.find(([v]) => v === g.look)?.[1] ?? g.look);
+  parts.push(a.in ? `in: ${IN_ANIMS.find(([v]) => v === a.in)?.[1] ?? a.in}` : 'style animation');
+  typeCards[t.key].summaryLine.textContent = parts.join(' · ');
+}
+
+function showTypeCards() {
+  for (const t of TYPES) {
+    const sample = allWords().find((w) => w.level === t.level);
+    typeCards[t.key].look.show(state.custom.groups?.[t.key] ?? {}, sample ? toHex(sample.colour) : '#ffffff');
+    typeCards[t.key].anim.show(state.custom.anim.groups?.[t.anim] ?? {});
+    summarise(t);
+  }
   const h = state.custom.hook ?? { enabled: false, seconds: 3 };
-  setSeg('#s-hook-on', h.enabled ? 'on' : 'off');
-  $('#s-hook-sec').value = String(h.seconds);
-  $('#s-hook-sec-val').textContent = `first ${h.seconds}s`;
-  // Show the colour this group draws in now, so the picker starts there.
-  const lv = { normal: 'normal', highlight: 'emphasis', hook: 'normal', pattern: 'emphasis' }[styleGroup];
-  const sample = allWords().find((w) => w.level === lv);
-  groupStyle.show(state.custom.groups?.[styleGroup] ?? {}, sample ? toHex(sample.colour) : '#ffffff');
+  const hc = typeCards.hookControls;
+  for (const b of hc.on.children) b.classList.toggle('is-on', b.dataset.v === (h.enabled ? 'on' : 'off'));
+  hc.sec.value = String(h.seconds);
+  hc.secVal.textContent = `first ${h.seconds}s`;
 }
-for (const b of $$('#s-group button')) b.onclick = () => { styleGroup = b.dataset.v; showGroupStyle(); };
-for (const b of $$('#s-hook-on button')) {
-  b.onclick = () => { state.custom.hook = { ...(state.custom.hook ?? { seconds: 3 }), enabled: b.dataset.v === 'on' }; showGroupStyle(); changed(); };
-}
-$('#s-hook-sec').oninput = () => {
-  state.custom.hook = { ...(state.custom.hook ?? { enabled: true }), seconds: Number($('#s-hook-sec').value) };
-  $('#s-hook-sec-val').textContent = `first ${state.custom.hook.seconds}s`;
-  changed();
-};
+/** Kept for callers that refreshed the old single editor. */
+const showGroupStyle = () => showTypeCards();
 
 const wordStyle = styleEditor($('#style-word'), { blank: 'As its group' }, (v) => {
   const id = state.selected;
@@ -898,16 +952,12 @@ const wordStyle = styleEditor($('#style-word'), { blank: 'As its group' }, (v) =
   regenerate();
 });
 
-callNative('fonts').then(({ fonts: list }) => { if (Array.isArray(list) && list.length) { fonts = list; showGroupStyle(); showWord(); } }).catch(() => {});
+callNative('fonts').then(({ fonts: list }) => { if (Array.isArray(list) && list.length) { fonts = list; showTypeCards(); showWord(); } }).catch(() => {});
 
 /* ------------------------------------------------------------------ *
  * Animation editor — one block, used for each group and for a word
  * ------------------------------------------------------------------ */
 
-const IN_ANIMS = [['fade', 'Fade'], ['rise', 'Rise'], ['slide', 'Slide'], ['scale', 'Scale up'], ['pop', 'Pop'], ['stretch', 'Stretch'], ['reveal', 'Reveal']];
-const OUT_ANIMS = [['fade', 'Fade'], ['scale', 'Grow'], ['shrink', 'Shrink'], ['slide', 'Slide away'], ['maskExit', 'Cut']];
-const IN_EASES = [['out', 'Smooth'], ['outSoft', 'Soft'], ['outSlow', 'Slow settle'], ['inOut', 'Even'], ['back', 'Bouncy'], ['backHard', 'Springy'], ['linear', 'Linear']];
-const OUT_EASES = [['inOut', 'Smooth'], ['in', 'Accelerate'], ['linear', 'Linear']];
 
 /**
  * Build an animation editor into `host`.
@@ -990,16 +1040,6 @@ function animEditor(host, blank, onChange) {
   return { show };
 }
 
-let animGroup = 'normal';
-const groupEditor = animEditor($('#anim-group'), 'Style default', (v) => {
-  const anim = state.custom.anim;
-  anim.groups = { ...(anim.groups ?? {}), [animGroup]: v };
-  changed();
-  replayCurrentPhrase();
-});
-for (const b of $$('#a-group button')) {
-  b.onclick = () => { animGroup = b.dataset.v; setSeg('#a-group', animGroup); groupEditor.show(state.custom.anim.groups?.[animGroup] ?? {}); };
-}
 $('#a-feel').onchange = () => { state.custom.anim.feel = $('#a-feel').value; changed(); replayCurrentPhrase(); };
 for (const b of $$('#a-reveal button')) {
   b.onclick = () => { state.custom.anim.reveal = b.dataset.v; setSeg('#a-reveal', b.dataset.v); changed(); replayCurrentPhrase(); };
