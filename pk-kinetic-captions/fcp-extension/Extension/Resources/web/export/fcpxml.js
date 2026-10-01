@@ -165,14 +165,14 @@ function renderTitle(w, index, lane, plan, samples, profile) {
   // caption in one click, which matters when there are two hundred of them.
   void profile;
   return `              <title ref="r2" lane="${lane}" offset="${offset}" name="${esc(`${w.level}: ${w.text}`)}" start="0s" duration="${dur}" role="PK Captions">
-${transform}
-${blend}
                 <text>
                   <text-style ref="${styleId}">${esc(w.text)}</text-style>
                 </text>
                 <text-style-def id="${styleId}">
                   ${text}
                 </text-style-def>
+${transform}
+${blend}
               </title>`;
 }
 
@@ -190,24 +190,24 @@ function renderTransform(w, plan, baseX, baseY, life, fps, samples) {
   const lines = ['                <adjust-transform anchor="0 0">'];
 
   if (hasMove) {
-    lines.push('                  <param name="position">');
+    lines.push('                  <param name="position">', '                    <keyframeAnimation>');
     for (const t of times) {
       const x = baseX + sample(w.motion.offsetX, t, 0) * plan.frame.height;
       const y = baseY + sample(w.motion.offsetY, t, 0) * plan.frame.height;
-      lines.push(`                    <keyframe time="${toFCPTime(t, fps)}" value="${num(x)} ${num(y)}" interp="linear"/>`);
+      lines.push(`                      <keyframe time="${toFCPTime(t, fps)}" value="${num(x)} ${num(y)}" interp="linear"/>`);
     }
-    lines.push('                  </param>');
+    lines.push('                    </keyframeAnimation>', '                  </param>');
   } else {
     lines.push(`                  <param name="position" value="${num(baseX)} ${num(baseY)}"/>`);
   }
 
   if (hasScale) {
-    lines.push('                  <param name="scale">');
+    lines.push('                  <param name="scale">', '                    <keyframeAnimation>');
     for (const t of times) {
       const s = sample(w.motion.scale, t, 1);
-      lines.push(`                    <keyframe time="${toFCPTime(t, fps)}" value="${num(s, 5)} ${num(s, 5)}" interp="linear"/>`);
+      lines.push(`                      <keyframe time="${toFCPTime(t, fps)}" value="${num(s, 5)} ${num(s, 5)}" interp="linear"/>`);
     }
-    lines.push('                  </param>');
+    lines.push('                    </keyframeAnimation>', '                  </param>');
   }
 
   lines.push('                </adjust-transform>');
@@ -226,12 +226,14 @@ function renderBlend(w, life, fps, samples) {
   }
 
   const frames = times
-    .map((t) => `                    <keyframe time="${toFCPTime(t, fps)}" value="${num(clamp01(sample(w.motion.opacity, t, 1)), 4)}" interp="linear"/>`)
+    .map((t) => `                      <keyframe time="${toFCPTime(t, fps)}" value="${num(clamp01(sample(w.motion.opacity, t, 1)), 4)}" interp="linear"/>`)
     .join('\n');
 
   return `                <adjust-blend${modeAttr}>
                   <param name="amount">
+                    <keyframeAnimation>
 ${frames}
+                    </keyframeAnimation>
                   </param>
                 </adjust-blend>`;
 }

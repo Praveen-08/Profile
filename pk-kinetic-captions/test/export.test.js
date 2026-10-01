@@ -190,3 +190,33 @@ test('the agent script and the listing script both survive every style end to en
     }
   }
 });
+
+// Final Cut ships its own DTDs. When one is on this machine, validate against
+// it: well-formedness alone passed for months while every title was invalid
+// (adjust-* before <text>, keyframes outside <keyframeAnimation>), which
+// Final Cut rejects on import.
+test('FCPXML validates against Final Cut\'s own DTD, when Final Cut is installed', async (t) => {
+  const { execFileSync } = await import('node:child_process');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const dtd = '/Applications/Final Cut Pro.app/Contents/Frameworks/Interchange.framework/Versions/A/Resources/FCPXMLv1_11.dtd';
+  if (!fs.existsSync(dtd)) return t.skip('Final Cut Pro is not installed');
+
+  // xmllint cannot resolve a DTD path containing spaces, so copy it out.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pkkc-dtd-'));
+  try {
+    fs.copyFileSync(dtd, path.join(dir, 'fcpxml.dtd'));
+    for (const template of BUILTIN_TEMPLATES) {
+      const file = path.join(dir, `${template.id}.fcpxml`);
+      fs.writeFileSync(file, exportFCPXML(make(template)).xml);
+      try {
+        execFileSync('xmllint', ['--noout', '--dtdvalid', path.join(dir, 'fcpxml.dtd'), file], { stdio: 'pipe' });
+      } catch (err) {
+        assert.fail(`${template.id} does not validate:\n${String(err.stderr).split('\n').slice(0, 4).join('\n')}`);
+      }
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
