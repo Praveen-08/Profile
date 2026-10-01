@@ -188,6 +188,9 @@ export function compose(opts) {
         ...(e.fontWeight ? { weight: e.fontWeight } : {}),
         ...(e.italic !== undefined ? { italic: e.italic } : {}),
         ...(e.casing ? { casing: e.casing } : {}),
+        // The exact installed face, when the editor picked one; a family change
+        // without a face falls back to the weight-derived name.
+        ...(e.fontFace ? { face: e.fontFace } : {}),
       };
       return { id: w.id, text: w.text, level, font, size: type.sizes[level] * (e.scale ?? 1) };
     });

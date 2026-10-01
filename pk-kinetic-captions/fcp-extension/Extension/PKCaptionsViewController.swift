@@ -293,6 +293,9 @@ extension PKCaptionsViewController: WKScriptMessageHandler {
                 self?.reply(to: id, ok: ok, payload: ok ? [:] : ["error": "Access was not given."])
             }
 
+        case .fonts:
+            reply(to: id, ok: true, payload: ["fonts": FontCatalog.list()])
+
         case .loadPrefs:
             reply(to: id, ok: true, payload: ["json": store.loadPrefs() ?? ""])
 

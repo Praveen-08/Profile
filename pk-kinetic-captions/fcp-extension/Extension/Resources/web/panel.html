@@ -62,22 +62,8 @@
     <button data-v="normal">Normal</button><button data-v="emphasis">Emphasis</button><button data-v="hero">Hero</button>
   </div>
 
-  <h2 class="mt">Size</h2>
-  <div class="size-row">
-    <input type="range" id="w-size" min="50" max="250" step="5" value="100">
-    <span id="w-size-val" class="mono">100%</span>
-  </div>
-
-  <h2 class="mt">Look</h2>
-  <div class="seg wide" id="w-look">
-    <button data-v="">Style</button><button data-v="clean">Normal</button><button data-v="invert">Difference</button><button data-v="luminous">Screen</button><button data-v="cinematic">Overlay</button>
-  </div>
-
-  <h2 class="mt">Colour</h2>
-  <div class="accent-row">
-    <input type="color" id="w-colour" value="#ffffff">
-    <button id="w-colour-auto" class="pv-btn">Use style colour</button>
-  </div>
+  <h2 class="mt">Style <span class="hint">· this word only; blank follows its group</span></h2>
+  <div id="style-word" class="anim-ed"></div>
 
   <h2 class="mt">Animation <span class="hint">· this word only; blank follows its group</span></h2>
   <div id="anim-word" class="anim-ed"></div>
@@ -95,30 +81,25 @@
 </section>
 
 <section class="pstep">
-  <h2>Text size <span id="size-orient" class="hint"></span></h2>
+  <h2>Overall size <span id="size-orient" class="hint"></span></h2>
   <div class="size-row">
     <input type="range" id="size" min="50" max="200" step="5" value="100">
     <span id="size-val" class="mono">100%</span>
   </div>
   <p class="hint">Remembered separately for vertical and horizontal video.</p>
 
-  <h2 class="mt">Main text</h2>
-  <div class="seg wide" id="main-look">
-    <button data-v="clean">Normal</button><button data-v="invert">Difference</button><button data-v="luminous">Screen</button><button data-v="cinematic">Overlay</button>
+  <h2 class="mt">Text style</h2>
+  <div class="seg wide" id="s-group">
+    <button data-v="normal" class="is-on">Main text</button><button data-v="highlight">Highlights</button><button data-v="hook">Hook</button><button data-v="pattern">Pattern words</button>
   </div>
-  <div class="accent-row mt-s">
-    <input type="color" id="main-colour" value="#f7f6f3">
-    <input type="text" id="main-colour-hex" class="mono" spellcheck="false" value="#f7f6f3">
+  <div id="s-hook" class="anim-ed" hidden>
+    <label>Hook</label>
+    <div class="seg" id="s-hook-on"><button data-v="off">Off</button><button data-v="on">On</button></div>
+    <label>Opening</label>
+    <div class="rng"><input type="range" id="s-hook-sec" min="1" max="10" step="0.5"><span id="s-hook-sec-val"></span></div>
   </div>
-
-  <h2 class="mt">Highlights</h2>
-  <div class="seg wide" id="highlight-look">
-    <button data-v="clean">Normal</button><button data-v="invert">Difference</button><button data-v="luminous">Screen</button><button data-v="cinematic">Overlay</button>
-  </div>
-  <div class="accent-row mt-s">
-    <input type="color" id="accent" value="#c9a84c">
-    <input type="text" id="accent-hex" class="mono" spellcheck="false" value="#c9a84c">
-  </div>
+  <p id="s-group-hint" class="hint"></p>
+  <div id="style-group" class="anim-ed"></div>
 
   <h2 class="mt">Colour pattern</h2>
   <div class="seg wide" id="pattern-scope">
@@ -138,7 +119,7 @@
     <div class="seg" id="a-reveal"><button data-v="spoken">As spoken</button><button data-v="phrase">Whole phrase</button></div>
   </div>
   <div class="seg wide mt-s" id="a-group">
-    <button data-v="normal" class="is-on">Main text</button><button data-v="high">Highlights</button><button data-v="pattern">Pattern words</button>
+    <button data-v="normal" class="is-on">Main text</button><button data-v="high">Highlights</button><button data-v="hook">Hook</button><button data-v="pattern">Pattern words</button>
   </div>
   <div id="anim-group" class="anim-ed"></div>
 

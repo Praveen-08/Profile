@@ -290,7 +290,10 @@ ${frames}
 /** Font, size, colour, and the decoration the style asked for. */
 function renderTextStyle(w, styleId, plan) {
   const f = w.font;
-  const face = faceName(f.family, f.weight, f.width, f.italic);
+  // The face the editor picked from the installed fonts wins: Final Cut
+  // matches faces by exact name, and names vary by family ("ExtraBold",
+  // "Heavy", "Black").
+  const face = f.face ?? faceName(f.family, f.weight, f.width, f.italic);
   // Final Cut measures title text against a 1080-line frame, whatever the
   // project's size: in a 1080x1920 vertical project a fontSize of 79 draws
   // 79 x 1920/1080 = 140px tall. Measured in Final Cut 12.2 — words overlapped

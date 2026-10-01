@@ -38,5 +38,7 @@ enum WebBridge {
         case frame
         /// Ask the editor, once, for the folder or drive that holds a clip.
         case grantAccess
+        /// Installed font families and their faces.
+        case fonts
     }
 }

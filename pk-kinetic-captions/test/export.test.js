@@ -310,3 +310,9 @@ test('a colour pattern cycles in reading order, the same every time', () => {
 
   assert.deepEqual(run('all').flatMap((p) => p.words).map((w) => w.colour), all.map((w) => w.colour));
 });
+
+test('a face picked from the installed fonts is exported by its exact name', () => {
+  const t = merge(builtinById('pk-bold'), { groups: { normal: { fontFamily: 'Montserrat', fontFace: 'ExtraBold Italic', fontWeight: 'extrabold', italic: true } } });
+  const { xml } = exportFCPXML(make(t));
+  assert.match(xml, /font="Montserrat" [^>]*fontFace="ExtraBold Italic"/);
+});

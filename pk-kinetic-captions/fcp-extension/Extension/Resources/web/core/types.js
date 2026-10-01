@@ -80,6 +80,7 @@ export const LEVEL_RANK = { normal: 0, emphasis: 1, hero: 2 };
  * @property {string} family        PostScript-friendly family name, e.g. "Helvetica Neue".
  * @property {FontWeight} weight
  * @property {boolean} italic
+ * @property {string} [face]          Exact installed face name, when known; wins on export.
  * @property {FontWidth} width
  * @property {"upper"|"lower"|"title"|"none"} casing
  * @property {number} tracking      Tracking in 1/1000 em, FCP-style.
@@ -270,6 +271,7 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * @property {FontWeight} [fontWeight]
  * @property {boolean} [italic]
  * @property {"none"|"upper"|"lower"|"title"} [casing]
+ * @property {string} [fontFace]   Exact face name as installed ("ExtraBold Italic"); used on export.
  * @property {number} [scale]      Multiplier on the level's scale.
  * @property {number} [opacity]    0–1, applied across the word's whole fade.
  * @property {Point} [position]    Absolute override, normalized.

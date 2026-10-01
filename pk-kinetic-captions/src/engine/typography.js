@@ -58,6 +58,16 @@ function widthFactor(width) {
   return width === 'condensed' ? 0.80 : width === 'expanded' ? 1.18 : 1.0;
 }
 
+/** @type {((text: string, font: FontSpec) => number) | null} */
+let realMeasurer = null;
+
+/**
+ * Let the host measure text with the real font: `fn` returns the width of
+ * `text` in em (width at 1pt). Pass null to go back to the estimate.
+ * @param {((text: string, font: FontSpec) => number) | null} fn
+ */
+export function setTextMeasurer(fn) { realMeasurer = fn; }
+
 /**
  * Width of a string in em units at 1pt.
  * @param {string} text @param {FontSpec} font @returns {number}
@@ -65,6 +75,15 @@ function widthFactor(width) {
 export function measureEm(text, font) {
   const info = familyInfo(font.family);
   const cased = applyCasing(text, font.casing);
+  // A real measurement, where the host can make one (the panel measures with
+  // the installed font itself). The table below only approximates families it
+  // knows, and under-measured wide faces made words run into each other.
+  if (realMeasurer) {
+    const em = realMeasurer(cased, font);
+    if (Number.isFinite(em) && em > 0) {
+      return em + ((font.tracking ?? 0) / 1000) * Math.max(0, [...cased].length - 1);
+    }
+  }
   let sum = 0;
   for (const ch of cased) sum += (ADVANCE[ch] ?? DEFAULT_ADVANCE) / 1000;
   // Tracking in FCP is 1/1000 em per gap, applied between characters.

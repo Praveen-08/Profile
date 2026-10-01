@@ -20,6 +20,31 @@ import { parseColour, toHex } from './core/colour.js';
 import { frameFromFCPXML } from './frame.js';
 import { videoSegments, pictureAt } from './timeline.js';
 import { renderFrame } from './render/svg.js';
+import { setTextMeasurer } from './engine/typography.js';
+import { WEIGHT_NUMERIC } from './engine/fonts.js';
+
+// Lay words out by their real width in the real font. The same face is what
+// Final Cut renders, so spacing in the export matches the preview.
+{
+  const ctx = document.createElement('canvas').getContext('2d');
+  const SIZE = 200;
+  // A missing font would be measured in a fallback without any error. It is
+  // installed only if the width does not change with the fallback chosen.
+  const installed = new Map();
+  const isInstalled = (family) => {
+    if (!installed.has(family)) {
+      const probe = 'mmmmmmmmmlliWW@#';
+      const w = (fallback) => { ctx.font = `${SIZE}px "${family}", ${fallback}`; return ctx.measureText(probe).width; };
+      installed.set(family, w('monospace') === w('serif'));
+    }
+    return installed.get(family);
+  };
+  setTextMeasurer((text, font) => {
+    if (!ctx || !isInstalled(font.family)) return NaN;
+    ctx.font = `${font.italic ? 'italic ' : ''}${WEIGHT_NUMERIC[font.weight] ?? 400} ${SIZE}px "${font.family}"`;
+    return ctx.measureText(text).width / SIZE;
+  });
+}
 
 const $ = (sel) => /** @type {any} */ (document.querySelector(sel));
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -43,10 +68,13 @@ const state = {
   custom: {
     sizeVertical: 100,
     sizeHorizontal: 100,
-    mainLook: 'clean',
-    highlightLook: 'clean',
-    mainColour: /** @type {string|null} */ (null),
-    highlightColour: /** @type {string|null} */ (null),
+    /**
+     * Text style per group: fontFamily, fontFace, fontWeight, italic, scale,
+     * casing, colour, opacity, look. Anything unset follows the style.
+     */
+    groups: { normal: {}, highlight: {}, hook: {}, pattern: {} },
+    /** The opening line: phrases starting in the first `seconds`. */
+    hook: { enabled: false, seconds: 3 },
     patternScope: 'off',
     pattern: ['#c9a84c', '#14b8a6', '#f97362', '#a78bfa'],
     // Where the editor dragged the captions, per orientation, as a fraction
@@ -191,7 +219,6 @@ function regenerate() {
       template,
       frame: state.frame,
       overrides: state.overrides,
-      accent: toHex(parseColour($('#accent').value)),
     });
 
     applyPositions(state.plan);
@@ -311,10 +338,8 @@ function showWord() {
   $('#w-text').value = o.text ?? w.text;
   setSeg('#w-level', w.level);
   const pct = Math.round((o.scale ?? 1) * 100);
-  $('#w-size').value = pct;
-  $('#w-size-val').textContent = `${pct}%`;
-  setSeg('#w-look', o.look ?? '');
-  $('#w-colour').value = toHex(w.colour);
+  void pct;
+  wordStyle.show(o, toHex(w.colour));
   wordEditor.show({ in: o.inAnimation, out: o.outAnimation, tune: o.tune });
   $('#w-hide').textContent = 'Hide word';
 }
@@ -499,9 +524,20 @@ function customPatch(base) {
       tune: { normal: g.normal?.tune ?? {}, emphasis: g.high?.tune ?? {}, hero: g.high?.tune ?? {}, pattern: g.pattern?.tune ?? {} },
     },
     scale: { base: base.scale.base * pct },
-    interaction: { preset: c.mainLook, emphasisPreset: c.highlightLook, heroPreset: c.highlightLook },
+    hook: { enabled: Boolean(c.hook?.enabled), seconds: c.hook?.seconds ?? 3 },
+    groups: {
+      normal: clean(c.groups?.normal),
+      highlight: clean(c.groups?.highlight),
+      pattern: clean(c.groups?.pattern),
+      // The hook animates on its own too, from the animation editor's Hook tab.
+      hook: {
+        ...clean(c.groups?.hook),
+        ...(g.hook?.in ? { inAnimation: g.hook.in } : {}),
+        ...(g.hook?.out ? { outAnimation: g.hook.out } : {}),
+        ...(g.hook?.tune && Object.keys(g.hook.tune).length ? { tune: g.hook.tune } : {}),
+      },
+    },
     colours: {
-      ...(c.mainColour ? { primary: c.mainColour } : {}),
       pattern: c.patternScope === 'off' ? [] : c.pattern,
       patternScope: c.patternScope === 'off' ? 'highlights' : c.patternScope,
     },
@@ -514,12 +550,8 @@ function showCustom() {
   $('#size').value = c[sizeKey()];
   $('#size-val').textContent = `${c[sizeKey()]}%`;
   $('#size-orient').textContent = isVertical() ? '· vertical' : '· horizontal';
-  setSeg('#main-look', c.mainLook);
-  setSeg('#highlight-look', c.highlightLook);
   setSeg('#pattern-scope', c.patternScope);
-  const main = c.mainColour ?? toHex(parseColour(currentTemplate().colours.primary));
-  $('#main-colour').value = main;
-  $('#main-colour-hex').value = main;
+  showGroupStyle();
   drawPattern();
   $('#a-feel').value = c.anim?.feel ?? '';
   setSeg('#a-reveal', c.anim?.reveal || 'spoken');
@@ -613,13 +645,13 @@ function buildStyles() {
     el.onclick = () => {
       state.templateId = t.id;
       state.patch = {};
-      state.custom.mainColour = null;
-      state.custom.mainLook = t.interaction?.preset ?? 'clean';
-      state.custom.highlightLook = t.interaction?.heroPreset ?? t.interaction?.preset ?? 'clean';
+      // A new style brings its own fonts, colours and looks; the editor's
+      // sizes are kept.
+      for (const k of Object.keys(state.custom.groups)) {
+        const scale = state.custom.groups[k]?.scale;
+        state.custom.groups[k] = scale ? { scale } : {};
+      }
       showCustom();
-      const accent = toHex(parseColour(t.colours.accent));
-      $('#accent').value = accent;
-      $('#accent-hex').value = accent;
       buildStyles();
       regenerate();
     };
@@ -690,15 +722,6 @@ $('#apply').onclick = async () => {
   }
 };
 
-// Saved, so the highlight colour survives closing the panel (it used to reset).
-$('#accent').oninput = () => { $('#accent-hex').value = $('#accent').value; state.custom.highlightColour = $('#accent').value; changed(); };
-$('#accent-hex').onchange = () => {
-  try {
-    const hex = toHex(parseColour($('#accent-hex').value));
-    $('#accent').value = hex;
-    regenerate();
-  } catch { setStatus('That is not a colour.', true); }
-};
 
 $('#pv-scrub').oninput = () => { if (state.playing) togglePlay(); seek(Number($('#pv-scrub').value)); };
 $('#pv-play').onclick = togglePlay;
@@ -710,6 +733,172 @@ $('#pv-reset').onclick = () => {
   changed();
 };
 window.addEventListener('resize', () => drawPreview());
+
+/* ------------------------------------------------------------------ *
+ * Text style editor — one block, used for each group and for a word
+ * ------------------------------------------------------------------ */
+
+/** Caption fonts that read well and pair well — the research shortlist. */
+const RECOMMENDED_FONTS = ['Montserrat', 'Anton', 'Poppins', 'Bebas Neue', 'League Spartan', 'Inter',
+  'Playfair Display', 'Cormorant Garamond', 'Avenir Next', 'Futura', 'Helvetica Neue', 'Didot'];
+const CSS_TO_WEIGHT = { 100: 'thin', 200: 'extralight', 300: 'light', 400: 'regular', 500: 'medium', 600: 'semibold', 700: 'bold', 800: 'extrabold', 900: 'black' };
+const LOOKS = [['', 'Style'], ['clean', 'Normal'], ['invert', 'Difference'], ['luminous', 'Screen'], ['cinematic', 'Overlay']];
+const CASINGS = [['', 'Style'], ['none', 'As typed'], ['upper', 'UPPER'], ['lower', 'lower'], ['title', 'Title']];
+
+/** Installed fonts, from Swift; a short fallback when running outside Final Cut. */
+let fonts = /** @type {{family: string, faces: {face: string, weight: number, italic: boolean}[]}[]} */ (
+  RECOMMENDED_FONTS.map((family) => ({ family, faces: [
+    { face: 'Regular', weight: 400, italic: false }, { face: 'Bold', weight: 700, italic: false }, { face: 'Black', weight: 900, italic: false },
+  ] })));
+
+/** Drop unset fields, so the style shows through. */
+function clean(o) {
+  return Object.fromEntries(Object.entries(o ?? {}).filter(([, v]) => v !== undefined && v !== '' && v !== null));
+}
+
+/**
+ * Build a text style editor into `host`.
+ * @param {HTMLElement} host
+ * @param {{blank: string}} opts
+ * @param {(v: object) => void} onChange
+ */
+function styleEditor(host, { blank }, onChange) {
+  let value = {};
+  let shownColour = '#ffffff';
+  const el = (tag, props = {}, kids = []) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+  const segOf = (list) => {
+    const d = el('div', { className: 'seg' });
+    for (const [v, l] of list) { const b = el('button', { textContent: l }); b.dataset.v = v; d.append(b); }
+    return d;
+  };
+  const range = (min, max, step) => { const input = el('input', { type: 'range', min, max, step }); const out = el('span'); return { wrap: el('div', { className: 'rng' }, [input, out]), input, out }; };
+
+  const family = el('select');
+  const face = el('select');
+  const size = range(0.4, 2.5, 0.05);
+  const casing = segOf(CASINGS);
+  const colour = el('input', { type: 'color' });
+  const colourAuto = el('button', { className: 'pv-btn', textContent: 'Style colour' });
+  const opacity = range(0.1, 1, 0.05);
+  const look = segOf(LOOKS);
+  const lookHint = el('p', { className: 'hint span2' });
+  const reset = el('button', { className: 'pv-btn reset', textContent: 'Reset style' });
+  const row = (label, control) => [el('label', { textContent: label }), control];
+  host.replaceChildren(
+    ...row('Font', family), ...row('Style', face), ...row('Size', size.wrap), ...row('Capitals', casing),
+    ...row('Colour', el('div', { className: 'rng' }, [colour, colourAuto])), ...row('Opacity', opacity.wrap),
+    ...row('Look', look), lookHint, reset,
+  );
+
+  function fillFamilies() {
+    const current = value.fontFamily ?? '';
+    const have = new Set(fonts.map((f) => f.family));
+    const rec = RECOMMENDED_FONTS.filter((f) => have.has(f));
+    const recGroup = el('optgroup', { label: 'Recommended for captions' }, rec.map((f) => new Option(f, f)));
+    const allGroup = el('optgroup', { label: 'All fonts' }, fonts.map((f) => new Option(f.family, f.family)));
+    family.replaceChildren(new Option(blank, ''), ...(rec.length ? [recGroup] : []), allGroup);
+    family.value = current;
+  }
+  function fillFaces() {
+    const f = fonts.find((x) => x.family === value.fontFamily);
+    face.replaceChildren(new Option(f ? 'Pick a style' : '—', ''), ...(f?.faces ?? []).map((x) => new Option(x.face, x.face)));
+    face.disabled = !f;
+    face.value = value.fontFace ?? '';
+  }
+  const emit = () => { value = clean(value); onChange(value); };
+  const set = (patch) => { value = { ...value, ...patch }; show(value, shownColour); emit(); };
+
+  family.onchange = () => {
+    const f = fonts.find((x) => x.family === family.value);
+    // A new family starts on its nearest match to the current weight.
+    const want = { thin: 100, extralight: 200, light: 300, regular: 400, medium: 500, semibold: 600, bold: 700, extrabold: 800, black: 900 }[value.fontWeight ?? 'bold'] ?? 700;
+    const best = f?.faces.filter((x) => !x.italic).sort((a, b) => Math.abs(a.weight - want) - Math.abs(b.weight - want))[0];
+    set({ fontFamily: family.value || undefined, fontFace: best?.face, fontWeight: best ? CSS_TO_WEIGHT[best.weight] : undefined, italic: best ? false : undefined });
+  };
+  face.onchange = () => {
+    const f = fonts.find((x) => x.family === value.fontFamily)?.faces.find((x) => x.face === face.value);
+    set({ fontFace: face.value || undefined, fontWeight: f ? CSS_TO_WEIGHT[f.weight] : undefined, italic: f ? f.italic : undefined });
+  };
+  size.input.oninput = () => set({ scale: Number(size.input.value) });
+  size.out.ondblclick = () => set({ scale: undefined });
+  for (const b of casing.children) b.onclick = () => set({ casing: b.dataset.v || undefined });
+  colour.oninput = () => set({ colour: colour.value });
+  colourAuto.onclick = () => set({ colour: undefined });
+  opacity.input.oninput = () => set({ opacity: Number(opacity.input.value) });
+  opacity.out.ondblclick = () => set({ opacity: undefined });
+  for (const b of look.children) b.onclick = () => set({ look: b.dataset.v || undefined });
+  reset.onclick = () => { value = {}; show(value, shownColour); emit(); };
+
+  /** @param {object} v @param {string} currentColour the colour the word or group shows now */
+  function show(v, currentColour) {
+    value = { ...(v ?? {}) };
+    shownColour = currentColour ?? shownColour;
+    fillFamilies();
+    fillFaces();
+    size.input.value = String(value.scale ?? 1);
+    size.out.textContent = value.scale === undefined ? 'auto' : `${Math.round(value.scale * 100)}%`;
+    size.wrap.classList.toggle('is-auto', value.scale === undefined);
+    for (const b of casing.children) b.classList.toggle('is-on', (b.dataset.v || '') === (value.casing ?? ''));
+    colour.value = value.colour ?? shownColour;
+    colourAuto.disabled = value.colour === undefined;
+    opacity.input.value = String(value.opacity ?? 1);
+    opacity.out.textContent = value.opacity === undefined ? 'auto' : `${Math.round(value.opacity * 100)}%`;
+    opacity.wrap.classList.toggle('is-auto', value.opacity === undefined);
+    for (const b of look.children) b.classList.toggle('is-on', (b.dataset.v || '') === (value.look ?? ''));
+    // The looks that blend into the picture hide the colour by design — say so.
+    lookHint.textContent = value.look === 'cinematic'
+      ? 'Overlay blends the text into the picture: colour shows only faintly, and not at all over black.'
+      : value.look === 'luminous' ? 'Screen only brightens: dark colours disappear.'
+        : value.look === 'invert' ? 'Difference inverts what is behind the text; the colour mixes with the picture.' : '';
+  }
+  show({});
+  return { show };
+}
+
+let styleGroup = 'normal';
+const GROUP_HINTS = {
+  normal: 'Every word that is not a highlight.',
+  highlight: 'Emphasis and hero words.',
+  hook: 'The opening line — phrases that start in the first seconds. Make it stop the scroll.',
+  pattern: 'Words the colour pattern picks out. Their colours come from the pattern above.',
+};
+const groupStyle = styleEditor($('#style-group'), { blank: 'Style default' }, (v) => {
+  state.custom.groups = { ...state.custom.groups, [styleGroup]: v };
+  changed();
+});
+function showGroupStyle() {
+  setSeg('#s-group', styleGroup);
+  $('#s-group-hint').textContent = GROUP_HINTS[styleGroup];
+  $('#s-hook').hidden = styleGroup !== 'hook';
+  const h = state.custom.hook ?? { enabled: false, seconds: 3 };
+  setSeg('#s-hook-on', h.enabled ? 'on' : 'off');
+  $('#s-hook-sec').value = String(h.seconds);
+  $('#s-hook-sec-val').textContent = `first ${h.seconds}s`;
+  // Show the colour this group draws in now, so the picker starts there.
+  const lv = { normal: 'normal', highlight: 'emphasis', hook: 'normal', pattern: 'emphasis' }[styleGroup];
+  const sample = allWords().find((w) => w.level === lv);
+  groupStyle.show(state.custom.groups?.[styleGroup] ?? {}, sample ? toHex(sample.colour) : '#ffffff');
+}
+for (const b of $$('#s-group button')) b.onclick = () => { styleGroup = b.dataset.v; showGroupStyle(); };
+for (const b of $$('#s-hook-on button')) {
+  b.onclick = () => { state.custom.hook = { ...(state.custom.hook ?? { seconds: 3 }), enabled: b.dataset.v === 'on' }; showGroupStyle(); changed(); };
+}
+$('#s-hook-sec').oninput = () => {
+  state.custom.hook = { ...(state.custom.hook ?? { enabled: true }), seconds: Number($('#s-hook-sec').value) };
+  $('#s-hook-sec-val').textContent = `first ${state.custom.hook.seconds}s`;
+  changed();
+};
+
+const wordStyle = styleEditor($('#style-word'), { blank: 'As its group' }, (v) => {
+  const id = state.selected;
+  if (!id) return;
+  const keep = Object.fromEntries(Object.entries(state.overrides[id] ?? {}).filter(([k]) => ['level', 'text', 'hidden', 'inAnimation', 'outAnimation', 'tune', 'position'].includes(k)));
+  const next = clean({ ...keep, ...v });
+  if (Object.keys(next).length) state.overrides[id] = next; else delete state.overrides[id];
+  regenerate();
+});
+
+callNative('fonts').then(({ fonts: list }) => { if (Array.isArray(list) && list.length) { fonts = list; showGroupStyle(); showWord(); } }).catch(() => {});
 
 /* ------------------------------------------------------------------ *
  * Animation editor — one block, used for each group and for a word
@@ -829,14 +1018,6 @@ $('#w-text').onchange = () => {
   overrideSelected({ text: text && text !== selectedWord()?.text ? text : undefined });
 };
 for (const b of $$('#w-level button')) b.onclick = () => overrideSelected({ level: b.dataset.v });
-$('#w-size').oninput = () => {
-  $('#w-size-val').textContent = `${$('#w-size').value}%`;
-  const v = Number($('#w-size').value) / 100;
-  overrideSelected({ scale: v === 1 ? undefined : v });
-};
-for (const b of $$('#w-look button')) b.onclick = () => overrideSelected({ look: b.dataset.v || undefined });
-$('#w-colour').oninput = () => overrideSelected({ colour: $('#w-colour').value });
-$('#w-colour-auto').onclick = () => overrideSelected({ colour: undefined });
 $('#w-hide').onclick = () => {
   const id = state.selected;
   overrideSelected({ hidden: true });
@@ -857,24 +1038,11 @@ $('#size').oninput = () => {
   $('#size-val').textContent = `${$('#size').value}%`;
   changed();
 };
-for (const [sel, key] of [['#main-look', 'mainLook'], ['#highlight-look', 'highlightLook'], ['#pattern-scope', 'patternScope']]) {
+for (const [sel, key] of [['#pattern-scope', 'patternScope']]) {
   for (const b of $$(`${sel} button`)) {
     b.onclick = () => { state.custom[key] = b.dataset.v; setSeg(sel, b.dataset.v); drawPattern(); changed(); };
   }
 }
-$('#main-colour').oninput = () => {
-  state.custom.mainColour = $('#main-colour').value;
-  $('#main-colour-hex').value = $('#main-colour').value;
-  changed();
-};
-$('#main-colour-hex').onchange = () => {
-  try {
-    const hex = toHex(parseColour($('#main-colour-hex').value));
-    state.custom.mainColour = hex;
-    $('#main-colour').value = hex;
-    changed();
-  } catch { setStatus('That is not a colour.', true); }
-};
 
 /*
  * Drag to timeline. A web page cannot start a native drag, so pressing the
@@ -903,9 +1071,14 @@ callNative('loadPrefs')
   .then(({ json }) => {
     if (!json) return;
     const saved = JSON.parse(json);
-    if (saved.highlightColour) { $('#accent').value = saved.highlightColour; $('#accent-hex').value = saved.highlightColour; }
+    // Settings from earlier versions of the panel move into the groups.
+    const groups = saved.groups ?? {
+      normal: { ...(saved.mainColour ? { colour: saved.mainColour } : {}), ...(saved.mainLook && saved.mainLook !== 'clean' ? { look: saved.mainLook } : {}) },
+      highlight: { ...(saved.highlightColour ? { colour: saved.highlightColour } : {}), ...(saved.highlightLook && saved.highlightLook !== 'clean' ? { look: saved.highlightLook } : {}) },
+      hook: {}, pattern: {},
+    };
     state.custom = {
-      ...state.custom, ...saved, mainColour: saved.mainColour ?? null,
+      ...state.custom, ...saved, groups, hook: saved.hook ?? { enabled: false, seconds: 3 },
       offsetVertical: saved.offsetVertical ?? { x: 0, y: 0 },
       offsetHorizontal: saved.offsetHorizontal ?? { x: 0, y: 0 },
       anim: {
