@@ -77,6 +77,7 @@ export const TEMPLATE_VERSION = 1;
  * @property {"spoken"|"phrase"} reveal Word-by-word as spoken, or the whole phrase at once.
  * @property {import('../core/types.js').InAnimation} [patternIn]   Entrance for words coloured by the colour pattern.
  * @property {import('../core/types.js').OutAnimation} [patternOut] Exit for words coloured by the colour pattern.
+ * @property {Partial<Record<Level|"pattern", import('../engine/motion.js').MotionTune>>} [tune]  The editor's adjustments per group.
  * @property {number} hold              Seconds the phrase stays up after its last word ends.
  */
 

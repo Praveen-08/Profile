@@ -72,11 +72,8 @@
     <button id="w-colour-auto" class="pv-btn">Use style colour</button>
   </div>
 
-  <h2 class="mt">Animation</h2>
-  <div class="anim-grid">
-    <label>This word</label>
-    <select id="w-in" class="a-in"></select><select id="w-out" class="a-out"></select>
-  </div>
+  <h2 class="mt">Animation <span class="hint">· this word only; blank follows its group</span></h2>
+  <div id="anim-word" class="anim-ed"></div>
   <button id="w-replay" class="pv-btn mt-s">▶ Replay this phrase</button>
 
   <div class="pv-row mt">
@@ -130,14 +127,13 @@
       <option value="editorial">Editorial</option><option value="cinematic">Cinematic</option><option value="luxury">Luxury</option>
       <option value="punchy">Punchy</option><option value="energetic">Energetic</option>
     </select>
-    <label>Main text</label>
-    <select id="a-main-in" class="a-in"></select><select id="a-main-out" class="a-out"></select>
-    <label>Highlights</label>
-    <select id="a-high-in" class="a-in"></select><select id="a-high-out" class="a-out"></select>
-    <label>Pattern words</label>
-    <select id="a-pat-in" class="a-in"></select><select id="a-pat-out" class="a-out"></select>
+    <label>Words appear</label>
+    <div class="seg" id="a-reveal"><button data-v="spoken">As spoken</button><button data-v="phrase">Whole phrase</button></div>
   </div>
-  <p class="hint">Entrance, then exit. Pattern words are the ones the colour pattern picks out.</p>
+  <div class="seg wide mt-s" id="a-group">
+    <button data-v="normal" class="is-on">Main text</button><button data-v="high">Highlights</button><button data-v="pattern">Pattern words</button>
+  </div>
+  <div id="anim-group" class="anim-ed"></div>
 
   <h2 class="mt">Emphasis</h2>
   <div class="seg wide" id="emphasis">

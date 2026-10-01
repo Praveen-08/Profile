@@ -52,8 +52,12 @@ const state = {
     // of the frame (centre origin, +y up — the engine's own coordinates).
     offsetVertical: { x: 0, y: 0 },
     offsetHorizontal: { x: 0, y: 0 },
-    /** Animation choices; '' means the style's own. */
-    anim: { feel: '', mainIn: '', mainOut: '', highIn: '', highOut: '', patIn: '', patOut: '' },
+    /**
+     * Animation, per group. Each group is {in, out, tune}; anything unset
+     * follows the style. `high` covers emphasis and hero words; `pattern` the
+     * words the colour pattern picks out.
+     */
+    anim: { feel: '', reveal: '', groups: { normal: {}, high: {}, pattern: {} } },
   },
   /** Per-phrase moves on top of the overall offset, keyed by first word id. */
   phraseNudges: /** @type {Record<string, {x: number, y: number}>} */ ({}),
@@ -308,8 +312,7 @@ function showWord() {
   $('#w-size-val').textContent = `${pct}%`;
   setSeg('#w-look', o.look ?? '');
   $('#w-colour').value = toHex(w.colour);
-  $('#w-in').value = o.inAnimation ?? '';
-  $('#w-out').value = o.outAnimation ?? '';
+  wordEditor.show({ in: o.inAnimation, out: o.outAnimation, tune: o.tune });
   $('#w-hide').textContent = 'Hide word';
 }
 
@@ -462,16 +465,19 @@ function customPatch(base) {
   const c = state.custom;
   const pct = c[sizeKey()] / 100;
   const a = c.anim ?? {};
+  const g = a.groups ?? {};
   const motionIn = {}, motionOut = {};
-  if (a.mainIn) motionIn.normal = a.mainIn;
-  if (a.highIn) { motionIn.emphasis = a.highIn; motionIn.hero = a.highIn; }
-  if (a.mainOut) motionOut.normal = a.mainOut;
-  if (a.highOut) { motionOut.emphasis = a.highOut; motionOut.hero = a.highOut; }
+  if (g.normal?.in) motionIn.normal = g.normal.in;
+  if (g.high?.in) { motionIn.emphasis = g.high.in; motionIn.hero = g.high.in; }
+  if (g.normal?.out) motionOut.normal = g.normal.out;
+  if (g.high?.out) { motionOut.emphasis = g.high.out; motionOut.hero = g.high.out; }
   return {
     motion: {
       ...(a.feel ? { style: a.feel } : {}),
+      ...(a.reveal ? { reveal: a.reveal } : {}),
       in: motionIn, out: motionOut,
-      patternIn: a.patIn || undefined, patternOut: a.patOut || undefined,
+      patternIn: g.pattern?.in || undefined, patternOut: g.pattern?.out || undefined,
+      tune: { normal: g.normal?.tune ?? {}, emphasis: g.high?.tune ?? {}, hero: g.high?.tune ?? {}, pattern: g.pattern?.tune ?? {} },
     },
     scale: { base: base.scale.base * pct },
     interaction: { preset: c.mainLook, emphasisPreset: c.highlightLook, heroPreset: c.highlightLook },
@@ -496,7 +502,9 @@ function showCustom() {
   $('#main-colour').value = main;
   $('#main-colour-hex').value = main;
   drawPattern();
-  for (const [id, key] of Object.entries(ANIM_FIELDS)) $(`#${id}`).value = c.anim?.[key] ?? '';
+  $('#a-feel').value = c.anim?.feel ?? '';
+  setSeg('#a-reveal', c.anim?.reveal || 'spoken');
+  groupEditor.show(c.anim?.groups?.[animGroup] ?? {});
 }
 
 function drawPattern() {
@@ -683,23 +691,115 @@ $('#pv-reset').onclick = () => {
 };
 window.addEventListener('resize', () => drawPreview());
 
-const IN_ANIMS = [['fade', 'Fade in'], ['rise', 'Rise'], ['slide', 'Slide in'], ['scale', 'Scale up'], ['pop', 'Pop'], ['stretch', 'Stretch'], ['reveal', 'Reveal']];
-const OUT_ANIMS = [['fade', 'Fade out'], ['scale', 'Grow out'], ['shrink', 'Shrink out'], ['slide', 'Slide out'], ['maskExit', 'Cut']];
-function fillAnimSelect(sel, list, defaultLabel) {
-  sel.replaceChildren(new Option(defaultLabel, ''), ...list.map(([v, label]) => new Option(label, v)));
-}
-for (const sel of $$('select.a-in')) fillAnimSelect(sel, IN_ANIMS, sel.id.startsWith('w-') ? 'As its group' : 'Style default');
-for (const sel of $$('select.a-out')) fillAnimSelect(sel, OUT_ANIMS, sel.id.startsWith('w-') ? 'As its group' : 'Style default');
-const ANIM_FIELDS = { 'a-feel': 'feel', 'a-main-in': 'mainIn', 'a-main-out': 'mainOut', 'a-high-in': 'highIn', 'a-high-out': 'highOut', 'a-pat-in': 'patIn', 'a-pat-out': 'patOut' };
-for (const [id, key] of Object.entries(ANIM_FIELDS)) {
-  $(`#${id}`).onchange = () => {
-    state.custom.anim = { ...(state.custom.anim ?? {}), [key]: $(`#${id}`).value };
-    changed();
-    replayCurrentPhrase();
+/* ------------------------------------------------------------------ *
+ * Animation editor — one block, used for each group and for a word
+ * ------------------------------------------------------------------ */
+
+const IN_ANIMS = [['fade', 'Fade'], ['rise', 'Rise'], ['slide', 'Slide'], ['scale', 'Scale up'], ['pop', 'Pop'], ['stretch', 'Stretch'], ['reveal', 'Reveal']];
+const OUT_ANIMS = [['fade', 'Fade'], ['scale', 'Grow'], ['shrink', 'Shrink'], ['slide', 'Slide away'], ['maskExit', 'Cut']];
+const IN_EASES = [['out', 'Smooth'], ['outSoft', 'Soft'], ['outSlow', 'Slow settle'], ['inOut', 'Even'], ['back', 'Bouncy'], ['backHard', 'Springy'], ['linear', 'Linear']];
+const OUT_EASES = [['inOut', 'Smooth'], ['in', 'Accelerate'], ['linear', 'Linear']];
+
+/**
+ * Build an animation editor into `host`.
+ * @param {HTMLElement} host
+ * @param {string} blank   What an unset value means ("Style default" / "As its group").
+ * @param {(v: {in?: string, out?: string, tune?: object}) => void} onChange
+ */
+function animEditor(host, blank, onChange) {
+  /** @type {{in?: string, out?: string, tune?: any}} */
+  let value = {};
+  const el = (tag, props = {}, kids = []) => {
+    const e = Object.assign(document.createElement(tag), props);
+    e.append(...kids);
+    return e;
   };
+  const select = (list) => { const sel = el('select'); sel.append(new Option(blank, ''), ...list.map(([v, l]) => new Option(l, v))); return sel; };
+  const range = (min, max, step, fmt) => {
+    const input = el('input', { type: 'range', min, max, step });
+    const out = el('span');
+    const wrap = el('div', { className: 'rng' }, [input, out]);
+    return { wrap, input, out, fmt };
+  };
+
+  const inType = select(IN_ANIMS);
+  const dir = el('div', { className: 'seg' });
+  for (const [v, l] of [['', 'Auto'], ['up', '↑'], ['down', '↓'], ['left', '←'], ['right', '→']]) dir.append(el('button', { textContent: l, title: v ? `Travels ${v}` : 'The animation\'s own direction' }));
+  [...dir.children].forEach((b, i) => { b.dataset.v = ['', 'up', 'down', 'left', 'right'][i]; });
+  const inDur = range(0.05, 1.5, 0.05, (v) => `${v.toFixed(2)}s`);
+  const dist = range(0, 4, 0.1, (v) => `${Math.round(v * 100)}%`);
+  const scaleFrom = range(0.2, 1.5, 0.05, (v) => `${Math.round(v * 100)}%`);
+  const inEase = select(IN_EASES);
+  const outType = select(OUT_ANIMS);
+  const outDur = range(0.05, 1.5, 0.05, (v) => `${v.toFixed(2)}s`);
+  const outEase = select(OUT_EASES);
+  const reset = el('button', { className: 'pv-btn reset', textContent: 'Reset animation' });
+
+  const row = (label, control) => [el('label', { textContent: label }), control];
+  host.replaceChildren(
+    el('div', { className: 'sub', textContent: 'Entrance' }),
+    ...row('Type', inType), ...row('Direction', dir), ...row('Duration', inDur.wrap),
+    ...row('Distance', dist.wrap), ...row('Start scale', scaleFrom.wrap), ...row('Easing', inEase),
+    el('div', { className: 'sub', textContent: 'Exit' }),
+    ...row('Type', outType), ...row('Duration', outDur.wrap), ...row('Easing', outEase),
+    reset,
+  );
+
+  const emit = () => {
+    const tune = Object.fromEntries(Object.entries(value.tune ?? {}).filter(([, v]) => v !== undefined && v !== ''));
+    value = { ...value, tune };
+    onChange(value);
+  };
+  const tuneSet = (k, v) => { value = { ...value, tune: { ...(value.tune ?? {}), [k]: v } }; show(value); emit(); };
+  const wireRange = (r, key) => { r.input.oninput = () => tuneSet(key, Number(r.input.value)); r.out.ondblclick = () => tuneSet(key, undefined); r.out.title = 'Double-click for auto'; };
+
+  inType.onchange = () => { value = { ...value, in: inType.value || undefined }; emit(); };
+  outType.onchange = () => { value = { ...value, out: outType.value || undefined }; emit(); };
+  for (const b of dir.children) b.onclick = () => tuneSet('direction', b.dataset.v || undefined);
+  wireRange(inDur, 'inDuration'); wireRange(dist, 'distance'); wireRange(scaleFrom, 'scaleFrom'); wireRange(outDur, 'outDuration');
+  inEase.onchange = () => tuneSet('ease', inEase.value || undefined);
+  outEase.onchange = () => tuneSet('outEase', outEase.value || undefined);
+  reset.onclick = () => { value = {}; show(value); emit(); };
+
+  /** Ranges show "auto" until the editor sets them. */
+  const showRange = (r, v, fallback) => {
+    r.wrap.classList.toggle('is-auto', v === undefined);
+    r.input.value = String(v ?? fallback);
+    r.out.textContent = v === undefined ? 'auto' : r.fmt(Number(v));
+  };
+  function show(v) {
+    value = v ?? {};
+    const t = value.tune ?? {};
+    inType.value = value.in ?? '';
+    outType.value = value.out ?? '';
+    for (const b of dir.children) b.classList.toggle('is-on', (b.dataset.v || '') === (t.direction ?? ''));
+    showRange(inDur, t.inDuration, 0.3); showRange(dist, t.distance, 1); showRange(scaleFrom, t.scaleFrom, 0.9); showRange(outDur, t.outDuration, 0.22);
+    inEase.value = t.ease ?? '';
+    outEase.value = t.outEase ?? '';
+  }
+  show({});
+  return { show };
 }
-$('#w-in').onchange = () => { overrideSelected({ inAnimation: $('#w-in').value || undefined }); replayCurrentPhrase(); };
-$('#w-out').onchange = () => { overrideSelected({ outAnimation: $('#w-out').value || undefined }); replayCurrentPhrase(); };
+
+let animGroup = 'normal';
+const groupEditor = animEditor($('#anim-group'), 'Style default', (v) => {
+  const anim = state.custom.anim;
+  anim.groups = { ...(anim.groups ?? {}), [animGroup]: v };
+  changed();
+  replayCurrentPhrase();
+});
+for (const b of $$('#a-group button')) {
+  b.onclick = () => { animGroup = b.dataset.v; setSeg('#a-group', animGroup); groupEditor.show(state.custom.anim.groups?.[animGroup] ?? {}); };
+}
+$('#a-feel').onchange = () => { state.custom.anim.feel = $('#a-feel').value; changed(); replayCurrentPhrase(); };
+for (const b of $$('#a-reveal button')) {
+  b.onclick = () => { state.custom.anim.reveal = b.dataset.v; setSeg('#a-reveal', b.dataset.v); changed(); replayCurrentPhrase(); };
+}
+
+const wordEditor = animEditor($('#anim-word'), 'As its group', (v) => {
+  overrideSelected({ inAnimation: v.in, outAnimation: v.out, tune: v.tune && Object.keys(v.tune).length ? v.tune : undefined });
+  replayCurrentPhrase();
+});
 $('#w-replay').onclick = () => replayCurrentPhrase();
 
 $('#w-prev').onclick = () => stepWord(-1);
@@ -787,7 +887,16 @@ callNative('loadPrefs')
       ...state.custom, ...saved, mainColour: saved.mainColour ?? null,
       offsetVertical: saved.offsetVertical ?? { x: 0, y: 0 },
       offsetHorizontal: saved.offsetHorizontal ?? { x: 0, y: 0 },
-      anim: { ...state.custom.anim, ...(saved.anim ?? {}) },
+      anim: {
+        feel: saved.anim?.feel ?? '',
+        reveal: saved.anim?.reveal ?? '',
+        groups: saved.anim?.groups ?? {
+          // Settings saved by the first version of this panel.
+          normal: { in: saved.anim?.mainIn || undefined, out: saved.anim?.mainOut || undefined },
+          high: { in: saved.anim?.highIn || undefined, out: saved.anim?.highOut || undefined },
+          pattern: { in: saved.anim?.patIn || undefined, out: saved.anim?.patOut || undefined },
+        },
+      },
     };
     showCustom();
     regenerate();

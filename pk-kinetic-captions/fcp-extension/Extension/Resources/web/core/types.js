@@ -275,6 +275,7 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * @property {OutAnimation} [outAnimation]
  * @property {Depth} [depth]
  * @property {Interaction} [look]  This word's own look (blend), whatever its level's is.
+ * @property {import('../engine/motion.js').MotionTune} [tune]  This word's own animation adjustments.
  * @property {boolean} [hidden]
  */
 

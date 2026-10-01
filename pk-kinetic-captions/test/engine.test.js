@@ -439,3 +439,47 @@ test('main text, highlights and colour-pattern words can each animate their own 
   const plain = compose({ transcript, template: merge(template, { colours: { pattern: [] } }), frame }).phrases.flatMap((p) => p.words);
   for (const w of plain.filter((x) => x.level !== 'normal')) assert.equal(w.motion.inAnimation, 'rise');
 });
+
+test('animation can be tuned per group and per word: duration, distance, direction, easing', async () => {
+  const { compose } = await import('../src/engine/compose.js');
+  const { ingest } = await import('../src/transcript/ingest.js');
+  const { builtinById } = await import('../src/templates/builtin/index.js');
+  const { merge } = await import('../src/templates/schema.js');
+  const { sample } = await import('../src/engine/motion.js');
+  const frame = { width: 1080, height: 1920, fps: 30, aspect: '9:16', safeArea: true };
+  const transcript = ingest('Welcome home to this stunning four bedroom family home with views over the water.', { format: 'text' });
+  const template = merge(builtinById('pk-bold'), {
+    motion: {
+      in: { normal: 'slide', emphasis: 'rise', hero: 'rise' },
+      tune: { normal: { inDuration: 0.4, direction: 'down', distance: 2 }, emphasis: { direction: 'left', ease: 'linear' } },
+    },
+  });
+  const words = compose({ transcript, template, frame }).phrases.flatMap((p) => p.words);
+  const normal = words.find((w) => w.level === 'normal' && w.end - w.start > 2);
+  assert.ok(normal, 'expected a long-lived normal word');
+  // Slides DOWN into place: starts above (+y), no sideways travel.
+  assert.ok(sample(normal.motion.offsetY, 0, 0) > 0);
+  assert.equal(normal.motion.offsetX.length, 0);
+  assert.ok(Math.abs(normal.motion.inDuration - 0.4) < 1e-9);
+
+  const emph = words.find((w) => w.level === 'emphasis');
+  assert.ok(emph);
+  // Comes in from the right, moving left.
+  assert.ok(sample(emph.motion.offsetX, 0, 0) > 0);
+  assert.equal(emph.motion.offsetY.length, 0);
+
+  // A word's own tune wins over its group's.
+  const id = normal.id;
+  const solo = compose({ transcript, template, frame, overrides: { [id]: { tune: { direction: 'up', inDuration: 0.25 } } } })
+    .phrases.flatMap((p) => p.words).find((w) => w.id === id);
+  assert.ok(sample(solo.motion.offsetY, 0, 0) < 0, 'up means it starts below');
+  assert.ok(Math.abs(solo.motion.inDuration - 0.25) < 1e-9);
+
+  // The 30% hold survives any duration asked for.
+  const greedy = compose({ transcript, template: merge(template, { motion: { tune: { normal: { inDuration: 9, outDuration: 9 } } } }), frame })
+    .phrases.flatMap((p) => p.words).filter((w) => w.level === 'normal');
+  for (const w of greedy) {
+    const life = w.end - w.start;
+    assert.ok(w.motion.inDuration <= life * 0.35 + 1e-9 && w.motion.outDuration <= life * 0.35 + 1e-9);
+  }
+});

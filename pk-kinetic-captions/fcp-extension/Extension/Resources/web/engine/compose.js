@@ -239,6 +239,13 @@ export function compose(opts) {
           // the rest; a word's own setting still wins.
           inOverride: o.inAnimation ?? (fromPattern ? template.motion.patternIn : undefined),
           outOverride: o.outAnimation ?? (fromPattern ? template.motion.patternOut : undefined),
+          // The editor's adjustments: the word's level, then the colour
+          // pattern's (for pattern words), then the word's own.
+          tune: {
+            ...(template.motion.tune?.[level] ?? {}),
+            ...(fromPattern ? template.motion.tune?.pattern ?? {} : {}),
+            ...(o.tune ?? {}),
+          },
         }),
         depth: interaction.depth,
         blend: interaction.blend,

@@ -33,6 +33,18 @@ export const EASING = {
 };
 
 /**
+ * What an editor can adjust on an animation, on top of the style's feel.
+ * @typedef {object} MotionTune
+ * @property {number} [inDuration]   Seconds.
+ * @property {number} [outDuration]  Seconds.
+ * @property {number} [distance]     Multiplier on the style's travel; 0 keeps the word still.
+ * @property {"up"|"down"|"left"|"right"} [direction]  Where the word travels to as it enters.
+ * @property {keyof EASING} [ease]    Entrance curve.
+ * @property {keyof EASING} [outEase] Exit curve.
+ * @property {number} [scaleFrom]    Starting scale for scale and pop entrances.
+ */
+
+/**
  * @typedef {object} StyleProfile
  * @property {number} inDur       Base in-duration for a normal word, seconds.
  * @property {number} outDur
@@ -76,9 +88,10 @@ export const STYLES = {
  * @param {InAnimation} [args.inOverride]
  * @param {OutAnimation} [args.outOverride]
  * @param {{blur?: boolean, perCharacter?: boolean, maskReveal?: boolean}} [args.capabilities]
+ * @param {MotionTune} [args.tune]    Editor's adjustments; anything unset keeps the style's value.
  * @returns {WordMotion}
  */
-export function buildMotion({ level, template, life, capFraction, inOverride, outOverride, capabilities }) {
+export function buildMotion({ level, template, life, capFraction, inOverride, outOverride, capabilities, tune = {} }) {
   const caps = { blur: true, perCharacter: true, maskReveal: true, ...(capabilities ?? {}) };
   const style = STYLES[template.motion.style] ?? STYLES.smooth;
   const speed = template.motion.speed || 1;
@@ -99,14 +112,19 @@ export function buildMotion({ level, template, life, capFraction, inOverride, ou
   // never actually read. At most 35% of its life goes to each, so at least
   // 30% is spent fully on screen.
   const budget = Math.max(0.05, life * 0.35);
-  const inDuration = Math.min(style.inDur * levelDur / speed, budget);
-  const outDuration = Math.min(style.outDur * levelDur / speed, budget);
+  const inDuration = Math.min(tune.inDuration ?? style.inDur * levelDur / speed, budget);
+  const outDuration = Math.min(tune.outDuration ?? style.outDur * levelDur / speed, budget);
   const outStart = Math.max(inDuration + Math.min(0.04, life * 0.05), life - outDuration);
 
   // Movement distance scales with the word's own size, so a hero word travels
   // proportionally further than a normal one without any extra configuration.
-  const dist = style.rise * capFraction * (level === 'hero' ? 1.35 : level === 'emphasis' ? 1.15 : 1);
-  const scaleFrom = level === 'hero' ? 1 - (1 - style.scaleFrom) * 1.8 : style.scaleFrom;
+  // A style with no travel (Minimal) still moves when the editor asks for distance.
+  const baseRise = style.rise || 0.18;
+  const dist = (tune.distance === undefined ? style.rise : baseRise * tune.distance)
+    * capFraction * (level === 'hero' ? 1.35 : level === 'emphasis' ? 1.15 : 1);
+  const scaleFrom = tune.scaleFrom ?? (level === 'hero' ? 1 - (1 - style.scaleFrom) * 1.8 : style.scaleFrom);
+  // Unit vector of where the word comes FROM, in the engine's +y-up space.
+  const from = tune.direction ? DIRECTIONS[tune.direction] : null;
 
   /** @type {Keyframe[]} */ const opacity = [];
   /** @type {Keyframe[]} */ const scale = [];
@@ -114,12 +132,13 @@ export function buildMotion({ level, template, life, capFraction, inOverride, ou
   /** @type {Keyframe[]} */ const offsetY = [];
   /** @type {Keyframe[]} */ const blur = [];
 
-  const ein = EASING[style.inEase];
-  const eout = EASING[style.outEase];
+  const ein = EASING[tune.ease ?? style.inEase] ?? EASING[style.inEase];
+  // Exits must accelerate (see above), so only the accelerating curves are taken.
+  const eout = EASING[['in', 'inOut', 'linear'].includes(tune.outEase ?? '') ? tune.outEase : style.outEase];
   const effectiveStyle = caps.blur ? style : { ...style, blur: 0 };
 
   // --- in ---
-  applyIn(inAnimation, { opacity, scale, offsetX, offsetY, blur }, { inDuration, dist, scaleFrom, style: effectiveStyle, ein, level });
+  applyIn(inAnimation, { opacity, scale, offsetX, offsetY, blur }, { inDuration, dist, scaleFrom, style: effectiveStyle, ein, level, from });
 
   // Overshoot is additive and tiny, and only exists in the two styles that
   // declare it — this is the "no cheap animation" rule made structural.
@@ -128,7 +147,7 @@ export function buildMotion({ level, template, life, capFraction, inOverride, ou
   }
 
   // --- out ---
-  applyOut(outAnimation, { opacity, scale, offsetX, offsetY, blur }, { outStart, life, outDuration, dist, style: effectiveStyle, eout });
+  applyOut(outAnimation, { opacity, scale, offsetX, offsetY, blur }, { outStart, life, outDuration, dist, style: effectiveStyle, eout, from });
 
   return {
     opacity: dedupe(opacity), scale: dedupe(scale), offsetX: dedupe(offsetX),
@@ -148,27 +167,43 @@ function settled(ease) {
   return ease === EASING.back || ease === EASING.backHard ? EASING.out : ease;
 }
 
-function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level }) {
+/** Where a word starts, as a unit vector, for each direction it can travel to. */
+const DIRECTIONS = {
+  up: { x: 0, y: -1 },        // starts below, rises
+  down: { x: 0, y: 1 },       // starts above, drops
+  left: { x: 1.6, y: 0 },     // starts right, moves left
+  right: { x: -1.6, y: 0 },   // starts left, moves right
+};
+
+function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level, from }) {
   const safe = settled(ein);
   const fadeIn = () => { ch.opacity.push({ t: 0, v: 0 }, { t: inDuration, v: 1, ease: safe }); };
+  /** Travel in from `dir` (or the animation's own default) by `amount` of dist. */
+  const travel = (fallback, amount) => {
+    const d = from ?? fallback;
+    if (d.x) ch.offsetX.push({ t: 0, v: d.x * dist * amount }, { t: inDuration, v: 0, ease: ein });
+    if (d.y) ch.offsetY.push({ t: 0, v: d.y * dist * amount }, { t: inDuration, v: 0, ease: ein });
+  };
 
   switch (kind) {
-    case 'fade': fadeIn(); break;
+    case 'fade': fadeIn(); if (from) travel(from, 1); break;
     case 'rise':
       fadeIn();
-      ch.offsetY.push({ t: 0, v: -dist }, { t: inDuration, v: 0, ease: ein });
+      travel(DIRECTIONS.up, 1);
       break;
     case 'slide':
       fadeIn();
-      ch.offsetX.push({ t: 0, v: -dist * 1.6 }, { t: inDuration, v: 0, ease: ein });
+      travel(DIRECTIONS.right, 1);
       break;
     case 'scale':
       fadeIn();
       ch.scale.push({ t: 0, v: scaleFrom }, { t: inDuration, v: 1, ease: ein });
+      if (from) travel(from, 1);
       break;
     case 'pop':
       ch.opacity.push({ t: 0, v: 0 }, { t: inDuration * 0.45, v: 1, ease: safe });
       ch.scale.push({ t: 0, v: Math.min(scaleFrom, 0.86) }, { t: inDuration, v: 1, ease: EASING.back });
+      if (from) travel(from, 1);
       break;
     case 'blur':
       fadeIn();
@@ -177,7 +212,7 @@ function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level }) {
     case 'stretch':
       fadeIn();
       ch.scale.push({ t: 0, v: scaleFrom * 0.9 }, { t: inDuration, v: 1, ease: ein });
-      ch.offsetY.push({ t: 0, v: -dist * 0.5 }, { t: inDuration, v: 0, ease: ein });
+      travel(DIRECTIONS.up, 0.5);
       break;
     case 'type':
     case 'reveal':
@@ -186,7 +221,7 @@ function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level }) {
       // that any renderer without masking still shows the word at the right
       // instant rather than fading it in wrongly.
       ch.opacity.push({ t: 0, v: 0 }, { t: Math.min(0.02, inDuration), v: 1, ease: EASING.linear });
-      ch.offsetY.push({ t: 0, v: -dist * 0.35 }, { t: inDuration, v: 0, ease: ein });
+      travel(DIRECTIONS.up, 0.35);
       break;
     default: fadeIn();
   }
@@ -196,7 +231,7 @@ function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level }) {
   }
 }
 
-function applyOut(kind, ch, { outStart, life, outDuration, dist, style, eout }) {
+function applyOut(kind, ch, { outStart, life, outDuration, dist, style, eout, from }) {
   const safe = settled(eout);
   const fadeOut = () => { ch.opacity.push({ t: outStart, v: 1, ease: EASING.linear }, { t: life, v: 0, ease: safe }); };
 
@@ -210,10 +245,14 @@ function applyOut(kind, ch, { outStart, life, outDuration, dist, style, eout }) 
       fadeOut();
       ch.scale.push({ t: outStart, v: 1, ease: EASING.linear }, { t: life, v: 0.94, ease: eout });
       break;
-    case 'slide':
+    case 'slide': {
       fadeOut();
-      ch.offsetX.push({ t: outStart, v: 0, ease: EASING.linear }, { t: life, v: dist * 1.2, ease: eout });
+      // Leave the way it was travelling: the opposite of where it came from.
+      const d = from ? { x: -from.x, y: -from.y } : { x: 0.75, y: 0 };
+      if (d.x) ch.offsetX.push({ t: outStart, v: 0, ease: EASING.linear }, { t: life, v: d.x * dist * 1.6, ease: eout });
+      if (d.y) ch.offsetY.push({ t: outStart, v: 0, ease: EASING.linear }, { t: life, v: d.y * dist * 1.6, ease: eout });
       break;
+    }
     case 'blur':
       fadeOut();
       ch.blur.push({ t: outStart, v: 0, ease: EASING.linear }, { t: life, v: Math.max(style.blur, 8), ease: safe });
