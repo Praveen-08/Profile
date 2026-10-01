@@ -466,38 +466,87 @@ function phraseAt(t) {
 }
 
 /** Drag on the preview to move the captions; the export follows. */
+/**
+ * Drag on the preview to move captions; hold ⌘ while dragging to resize them.
+ * Up or right grows, down or left shrinks. The Word / Phrase / All captions
+ * choice decides what moves or resizes. Everything lands in the export.
+ */
 function wirePreviewDrag() {
   const pv = $('#pv');
   let drag = null;
+  const clampScale = (v) => Math.min(4, Math.max(0.3, v));
+  // Show which gesture is armed: a resize cursor while ⌘ is held.
+  const cursor = (e) => { pv.style.cursor = e.metaKey ? 'nwse-resize' : 'move'; };
+  pv.addEventListener('pointermove', cursor);
+  window.addEventListener('keydown', (e) => { if (e.key === 'Meta') pv.style.cursor = 'nwse-resize'; });
+  window.addEventListener('keyup', (e) => { if (e.key === 'Meta') pv.style.cursor = 'move'; });
+
   pv.addEventListener('pointerdown', (e) => {
     if (!state.plan) return;
     const scope = $('#drag-scope .is-on')?.dataset.v ?? 'word';
+    const resize = e.metaKey;
+    let target;
     if (scope === 'word') {
       const w = wordAtPoint(e.clientX, e.clientY);
       if (!w) return;
       if (w.id !== state.selected) select(w.id);
-      drag = { x: e.clientX, y: e.clientY, word: w.id, base: { ...(state.wordNudges[w.id] ?? { x: 0, y: 0 }) } };
-      pv.setPointerCapture(e.pointerId);
-      return;
+      target = { word: w.id };
+    } else if (scope === 'phrase') {
+      const phrase = phraseAt(state.time);
+      if (!phrase) return setStatus('No phrase on screen here — scrub to one, then drag it.', true);
+      target = { phrase };
+    } else {
+      target = { all: true };
     }
-    const phrase = scope === 'phrase' ? phraseAt(state.time) : null;
-    if (scope === 'phrase' && !phrase) return setStatus('No phrase on screen here — scrub to one, then drag it.', true);
-    const key = phrase?.words[0]?.id;
-    const base = key ? { ...(state.phraseNudges[key] ?? { x: 0, y: 0 }) } : { ...state.custom[offsetKey()] };
-    drag = { x: e.clientX, y: e.clientY, key, base };
+
+    if (resize) {
+      // Each word's own size at the start of the gesture, so a phrase keeps
+      // its proportions while it grows.
+      const ids = target.word ? [target.word] : target.phrase ? target.phrase.words.map((w) => w.id) : [];
+      const bases = Object.fromEntries(ids.map((id) => [id, state.overrides[id]?.scale ?? 1]));
+      drag = { mode: 'resize', x: e.clientX, y: e.clientY, target, bases, baseAll: state.custom[sizeKey()] };
+    } else {
+      const base = target.word ? { ...(state.wordNudges[target.word] ?? { x: 0, y: 0 }) }
+        : target.phrase ? { ...(state.phraseNudges[target.phrase.words[0].id] ?? { x: 0, y: 0 }) }
+          : { ...state.custom[offsetKey()] };
+      drag = { mode: 'move', x: e.clientX, y: e.clientY, target, base };
+    }
     pv.setPointerCapture(e.pointerId);
   });
+
   pv.addEventListener('pointermove', (e) => {
     if (!drag) return;
     const rect = pv.getBoundingClientRect();
-    const next = {
-      x: drag.base.x + (e.clientX - drag.x) / rect.width,
-      y: drag.base.y - (e.clientY - drag.y) / rect.height,
-    };
-    if (drag.word) state.wordNudges[drag.word] = next;
-    else if (drag.key) state.phraseNudges[drag.key] = next;
-    else state.custom[offsetKey()] = next;
+    const dx = (e.clientX - drag.x) / rect.width;
+    const dy = (e.clientY - drag.y) / rect.height;
+    if (drag.mode === 'move') {
+      const next = { x: drag.base.x + dx, y: drag.base.y - dy };
+      if (drag.target.word) state.wordNudges[drag.target.word] = next;
+      else if (drag.target.phrase) state.phraseNudges[drag.target.phrase.words[0].id] = next;
+      else state.custom[offsetKey()] = next;
+    } else {
+      // Up or right grows; a quarter of the preview's size doubles it.
+      const factor = Math.pow(2, (dx - dy) * 4);
+      if (drag.target.all) {
+        state.custom[sizeKey()] = Math.round(Math.min(300, Math.max(30, drag.baseAll * factor)));
+        $('#size').value = state.custom[sizeKey()];
+        $('#size-val').textContent = `${state.custom[sizeKey()]}%`;
+      } else {
+        for (const [id, base] of Object.entries(drag.bases)) {
+          const scale = Math.round(clampScale(base * factor) * 100) / 100;
+          if (Math.abs(scale - 1) < 0.005) {
+            const { scale: _, ...rest } = state.overrides[id] ?? {};
+            if (Object.keys(rest).length) state.overrides[id] = rest; else delete state.overrides[id];
+          } else {
+            state.overrides[id] = { ...(state.overrides[id] ?? {}), scale };
+          }
+        }
+      }
+      setStatus(drag.target.all ? `Overall size ${state.custom[sizeKey()]}%`
+        : `Size ${Math.round((state.overrides[Object.keys(drag.bases)[0]]?.scale ?? 1) * 100)}%`);
+    }
     regenerate();
+    if (drag.target.word) showWord();
   });
   const end = () => { if (drag) { drag = null; changed(); } };
   pv.addEventListener('pointerup', end);
