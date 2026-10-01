@@ -75,6 +75,8 @@ export const TEMPLATE_VERSION = 1;
  * @property {number} stagger           Seconds between successive words when they share a timestamp.
  * @property {number} speed             Multiplier on all durations.
  * @property {"spoken"|"phrase"} reveal Word-by-word as spoken, or the whole phrase at once.
+ * @property {import('../core/types.js').InAnimation} [patternIn]   Entrance for words coloured by the colour pattern.
+ * @property {import('../core/types.js').OutAnimation} [patternOut] Exit for words coloured by the colour pattern.
  * @property {number} hold              Seconds the phrase stays up after its last word ends.
  */
 

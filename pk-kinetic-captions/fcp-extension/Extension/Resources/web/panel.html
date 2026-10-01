@@ -72,6 +72,13 @@
     <button id="w-colour-auto" class="pv-btn">Use style colour</button>
   </div>
 
+  <h2 class="mt">Animation</h2>
+  <div class="anim-grid">
+    <label>This word</label>
+    <select id="w-in" class="a-in"></select><select id="w-out" class="a-out"></select>
+  </div>
+  <button id="w-replay" class="pv-btn mt-s">▶ Replay this phrase</button>
+
   <div class="pv-row mt">
     <button id="w-hide" class="pv-btn">Hide word</button>
     <button id="w-reset" class="pv-btn">Reset this word</button>
@@ -114,6 +121,23 @@
     <button data-v="off" class="is-on">Off</button><button data-v="highlights">Highlights</button><button data-v="all">Every word</button><button data-v="phrases">Phrases</button>
   </div>
   <div id="pattern" class="pattern-row mt-s"></div>
+
+  <h2 class="mt">Animation</h2>
+  <div class="anim-grid">
+    <label>Feel</label>
+    <select id="a-feel">
+      <option value="">Style default</option><option value="minimal">Minimal</option><option value="smooth">Smooth</option>
+      <option value="editorial">Editorial</option><option value="cinematic">Cinematic</option><option value="luxury">Luxury</option>
+      <option value="punchy">Punchy</option><option value="energetic">Energetic</option>
+    </select>
+    <label>Main text</label>
+    <select id="a-main-in" class="a-in"></select><select id="a-main-out" class="a-out"></select>
+    <label>Highlights</label>
+    <select id="a-high-in" class="a-in"></select><select id="a-high-out" class="a-out"></select>
+    <label>Pattern words</label>
+    <select id="a-pat-in" class="a-in"></select><select id="a-pat-out" class="a-out"></select>
+  </div>
+  <p class="hint">Entrance, then exit. Pattern words are the ones the colour pattern picks out.</p>
 
   <h2 class="mt">Emphasis</h2>
   <div class="seg wide" id="emphasis">

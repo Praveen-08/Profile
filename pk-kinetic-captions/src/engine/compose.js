@@ -211,7 +211,8 @@ export function compose(opts) {
       const resolved = resolveInteraction(level, template, { depthOverride: o.depth });
       // A word can carry its own look — one word in Difference in a clean line.
       const interaction = o.look && INTERACTIONS[o.look] ? { ...resolved, blend: INTERACTIONS[o.look].blend } : resolved;
-      let colour = o.colour ? parseColour(o.colour) : (patternColour(level, pi) ?? palette[level]);
+      const fromPattern = o.colour ? null : patternColour(level, pi);
+      let colour = o.colour ? parseColour(o.colour) : (fromPattern ?? palette[level]);
       // A colour the editor picked for this word is theirs; the blend guard
       // only adjusts colours the engine chose.
       if (!o.colour) {
@@ -234,7 +235,10 @@ export function compose(opts) {
         box: o.position ? { ...laid.box, x: o.position.x, y: o.position.y } : laid.box,
         motion: buildMotion({
           level, template, life, capFraction, capabilities: caps,
-          inOverride: o.inAnimation, outOverride: o.outAnimation,
+          // Words picked out by the colour pattern can move differently from
+          // the rest; a word's own setting still wins.
+          inOverride: o.inAnimation ?? (fromPattern ? template.motion.patternIn : undefined),
+          outOverride: o.outAnimation ?? (fromPattern ? template.motion.patternOut : undefined),
         }),
         depth: interaction.depth,
         blend: interaction.blend,

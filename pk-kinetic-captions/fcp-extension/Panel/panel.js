@@ -52,6 +52,8 @@ const state = {
     // of the frame (centre origin, +y up — the engine's own coordinates).
     offsetVertical: { x: 0, y: 0 },
     offsetHorizontal: { x: 0, y: 0 },
+    /** Animation choices; '' means the style's own. */
+    anim: { feel: '', mainIn: '', mainOut: '', highIn: '', highOut: '', patIn: '', patOut: '' },
   },
   /** Per-phrase moves on top of the overall offset, keyed by first word id. */
   phraseNudges: /** @type {Record<string, {x: number, y: number}>} */ ({}),
@@ -238,7 +240,7 @@ function drawPreview() {
   const pv = $('#pv');
   pv.style.aspectRatio = `${state.frame.width} / ${state.frame.height}`;
   // Fit inside the panel: the width the column allows, or the height cap.
-  const maxH = window.innerHeight * 0.58;
+  const maxH = window.innerHeight * 0.42;
   pv.style.width = `${Math.min(pv.parentElement.clientWidth, maxH * state.frame.width / state.frame.height)}px`;
 
   const dur = planDuration();
@@ -306,6 +308,8 @@ function showWord() {
   $('#w-size-val').textContent = `${pct}%`;
   setSeg('#w-look', o.look ?? '');
   $('#w-colour').value = toHex(w.colour);
+  $('#w-in').value = o.inAnimation ?? '';
+  $('#w-out').value = o.outAnimation ?? '';
   $('#w-hide').textContent = 'Hide word';
 }
 
@@ -379,6 +383,31 @@ function tick(now) {
   if (state.playing) requestAnimationFrame(tick);
 }
 
+/**
+ * Play the phrase being edited from its first word, then freeze again on the
+ * frame the editor was looking at — so an animation change can be judged
+ * without losing the place.
+ */
+let replayTimer = 0;
+function replayCurrentPhrase() {
+  const phrase = (state.plan?.phrases ?? []).find((p) => p.words.some((w) => w.id === state.selected)) ?? phraseAt(state.time);
+  if (!phrase) return;
+  const start = Math.min(...phrase.words.map((w) => w.start));
+  const end = Math.max(...phrase.words.map((w) => w.end));
+  const freezeAt = state.time;
+  cancelAnimationFrame(replayTimer);
+  if (state.playing) togglePlay();
+  const t0 = performance.now();
+  const step = (now) => {
+    const t = start + (now - t0) / 1000;
+    if (t >= end) { state.time = freezeAt; drawPreview(); return; }
+    state.time = t;
+    drawPreview();
+    replayTimer = requestAnimationFrame(step);
+  };
+  replayTimer = requestAnimationFrame(step);
+}
+
 /** The phrase on screen at the current time, if any. */
 function phraseAt(t) {
   for (const p of state.plan?.phrases ?? []) {
@@ -432,7 +461,18 @@ function wirePreviewDrag() {
 function customPatch(base) {
   const c = state.custom;
   const pct = c[sizeKey()] / 100;
+  const a = c.anim ?? {};
+  const motionIn = {}, motionOut = {};
+  if (a.mainIn) motionIn.normal = a.mainIn;
+  if (a.highIn) { motionIn.emphasis = a.highIn; motionIn.hero = a.highIn; }
+  if (a.mainOut) motionOut.normal = a.mainOut;
+  if (a.highOut) { motionOut.emphasis = a.highOut; motionOut.hero = a.highOut; }
   return {
+    motion: {
+      ...(a.feel ? { style: a.feel } : {}),
+      in: motionIn, out: motionOut,
+      patternIn: a.patIn || undefined, patternOut: a.patOut || undefined,
+    },
     scale: { base: base.scale.base * pct },
     interaction: { preset: c.mainLook, emphasisPreset: c.highlightLook, heroPreset: c.highlightLook },
     colours: {
@@ -456,6 +496,7 @@ function showCustom() {
   $('#main-colour').value = main;
   $('#main-colour-hex').value = main;
   drawPattern();
+  for (const [id, key] of Object.entries(ANIM_FIELDS)) $(`#${id}`).value = c.anim?.[key] ?? '';
 }
 
 function drawPattern() {
@@ -642,6 +683,25 @@ $('#pv-reset').onclick = () => {
 };
 window.addEventListener('resize', () => drawPreview());
 
+const IN_ANIMS = [['fade', 'Fade in'], ['rise', 'Rise'], ['slide', 'Slide in'], ['scale', 'Scale up'], ['pop', 'Pop'], ['stretch', 'Stretch'], ['reveal', 'Reveal']];
+const OUT_ANIMS = [['fade', 'Fade out'], ['scale', 'Grow out'], ['shrink', 'Shrink out'], ['slide', 'Slide out'], ['maskExit', 'Cut']];
+function fillAnimSelect(sel, list, defaultLabel) {
+  sel.replaceChildren(new Option(defaultLabel, ''), ...list.map(([v, label]) => new Option(label, v)));
+}
+for (const sel of $$('select.a-in')) fillAnimSelect(sel, IN_ANIMS, sel.id.startsWith('w-') ? 'As its group' : 'Style default');
+for (const sel of $$('select.a-out')) fillAnimSelect(sel, OUT_ANIMS, sel.id.startsWith('w-') ? 'As its group' : 'Style default');
+const ANIM_FIELDS = { 'a-feel': 'feel', 'a-main-in': 'mainIn', 'a-main-out': 'mainOut', 'a-high-in': 'highIn', 'a-high-out': 'highOut', 'a-pat-in': 'patIn', 'a-pat-out': 'patOut' };
+for (const [id, key] of Object.entries(ANIM_FIELDS)) {
+  $(`#${id}`).onchange = () => {
+    state.custom.anim = { ...(state.custom.anim ?? {}), [key]: $(`#${id}`).value };
+    changed();
+    replayCurrentPhrase();
+  };
+}
+$('#w-in').onchange = () => { overrideSelected({ inAnimation: $('#w-in').value || undefined }); replayCurrentPhrase(); };
+$('#w-out').onchange = () => { overrideSelected({ outAnimation: $('#w-out').value || undefined }); replayCurrentPhrase(); };
+$('#w-replay').onclick = () => replayCurrentPhrase();
+
 $('#w-prev').onclick = () => stepWord(-1);
 $('#w-next').onclick = () => stepWord(1);
 $('#w-text').onchange = () => {
@@ -727,6 +787,7 @@ callNative('loadPrefs')
       ...state.custom, ...saved, mainColour: saved.mainColour ?? null,
       offsetVertical: saved.offsetVertical ?? { x: 0, y: 0 },
       offsetHorizontal: saved.offsetHorizontal ?? { x: 0, y: 0 },
+      anim: { ...state.custom.anim, ...(saved.anim ?? {}) },
     };
     showCustom();
     regenerate();

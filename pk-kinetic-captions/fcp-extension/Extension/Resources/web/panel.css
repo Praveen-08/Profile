@@ -6,7 +6,7 @@
    last step scrolling, so in a short window (Final Cut opened it at 480px) the
    steps above overflowed upwards and the drop zone and status line were
    unreachable. */
-body.panel { min-height: 100vh; overflow-y: auto; background: var(--panel); }
+body.panel { height: auto; min-height: 100vh; overflow: visible; background: var(--panel); }
 .pbar { position: sticky; top: 0; z-index: 2; background: var(--panel); display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
 .ptitle { font-size: 12px; font-weight: 600; }
 .plink { font-size: 10px; color: var(--muted); }
@@ -80,3 +80,13 @@ body.panel { min-height: 100vh; overflow-y: auto; background: var(--panel); }
 .w-text { flex: 1; font: inherit; font-size: 14px; font-weight: 600; text-align: center; color: inherit; background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 5px; padding: 6px 8px; }
 .wchip.is-sel { outline: 2px solid var(--gold); outline-offset: 1px; }
 .wchip.is-custom::after { content: '•'; color: var(--gold); margin-left: 3px; }
+
+/* The preview stays on screen while the controls scroll under it, so a word
+   can be styled while looking at it. */
+#step-preview { position: sticky; top: 37px; z-index: 1; background: var(--panel); }
+#step-preview .pv { max-height: 42vh; }
+
+.anim-grid { display: grid; grid-template-columns: 92px 1fr 1fr; gap: 6px 6px; align-items: center; }
+.anim-grid label { font-size: 11px; color: var(--muted); }
+.anim-grid select { font: inherit; font-size: 11px; color: inherit; background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 4px 6px; min-width: 0; }
+.anim-grid #a-feel { grid-column: span 2; }

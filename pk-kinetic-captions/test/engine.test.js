@@ -415,3 +415,27 @@ test('one word can be styled on its own: look, colour, size, text', async () => 
   const capped = run({ [long.id]: { scale: 3 } }).find((x) => x.id === long.id);
   assert.ok(capped.box.w <= 0.87, `box width ${capped.box.w}`);
 });
+
+test('main text, highlights and colour-pattern words can each animate their own way', async () => {
+  const { compose } = await import('../src/engine/compose.js');
+  const { ingest } = await import('../src/transcript/ingest.js');
+  const { builtinById } = await import('../src/templates/builtin/index.js');
+  const { merge } = await import('../src/templates/schema.js');
+  const frame = { width: 1080, height: 1920, fps: 30, aspect: '9:16', safeArea: true };
+  const transcript = ingest('Welcome to a beautiful family home with stunning sea views and a double garage.', { format: 'text' });
+  const template = merge(builtinById('pk-bold'), {
+    motion: { in: { normal: 'fade', emphasis: 'rise', hero: 'rise' }, patternIn: 'pop', patternOut: 'shrink' },
+    colours: { pattern: ['#ff0000', '#00ff00'], patternScope: 'highlights' },
+  });
+  const words = compose({ transcript, template, frame }).phrases.flatMap((p) => p.words);
+  const normal = words.filter((w) => w.level === 'normal');
+  const highlighted = words.filter((w) => w.level !== 'normal');
+  assert.ok(normal.length && highlighted.length);
+  for (const w of normal) assert.equal(w.motion.inAnimation, 'fade');
+  // With the pattern on highlights, every highlight is a pattern word.
+  for (const w of highlighted) assert.deepEqual([w.motion.inAnimation, w.motion.outAnimation], ['pop', 'shrink']);
+
+  // Without a pattern, highlights use their level's animation.
+  const plain = compose({ transcript, template: merge(template, { colours: { pattern: [] } }), frame }).phrases.flatMap((p) => p.words);
+  for (const w of plain.filter((x) => x.level !== 'normal')) assert.equal(w.motion.inAnimation, 'rise');
+});
