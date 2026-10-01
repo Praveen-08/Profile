@@ -34,5 +34,7 @@ enum WebBridge {
         /// The panel's own settings (sizes per orientation, looks, colours).
         case loadPrefs
         case savePrefs
+        /// A frame of the editor's footage for the preview.
+        case frame
     }
 }

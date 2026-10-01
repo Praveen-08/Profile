@@ -32,7 +32,7 @@ import { groupPhrases } from './phrasing.js';
 import { resolveTypography, capHeightOf, applyCasing } from './typography.js';
 import { layoutBlock, avoidFace, chooseZone } from './layout.js';
 import { buildMotion } from './motion.js';
-import { resolveInteraction, adaptColourForBlend, assignLanes } from './composite.js';
+import { resolveInteraction, adaptColourForBlend, assignLanes, INTERACTIONS } from './composite.js';
 import { parseColour, generatePalette, ensureContrast, toHex } from '../core/colour.js';
 import { validateTemplate } from '../templates/schema.js';
 import { snapToFrame, atLeastOneFrame } from '../core/time.js';
@@ -208,11 +208,17 @@ export function compose(opts) {
       const end = snapToFrame(phraseEnd, frame.fps);
       const life = atLeastOneFrame(Math.max(end - start, 2 / frame.fps), frame.fps);
 
-      const interaction = resolveInteraction(level, template, { depthOverride: o.depth });
+      const resolved = resolveInteraction(level, template, { depthOverride: o.depth });
+      // A word can carry its own look — one word in Difference in a clean line.
+      const interaction = o.look && INTERACTIONS[o.look] ? { ...resolved, blend: INTERACTIONS[o.look].blend } : resolved;
       let colour = o.colour ? parseColour(o.colour) : (patternColour(level, pi) ?? palette[level]);
-      const adapted = adaptColourForBlend(colour, interaction.blend);
-      if (adapted.note && !warnings.includes(adapted.note)) warnings.push(adapted.note);
-      colour = adapted.colour;
+      // A colour the editor picked for this word is theirs; the blend guard
+      // only adjusts colours the engine chose.
+      if (!o.colour) {
+        const adapted = adaptColourForBlend(colour, interaction.blend);
+        if (adapted.note && !warnings.includes(adapted.note)) warnings.push(adapted.note);
+        colour = adapted.colour;
+      }
 
       const capFraction = capHeightOf(item.font, laid.size) / frame.height;
 

@@ -22,6 +22,62 @@
   <p id="source-note" class="hint"></p>
 </section>
 
+<section class="pstep" id="step-preview" hidden>
+  <div id="pv" class="pv" title="Drag to move the captions">
+    <img id="pv-img" alt="">
+    <div id="pv-svg"></div>
+    <div id="pv-sel" class="pv-sel" hidden></div>
+    <p id="pv-empty" class="pv-empty">No video in what was dropped — drag the project for a picture.</p>
+  </div>
+  <div class="pv-bar">
+    <button id="pv-play" class="pv-btn" title="Play / pause">▶</button>
+    <input type="range" id="pv-scrub" min="0" max="1" step="0.01" value="0">
+    <span id="pv-time" class="mono">0.0s</span>
+  </div>
+  <div class="pv-row">
+    <div class="seg" id="drag-scope">
+      <button data-v="word" class="is-on">Drag a word</button><button data-v="phrase">Phrase</button><button data-v="all">All captions</button>
+    </div>
+    <button id="pv-reset" class="pv-btn">Reset positions</button>
+  </div>
+  <p class="hint">Click a word in the picture or the list below to style it on its own.</p>
+</section>
+
+<section class="pstep" id="step-word" hidden>
+  <div class="w-head">
+    <button id="w-prev" class="pv-btn" title="Previous word">◀</button>
+    <input type="text" id="w-text" class="w-text" spellcheck="false" title="Edit the word">
+    <button id="w-next" class="pv-btn" title="Next word">▶</button>
+  </div>
+
+  <h2 class="mt">Level</h2>
+  <div class="seg wide" id="w-level">
+    <button data-v="normal">Normal</button><button data-v="emphasis">Emphasis</button><button data-v="hero">Hero</button>
+  </div>
+
+  <h2 class="mt">Size</h2>
+  <div class="size-row">
+    <input type="range" id="w-size" min="50" max="250" step="5" value="100">
+    <span id="w-size-val" class="mono">100%</span>
+  </div>
+
+  <h2 class="mt">Look</h2>
+  <div class="seg wide" id="w-look">
+    <button data-v="">Style</button><button data-v="clean">Normal</button><button data-v="invert">Difference</button><button data-v="luminous">Screen</button><button data-v="cinematic">Overlay</button>
+  </div>
+
+  <h2 class="mt">Colour</h2>
+  <div class="accent-row">
+    <input type="color" id="w-colour" value="#ffffff">
+    <button id="w-colour-auto" class="pv-btn">Use style colour</button>
+  </div>
+
+  <div class="pv-row mt">
+    <button id="w-hide" class="pv-btn">Hide word</button>
+    <button id="w-reset" class="pv-btn">Reset this word</button>
+  </div>
+</section>
+
 <section class="pstep">
   <h2>Style</h2>
   <div id="styles" class="pstyles"></div>

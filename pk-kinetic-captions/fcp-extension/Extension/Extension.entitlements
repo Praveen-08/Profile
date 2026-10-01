@@ -24,6 +24,17 @@
 		<string>/Library/Application Support/PK Visuals/</string>
 	</array>
 
+	<!-- The preview shows the editor's own footage, which lives wherever their
+	     libraries do — often an external drive. Read-only. -->
+	<key>com.apple.security.temporary-exception.files.absolute-path.read-only</key>
+	<array>
+		<string>/Volumes/</string>
+	</array>
+	<key>com.apple.security.temporary-exception.files.home-relative-path.read-only</key>
+	<array>
+		<string>/</string>
+	</array>
+
 	<!-- Talking to Final Cut. The access group has to be one Final Cut actually
 	     publishes; library.inspection is what motionVFX's working extension
 	     and the 08 Track panel use. -->

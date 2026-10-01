@@ -381,3 +381,37 @@ test('an editor can hide a word entirely', () => {
   const after = plan(AGENT_SCRIPT, t, { overrides: { [w.id]: { hidden: true } } });
   assert.equal(allWords(after).some((x) => x.id === w.id), false);
 });
+
+test('one word can be styled on its own: look, colour, size, text', async () => {
+  const { compose } = await import('../src/engine/compose.js');
+  const { ingest } = await import('../src/transcript/ingest.js');
+  const { builtinById } = await import('../src/templates/builtin/index.js');
+  const frame = { width: 1080, height: 1920, fps: 30, aspect: '9:16', safeArea: true };
+  const transcript = ingest('Welcome to a beautiful family home with sea views.', { format: 'text' });
+  const run = (overrides) => compose({ transcript, template: builtinById('pk-bold'), frame, overrides }).phrases.flatMap((p) => p.words);
+  const words = run({});
+  const small = words.find((w) => w.text === 'to');
+  const other = words.find((w) => w.text === 'home');
+
+  const after = run({
+    [small.id]: { look: 'invert', colour: '#ff0000', scale: 1.5 },
+    [other.id]: { text: 'house' },
+  });
+  const w = after.find((x) => x.id === small.id);
+  assert.equal(w.blend, 'difference');
+  assert.ok(Math.abs(w.size - small.size * 1.5) < 0.01, `${w.size} vs ${small.size}`);
+  assert.deepEqual([w.colour.r, w.colour.g, w.colour.b].map((v) => Math.round(v * 255)), [255, 0, 0]);
+  assert.equal(after.find((x) => x.id === other.id).text, 'house');
+
+  // Its neighbours are untouched.
+  for (const x of after.filter((x) => x.id !== small.id && x.id !== other.id)) {
+    const before = words.find((y) => y.id === x.id);
+    assert.equal(x.blend, before.blend);
+    assert.deepEqual(x.colour, before.colour);
+  }
+
+  // A long word cannot be scaled past the frame's safe width.
+  const long = words.find((x) => x.text === 'BEAUTIFUL');
+  const capped = run({ [long.id]: { scale: 3 } }).find((x) => x.id === long.id);
+  assert.ok(capped.box.w <= 0.87, `box width ${capped.box.w}`);
+});

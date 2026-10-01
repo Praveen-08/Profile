@@ -274,6 +274,7 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * @property {InAnimation} [inAnimation]
  * @property {OutAnimation} [outAnimation]
  * @property {Depth} [depth]
+ * @property {Interaction} [look]  This word's own look (blend), whatever its level's is.
  * @property {boolean} [hidden]
  */
 

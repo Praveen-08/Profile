@@ -204,3 +204,33 @@ test('a dragged project is read at its own frame rate, not a compound clip\'s', 
   const clip = xml.replace(/<event>[\s\S]*<\/event>/, '<media id="m2"><sequence format="r1"/></media>');
   assert.equal(frameFromFCPXML(clip, FALLBACK).fps, 23.976);
 });
+
+test('the preview finds the picture under the playhead, through Final Cut\'s clocks', async () => {
+  const { videoSegments, pictureAt } = await import('../fcp-extension/Panel/timeline.js');
+  // The shape of a real project: one long spine gap whose own clock starts at
+  // 01:00:00:00, every shot connected to it, a still at the end.
+  const xml = `<fcpxml><resources>
+    <asset id="a1" hasVideo="1"><media-rep kind="original-media" src="file:///Volumes/SSD/A.MP4"/></asset>
+    <asset id="a2" hasVideo="1"><media-rep kind="original-media" src="file:///Volumes/SSD/B.MP4"/></asset>
+    <asset id="a3" hasAudio="1"><media-rep kind="original-media" src="file:///Volumes/SSD/voice.mp3"/></asset>
+    <asset id="a4" hasVideo="1"><media-rep kind="original-media" src="file:///Users/me/end.png"/></asset>
+  </resources><library><event><project name="P"><sequence format="r1" tcStart="0s"><spine>
+    <gap offset="0s" start="3600s" duration="20s">
+      <asset-clip ref="a3" lane="-1" offset="3600s" duration="20s"/>
+      <clip lane="1" offset="3600s" start="96/25s" duration="7s"><video ref="a1" offset="0s" duration="20s"/></clip>
+      <clip lane="1" offset="3607s" start="2s" duration="8s"><video ref="a2" offset="0s" duration="20s"/></clip>
+      <clip lane="1" offset="3615s" start="0s" duration="5s" enabled="0"><video ref="a1" offset="0s" duration="5s"/></clip>
+      <video ref="a4" lane="1" offset="3615s" start="1h" duration="5s"/>
+    </gap>
+  </spine></sequence></project></event></library></fcpxml>`;
+
+  const segs = videoSegments(xml);
+  assert.deepEqual(segs.map((s) => [s.src.split('/').pop(), s.start, s.end]), [
+    ['A.MP4', 0, 7], ['B.MP4', 7, 15], ['end.png', 15, 20],
+  ], 'audio, below-storyline and disabled clips are not pictures');
+
+  assert.deepEqual(pictureAt(segs, 0.5), { src: 'file:///Volumes/SSD/A.MP4', time: 3.84 + 0.5, still: false });
+  assert.equal(pictureAt(segs, 8).time, 2 + 1);
+  assert.equal(pictureAt(segs, 16).still, true);
+  assert.equal(pictureAt(segs, 25), null);
+});

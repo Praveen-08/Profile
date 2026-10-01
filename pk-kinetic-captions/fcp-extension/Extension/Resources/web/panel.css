@@ -57,3 +57,26 @@ body.panel { min-height: 100vh; overflow-y: auto; background: var(--panel); }
 .dragchip span { font-size: 11px; color: var(--muted); }
 .dragchip:active { cursor: grabbing; }
 .dragchip.is-off { opacity: .35; cursor: default; pointer-events: none; }
+
+/* Live preview: the editor's own frame, with the caption layer the exporter
+   will write drawn over it. Blend modes composite against the real picture. */
+.pv {
+  position: relative; margin: 0 auto; background: #000; overflow: hidden; border-radius: 6px;
+  max-height: 58vh; max-width: 100%; cursor: move; touch-action: none;
+}
+.pv img, .pv #pv-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pv img { object-fit: contain; }
+.pv #pv-svg svg { width: 100%; height: 100%; display: block; }
+.pv-empty { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 11px; color: var(--muted); margin: 0; pointer-events: none; }
+.pv-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.pv-bar input[type=range] { flex: 1; accent-color: var(--gold); }
+.pv-bar .mono { min-width: 44px; text-align: right; font-size: 11px; }
+.pv-btn { font: inherit; font-size: 11px; color: inherit; background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 4px 9px; cursor: pointer; }
+.pv-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-top: 8px; }
+
+/* The selected word: outlined in the preview, edited below it. */
+.pv-sel { position: absolute; border: 1.5px solid var(--gold); border-radius: 3px; pointer-events: none; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+.w-head { display: flex; gap: 6px; align-items: center; }
+.w-text { flex: 1; font: inherit; font-size: 14px; font-weight: 600; text-align: center; color: inherit; background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 5px; padding: 6px 8px; }
+.wchip.is-sel { outline: 2px solid var(--gold); outline-offset: 1px; }
+.wchip.is-custom::after { content: '•'; color: var(--gold); margin-left: 3px; }

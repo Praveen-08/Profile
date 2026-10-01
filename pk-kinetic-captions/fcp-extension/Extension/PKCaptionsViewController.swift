@@ -24,6 +24,7 @@ final class PKCaptionsViewController: NSViewController {
     private var webView: DragWebView!
     private var bridge: TimelineBridge = MockTimelineBridge()
     private let store = TemplateStore()
+    private let frames = FrameGrabber()
 
     /// The FCPXML the panel last produced, held so it can be dragged out.
     private var pendingFCPXML: String?
@@ -260,6 +261,18 @@ extension PKCaptionsViewController: WKScriptMessageHandler {
             }
             webView.pendingDragXML = xml
             reply(to: id, ok: true, payload: [:])
+
+        case .frame:
+            guard let path = body["path"] as? String, let time = body["time"] as? Double else {
+                return reply(to: id, ok: false, payload: ["error": "No clip to preview."])
+            }
+            let height = body["height"] as? Double ?? 720
+            frames.frame(path: path, seconds: time, maxHeight: CGFloat(height)) { [weak self] result in
+                switch result {
+                case .success(let url): self?.reply(to: id, ok: true, payload: ["image": url])
+                case .failure(let error): self?.reply(to: id, ok: false, payload: ["error": error.localizedDescription])
+                }
+            }
 
         case .loadPrefs:
             reply(to: id, ok: true, payload: ["json": store.loadPrefs() ?? ""])
