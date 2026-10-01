@@ -35,9 +35,14 @@ import { toFCPColour } from '../core/colour.js';
 import { faceName, WEIGHT_NUMERIC } from '../engine/fonts.js';
 import { sample } from '../engine/motion.js';
 
-/** Final Cut's own Basic Title. Present on every install, so the native profile needs no installation. */
+/**
+ * Final Cut's own Basic Title. Present on every install, so the native profile
+ * needs no installation. It lives under Bumper:Opener — the first version
+ * pointed at Build In:Out, and Final Cut imported every title with "The item
+ * could not be read".
+ */
 export const BASIC_TITLE_UID =
-  '.../Titles.localized/Build In:Out.localized/Basic Title.localized/Basic Title.moti';
+  '.../Titles.localized/Bumper:Opener.localized/Basic Title.localized/Basic Title.moti';
 
 /** The PK template, once installed by `pkkc install`. */
 export const PK_TITLE_UID =
@@ -152,8 +157,8 @@ function renderTitle(w, index, lane, plan, samples, profile) {
   const offset = toFCPTime(w.start, fps);
   const dur = toFCPTime(life, fps);
 
-  // Normalized centre-origin (+y up) -> Final Cut transform pixels, which use
-  // the same orientation, measured from the centre of the frame.
+  // Normalized centre-origin (+y up) -> pixels from the centre of the frame.
+  // Converted to Final Cut's units only when written; see fcpPosition.
   const baseX = w.position.x * plan.frame.width;
   const baseY = w.position.y * plan.frame.height;
 
@@ -176,6 +181,17 @@ ${blend}
               </title>`;
 }
 
+/**
+ * Pixels from the frame centre -> an FCPXML transform position, which is in
+ * percent of the frame *height* (same orientation, +y up). Writing pixels put
+ * every title far outside the frame: -407.7 was read as -407.7% of 1920px,
+ * shown in Final Cut's inspector as X -7828.6px.
+ */
+function fcpPosition(xPx, yPx, plan) {
+  const h = plan.frame.height;
+  return `${num((xPx / h) * 100, 4)} ${num((yPx / h) * 100, 4)}`;
+}
+
 /** Position and scale, baked from the motion engine's curves. */
 function renderTransform(w, plan, baseX, baseY, life, fps, samples) {
   const hasMove = w.motion.offsetX.length > 1 || w.motion.offsetY.length > 1;
@@ -183,7 +199,7 @@ function renderTransform(w, plan, baseX, baseY, life, fps, samples) {
 
   if (!hasMove && !hasScale) {
     const s = w.motion.scale.length ? w.motion.scale[0].v : 1;
-    return `                <adjust-transform position="${num(baseX)} ${num(baseY)}" scale="${num(s, 5)} ${num(s, 5)}" anchor="0 0"/>`;
+    return `                <adjust-transform position="${fcpPosition(baseX, baseY, plan)}" scale="${num(s, 5)} ${num(s, 5)}" anchor="0 0"/>`;
   }
 
   const times = keyTimes([...w.motion.offsetX, ...w.motion.offsetY, ...w.motion.scale], life, samples);
@@ -194,18 +210,18 @@ function renderTransform(w, plan, baseX, baseY, life, fps, samples) {
     for (const t of times) {
       const x = baseX + sample(w.motion.offsetX, t, 0) * plan.frame.height;
       const y = baseY + sample(w.motion.offsetY, t, 0) * plan.frame.height;
-      lines.push(`                      <keyframe time="${toFCPTime(t, fps)}" value="${num(x)} ${num(y)}" interp="linear"/>`);
+      lines.push(`                      <keyframe time="${toFCPTime(t, fps)}" value="${fcpPosition(x, y, plan)}" curve="linear"/>`);
     }
     lines.push('                    </keyframeAnimation>', '                  </param>');
   } else {
-    lines.push(`                  <param name="position" value="${num(baseX)} ${num(baseY)}"/>`);
+    lines.push(`                  <param name="position" value="${fcpPosition(baseX, baseY, plan)}"/>`);
   }
 
   if (hasScale) {
     lines.push('                  <param name="scale">', '                    <keyframeAnimation>');
     for (const t of times) {
       const s = sample(w.motion.scale, t, 1);
-      lines.push(`                      <keyframe time="${toFCPTime(t, fps)}" value="${num(s, 5)} ${num(s, 5)}" interp="linear"/>`);
+      lines.push(`                      <keyframe time="${toFCPTime(t, fps)}" value="${num(s, 5)} ${num(s, 5)}" curve="linear"/>`);
     }
     lines.push('                    </keyframeAnimation>', '                  </param>');
   }
@@ -226,7 +242,7 @@ function renderBlend(w, life, fps, samples) {
   }
 
   const frames = times
-    .map((t) => `                      <keyframe time="${toFCPTime(t, fps)}" value="${num(clamp01(sample(w.motion.opacity, t, 1)), 4)}" interp="linear"/>`)
+    .map((t) => `                      <keyframe time="${toFCPTime(t, fps)}" value="${num(clamp01(sample(w.motion.opacity, t, 1)), 4)}" curve="linear"/>`)
     .join('\n');
 
   return `                <adjust-blend${modeAttr}>
@@ -242,9 +258,15 @@ ${frames}
 function renderTextStyle(w, styleId, plan) {
   const f = w.font;
   const face = faceName(f.family, f.weight, f.width, f.italic);
+  // Final Cut measures title text against a 1080-line frame, whatever the
+  // project's size: in a 1080x1920 vertical project a fontSize of 79 draws
+  // 79 x 1920/1080 = 140px tall. Measured in Final Cut 12.2 — words overlapped
+  // and heroes ran off both edges until every pixel value here was scaled back.
+  const k = 1080 / plan.frame.height;
+  const size = w.size * k;
   const attrs = [
     `font="${esc(f.family)}"`,
-    `fontSize="${num(w.size, 1)}"`,
+    `fontSize="${num(size, 1)}"`,
     `fontFace="${esc(face)}"`,
     `fontColor="${toFCPColour(w.colour)}"`,
     `bold="${WEIGHT_NUMERIC[f.weight] >= 600 ? 1 : 0}"`,
@@ -252,17 +274,17 @@ function renderTextStyle(w, styleId, plan) {
     `alignment="center"`,
     `lineSpacing="${num((f.lineHeight - 1) * 100, 1)}"`,
   ];
-  if (f.tracking) attrs.push(`kerning="${num(f.tracking / 1000 * w.size, 2)}"`);
+  if (f.tracking) attrs.push(`kerning="${num(f.tracking / 1000 * size, 2)}"`);
 
   const d = w.decoration;
   if (d.outline.enabled && d.outline.width > 0) {
-    attrs.push(`strokeColor="${toFCPColour(d.outline.colour)}"`, `strokeWidth="${num(d.outline.width, 2)}"`);
+    attrs.push(`strokeColor="${toFCPColour(d.outline.colour)}"`, `strokeWidth="${num(d.outline.width * k, 2)}"`);
   }
   if (d.shadow.enabled && d.shadow.opacity > 0) {
     attrs.push(
       `shadowColor="${toFCPColour({ ...d.shadow.colour, a: d.shadow.opacity })}"`,
-      `shadowOffset="${num(d.shadow.distance, 2)} ${num(d.shadow.angle, 1)}"`,
-      `shadowBlurRadius="${num(d.shadow.blur, 1)}"`,
+      `shadowOffset="${num(d.shadow.distance * k, 2)} ${num(d.shadow.angle, 1)}"`,
+      `shadowBlurRadius="${num(d.shadow.blur * k, 1)}"`,
     );
   }
   return `<text-style ${attrs.join(' ')}/>`;

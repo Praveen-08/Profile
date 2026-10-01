@@ -220,3 +220,56 @@ test('FCPXML validates against Final Cut\'s own DTD, when Final Cut is installed
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('the Basic Title the export points at exists in Final Cut, when Final Cut is installed', async (t) => {
+  const fs = await import('node:fs');
+  const { BASIC_TITLE_UID } = await import('../src/export/fcpxml.js');
+  const templates = '/Applications/Final Cut Pro.app/Contents/PlugIns/MediaProviders/MotionEffect.fxp/Contents/Resources/PETemplates.localized';
+  if (!fs.existsSync(templates)) return t.skip('Final Cut Pro is not installed');
+  // ".../" stands for Final Cut's own template root.
+  const file = templates + BASIC_TITLE_UID.replace(/^\.\.\./, '');
+  assert.ok(fs.existsSync(file), `Final Cut has no ${BASIC_TITLE_UID} — every title would import as unreadable`);
+});
+
+test('keyframes use curve, which Final Cut accepts, not interp', () => {
+  // Both are legal in the DTD, but Final Cut 12.2 drops any transform param
+  // whose keyframes carry interp: "This param element was ignored because it
+  // does not support the interpolation attribute". The motion silently goes.
+  const { xml } = exportFCPXML(make(builtinById('pk-bold')));
+  assert.ok(xml.includes('<keyframe '), 'expected animated titles');
+  assert.ok(!/<keyframe [^>]*interp=/.test(xml), 'interp on a keyframe makes Final Cut ignore the param');
+  assert.match(xml, /<keyframe [^>]*curve="linear"/);
+});
+
+test('every title is positioned inside the frame, in Final Cut\'s units', () => {
+  // FCPXML transform positions are percent of the frame height. Pixels there
+  // put every title far off-screen in Final Cut — valid XML, nothing visible.
+  for (const frame of [FRAME_916, FRAME_169]) {
+    const { xml } = exportFCPXML(make(builtinById('pk-bold'), frame));
+    const halfW = (frame.width / frame.height) * 50;
+    const values = [
+      ...[...xml.matchAll(/position="([^"]+)"/g)].map((m) => m[1]),
+      ...[...xml.matchAll(/<param name="position" value="([^"]+)"/g)].map((m) => m[1]),
+      ...[...xml.matchAll(/<param name="position">([\s\S]*?)<\/param>/g)]
+        .flatMap((m) => [...m[1].matchAll(/value="([^"]+)"/g)].map((k) => k[1])),
+    ];
+    assert.ok(values.length > 0);
+    for (const v of values) {
+      const [x, y] = v.split(' ').map(Number);
+      assert.ok(Math.abs(x) <= halfW && Math.abs(y) <= 50, `position ${v} is outside a ${frame.width}x${frame.height} frame`);
+    }
+  }
+});
+
+test('font sizes are in Final Cut\'s 1080-line units', () => {
+  // Final Cut draws title text relative to a 1080-line frame, so a vertical
+  // 1080x1920 plan must write its sizes scaled by 1080/1920 or every word
+  // draws 1.78x too big. Landscape 1080p is unchanged.
+  for (const frame of [FRAME_916, FRAME_169]) {
+    const plan = make(builtinById('pk-bold'), frame);
+    const { xml } = exportFCPXML(plan);
+    const written = Number(/fontSize="([^"]+)"/.exec(xml)[1]);
+    const first = plan.phrases[0].words[0];
+    assert.ok(Math.abs(written - first.size * (1080 / frame.height)) < 0.06, `${frame.width}x${frame.height}: wrote ${written} for size ${first.size}`);
+  }
+});
