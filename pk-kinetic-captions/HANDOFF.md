@@ -18,7 +18,7 @@ Three ways to use it, sharing one engine:
 |---|---|---|
 | **CLI** | `bin/pkkc.js` — transcript in, FCPXML out | works, tested |
 | **Mac app** | dock icon, drop a clip, design on real footage | works, tested |
-| **FCP panel** | inside Final Cut, reads the timeline directly | **written, never compiled** |
+| **FCP panel** | inside Final Cut, Window ▸ Extensions | **builds, loads and renders in FCP 12.2** |
 
 All three import the same 22 engine modules. A change to emphasis or layout
 reaches all three at once. This is deliberate — do not fork the engine.
@@ -27,7 +27,9 @@ reaches all three at once. This is deliberate — do not fork the engine.
 
 ## Current state
 
-**132 of 132 tests pass** (`npm test`). Typecheck is clean (`npm run typecheck`).
+**138 of 138 tests pass** (`npm test`), including a validation of every
+built-in style against Final Cut's own FCPXML DTD whenever Final Cut is
+installed.
 
 Verified by running it:
 
@@ -36,60 +38,91 @@ Verified by running it:
 - Colour capture pulls `#048785` (teal) from a real frame
 - Template persistence survives a simulated restart byte-identically
 - The Mac launcher finds Node across Homebrew, nvm, fnm, Volta and asdf
+- **On the Mac (2026-10-01):** the extension builds clean with Xcode 27,
+  registers with PlugInKit, appears under Window ▸ Extensions in Final Cut
+  12.2, opens at a usable size, logs `connected to Final Cut Pro 12.2`, and
+  renders the full panel (styles, accent, emphasis, density)
+- Every built-in style's FCPXML validates against `FCPXMLv1_11.dtd` from
+  inside Final Cut.app
 
-**Never verified, because the build environment was Linux with no Xcode, no
-Final Cut and no macOS:**
+**Still not verified:**
 
-- that the generated FCPXML actually imports into Final Cut Pro
-- that any of the Swift compiles
-
-Those two are the whole remaining risk. Everything else has been exercised.
+- that Final Cut *imports* a generated `.fcpxml` without complaint. DTD-valid
+  is necessary, not sufficient. The import was started and stopped at Final
+  Cut's "which library?" dialog — import into a scratch library, not a client's.
+- a real drag from Final Cut onto the panel (the code path is fixed — see below
+  — but not yet exercised by hand)
+- "Send to Final Cut" end to end
 
 ---
 
-## The immediate blocker
-
-The panel does not appear in Final Cut because **it has never been built**.
-`51ff770` is the commit that merely *wrote* the extension source.
-
-To build it:
+## Building
 
 ```bash
 cd pk-kinetic-captions/fcp-extension
-./build.sh            # builds, installs, registers, verifies
+./build.sh            # builds, checks, installs, registers, verifies
 ./build.sh --check    # diagnoses an existing install, changes nothing
 ```
 
-Three things make this fail silently if done by hand, which is why the script
-exists:
+`build.sh` uses `/Applications/Xcode.app` by itself when `xcode-select` points
+at the Command Line Tools, and refuses to install a build that is missing the
+extension point, the sandbox, or the ProExtension link.
 
-1. **An unsigned app extension is refused by macOS without any error** — no
-   warning, no log, just an empty Extensions menu. `build.sh` ad-hoc signs it.
-2. **macOS only registers an extension after its host app has been launched
-   once.** Building is not enough. The script launches it.
-3. The app must be in `/Applications` or `~/Applications`.
+**Reloading a new build:** toggle the panel off in Window ▸ Extensions, run
+`./build.sh`, toggle it on. **Never kill the extension process** — Final Cut
+then refuses to relaunch it until Final Cut itself restarts.
 
-Then quit Final Cut completely and reopen it: **Window ▸ Extensions ▸ PK
-Kinetic Captions**.
-
-### Expect one file to fail
-
-`Extension/ProExtensionTimelineBridge.swift` is the **only** file touching
-Apple's `ProExtensionHost` API, which is thinly documented. Its selector names
-were written from the API's documented shape, not from headers anyone could
-read. They are the most likely thing to be wrong.
+Logs, which Final Cut never shows anywhere:
 
 ```bash
-xcrun --show-sdk-path    # then look for ProExtensionHost.framework
+log stream --predicate 'subsystem == "nz.pkvisuals.kinetic-captions"'
 ```
 
-Everything else talks to the `TimelineBridge` protocol, so that should be the
-only file needing changes. `MockTimelineBridge` lets the panel and the whole
-engine be developed without Final Cut running.
+Page script errors and failed resource loads are forwarded there too.
 
-**The panel is useful even if the send path stays broken.** Dragging a clip in
-goes through the pasteboard (`DragWebView`), not the host API, so the read
-path works independently.
+### What the first run inside Final Cut found
+
+Each of these failed **silently**, and each is now pinned by a test in
+`test/export.test.js` or `test/extension.test.js`:
+
+1. **The committed FCPXML was invalid.** Adjust-* elements came before
+   `<text>`, and keyframes sat outside `<keyframeAnimation>` — 114 DTD errors
+   per file. Final Cut would have rejected every import. (The fix existed as
+   uncommitted edits on the Mac.)
+2. **xcodegen deleted NSExtension.** `project.yml` had `info: path:` for the
+   extension, so every `xcodegen` regenerated `Info.plist` without it. Plists
+   are now hand-maintained via `INFOPLIST_FILE`.
+3. **Wrong plist keys.** Final Cut wants `ProExtensionPrincipalViewControllerClass`
+   and `ProExtensionAttributes` directly under `NSExtension`, and a plain class
+   name — hence `@objc(PKCaptionsViewController)`.
+4. **Not sandboxed, not linked.** PlugInKit ignores unsandboxed extensions, and
+   the process traps without Final Cut's `ProExtension.framework` linked
+   (`-Wl,-needed_framework,ProExtension`).
+5. **The host API guessed in the first draft does not exist.** There is no
+   `requestFCPXMLWithCompletionHandler:` and no `sendFCPXML:completionHandler:`,
+   and no headers to check against. Final Cut offers no way to read the
+   timeline as FCPXML or to put FCPXML on it. So: **read = drag** (FCPXML on the
+   pasteboard), **send = write `~/Movies/PK Kinetic Captions/*.fcpxml` and open
+   it in Final Cut**, which imports it. The "read the open timeline" button is
+   gone. The host is reached by pulling
+   `ProExtensionRequestHandling.sharedInstance.extensionContext.host`; there is
+   no connect callback.
+6. **Drags would have been refused.** Final Cut 12.2 drags as
+   `com.apple.finalcutpro.xml.v1-14`; only the unversioned type was registered.
+7. **Zero-size window.** Final Cut sizes the window from the Auto Layout fitting
+   size; a pinned web view has none, so it opened `{0, 28}` — and Final Cut
+   *saved* that frame (`FFExternalProvidersSavedWindowInformations` in the
+   `com.apple.FinalCut` prefs) and restored it on every later open.
+8. **Blank panel.** WebKit refuses ES-module scripts from `file://`. The panel
+   is now served from the bundle under `pkkc://panel/` (`PanelSchemeHandler`).
+9. **WebKit's network process crashed** in the sandbox without
+   `com.apple.security.network.client`, even though nothing is fetched.
+10. **Styles would not have been shared** with the CLI: inside the sandbox,
+    Application Support is the container's. The store uses the real home folder
+    plus a home-relative-path entitlement exception.
+
+The 08 Track panel (`PKPropertyBoundary/fx/ext/`) is a working workflow
+extension on the same Mac and the reference for anything host-related.
 
 ---
 
@@ -115,7 +148,9 @@ fcp-extension/
     TimelineBridge           the protocol everything talks to, plus a mock
     ProExtensionTimelineBridge  ← the only file touching Apple's API
     TemplateStore            styles, in the folder the CLI and app already use
-    WebBridge
+    WebBridge                message names, and the os.Logger the panel logs to
+    PanelSchemeHandler       serves Resources/web as pkkc://panel/ (modules need an origin)
+    Extension.entitlements   sandbox + what it needs; see the comments
     Resources/web/           GENERATED — never edit, regenerated every build
   Host/                      the wrapper app macOS requires
   scripts/bundle-web.mjs     copies the engine in; FAILS the build on any
@@ -208,29 +243,23 @@ CLI (`environment_kind: bridge`) and *could* act on the Mac directly. Same
 tool, different setup. For anything needing Xcode, Final Cut or the local
 filesystem, use a bridge session.
 
-**Three commits may be missing.** `cf39f53`, `c387006` and `e243b9b` were
-committed in a cloud session that could not push. They add `build.sh` and fix
-four real bugs — most importantly **drops going to the wrong view** and **the
-event name never being passed** to the web view (`receive(json, json)` instead
-of `receive(event, json)`). Check whether the branch has them:
-
-```bash
-git log --oneline -4    # expect e243b9b at the top
-```
-
-If not, they exist as a git bundle and as `three.patch`, or reproduce them
-from the descriptions above.
+**The cloud-only commits are applied.** The four commits made in a cloud
+session that could not push (two bug-fix commits, `build.sh`, this handoff)
+were applied on the Mac with `git am four.patch` on 2026-10-01. Their hashes
+differ from the cloud ones because the committer differs; the content is the
+same.
 
 ---
 
 ## What to do next, in order
 
-1. `git diff` — there are uncommitted edits on the Mac to
-   `Extension/Info.plist` and two `fcpxml.js` files. `Info.plist` declares the
-   extension point; if it was edited wrongly the panel will never appear no
-   matter how clean the build. Decide on each change deliberately.
-2. `./build.sh` in `fcp-extension/`.
-3. Fix `ProExtensionTimelineBridge.swift` against the real SDK headers.
-4. **Import a generated `.fcpxml` into Final Cut and confirm it opens.** This
-   has never once been verified and is the highest-risk unknown in the project.
-5. Push the branch.
+1. **Finish the import test.** Open a generated `.fcpxml` in Final Cut, choose
+   **New…** and make a scratch library (not a client's), and confirm the
+   project opens with its titles animating. If Final Cut complains, its
+   message names the element — fix the exporter, then add the case to the DTD
+   test.
+2. **Drag a captioned clip onto the panel.** Expect the captions to load with
+   their timing. If nothing happens, `log stream` (above) will say why.
+3. **Send to Final Cut** from the panel and check the import, as in step 1.
+4. Push the branch (see Environment facts: it has to be a new session, or a
+   push from the Mac).
