@@ -135,3 +135,32 @@ test('normalisation is off unless it is asked for', () => {
   const { transcript } = normalize(t, { realEstate: true, collapse: false });
   assert.deepEqual(transcript.words.map((w) => w.text), ['four', 'bedrooms']);
 });
+
+test('mCaptionsAI caption titles give word timing when there are no captions', async () => {
+  const { parseFCPXMLCaptionTitles } = await import('../src/transcript/ingest.js');
+  const block = (data) => Buffer.from(JSON.stringify(data)).toString('base64');
+  const words = [
+    { Text: 'Want', RawStartTime: '55/100s', RawEndTime: '61/100s' },
+    { Text: 'to', RawStartTime: '61/100s', RawEndTime: '71/100s' },
+    { Text: 'upgrade', RawStartTime: '71/100s', RawEndTime: '112/100s' },
+  ];
+  const title = (offset, data) => `<title ref="r3" offset="${offset}" name="x" duration="17017/24000s">
+      <text><text-style ref="ts1">Want to upgrade</text-style></text>
+      <text><text-style ref="ts2">${block(data)}</text-style></text></title>`;
+  // A lower third: a title with no word data must never be read as speech.
+  const lowerThird = '<title ref="r4" offset="0s" duration="5s"><text><text-style ref="ts9">Jane Smith, Ray White</text-style></text></title>';
+  const xml = `<fcpxml version="1.14"><spine>${lowerThird}${title('10010/24000s', { StartTime: '10010/24000s', Words: words })}</spine></fcpxml>`;
+
+  const out = parseFCPXMLCaptionTitles(xml);
+  assert.deepEqual(out.map((w) => w.text), ['Want', 'to', 'upgrade']);
+  assert.equal(out[0].start, 0.55);
+  assert.equal(out[2].end, 1.12);
+
+  // Moved two seconds later on the timeline since mCaptions made it: words follow.
+  const moved = parseFCPXMLCaptionTitles(`<fcpxml>${title('58010/24000s', { StartTime: '10010/24000s', Words: words })}</fcpxml>`);
+  assert.ok(Math.abs(moved[0].start - 2.55) < 1e-9);
+
+  // Real captions win when both are present.
+  const both = `<fcpxml><caption offset="0s" duration="1s"><text><text-style>Hello there</text-style></text></caption>${title('10010/24000s', { StartTime: '10010/24000s', Words: words })}</fcpxml>`;
+  assert.deepEqual(ingest(both, { format: 'fcpxml' }).words.map((w) => w.text), ['Hello', 'there']);
+});

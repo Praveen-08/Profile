@@ -31,7 +31,11 @@ export function ingest(source, opts = {}) {
     case 'vtt': return finish(parseVTT(source), 'vtt', opts);
     case 'whisper':
     case 'json': return finish(parseJSON(source), 'json', opts);
-    case 'fcpxml': return finish(parseFCPXMLCaptions(source), 'fcpxml', opts);
+    case 'fcpxml': {
+      // Final Cut's own captions first; caption titles only when there are none.
+      const captions = parseFCPXMLCaptions(source);
+      return finish(captions.length ? captions : parseFCPXMLCaptionTitles(source), 'fcpxml', opts);
+    }
     default: return finish(parsePlainText(source, opts), 'text', opts);
   }
 }
@@ -213,6 +217,75 @@ export function parseFCPXMLCaptions(src) {
     if (text) out.push(...distributeLine(decodeXML(text), start, start + dur));
   }
   return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * Caption titles (mCaptionsAI)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Words from caption *titles* — what motionVFX's mCaptionsAI puts on a
+ * timeline instead of Final Cut captions. Used only when a timeline has no
+ * real captions.
+ *
+ * Each mCaptions title carries, besides its visible text, a second text block
+ * holding base64 JSON with per-word timing:
+ *
+ *   { "StartTime": "10010/24000s",            ← where the title sat when made
+ *     "Words": [{ "Text": "Want", "RawStartTime": "55/100s", "RawEndTime": "61/100s" }, …] }
+ *
+ * The raw times are the transcriber's own, in sequence seconds — real speech
+ * timing, unlike the frame-snapped StartTime/EndTime, which are when each word
+ * is revealed. If the editor has since moved the title, the words move with it.
+ *
+ * Titles without that data are skipped on purpose: a lower third or a name
+ * super is a title too, and must never be read as something said.
+ *
+ * @param {string} src @returns {Word[]}
+ */
+export function parseFCPXMLCaptionTitles(src) {
+  /** @type {Word[]} */
+  const out = [];
+  const titleRe = /<title\b([^>]*)>([\s\S]*?)<\/title>/g;
+  let m;
+  while ((m = titleRe.exec(src))) {
+    const data = captionTitleData(m[2]);
+    if (!data?.Words?.length) continue;
+
+    const offset = fcpTimeToSeconds(attr(m[1], 'offset'));
+    const made = fcpTimeToSeconds(data.StartTime ?? null);
+    const shift = Number.isFinite(offset) && Number.isFinite(made) ? offset - made : 0;
+
+    for (const w of data.Words) {
+      const text = String(w.Text ?? '').trim();
+      const start = fcpTimeToSeconds(w.RawStartTime ?? w.StartTime ?? null) + shift;
+      const end = fcpTimeToSeconds(w.RawEndTime ?? w.EndTime ?? null) + shift;
+      if (!text || !Number.isFinite(start) || !Number.isFinite(end)) continue;
+      out.push({ id: '', text, spoken: text, start, end: Math.max(end, start + 0.01) });
+    }
+  }
+  return out.sort((a, b) => a.start - b.start);
+}
+
+/** The base64 JSON word block inside one title's content, if it has one. */
+function captionTitleData(body) {
+  const blockRe = /<text-style\b[^>]*>([A-Za-z0-9+/=\s]{40,})<\/text-style>/g;
+  let m;
+  while ((m = blockRe.exec(body))) {
+    try {
+      const data = JSON.parse(decodeBase64UTF8(m[1].replace(/\s+/g, '')));
+      if (Array.isArray(data?.Words)) return data;
+    } catch { /* not a word block */ }
+  }
+  return null;
+}
+
+/** atob alone would mangle non-ASCII (curly quotes, accents); decode as UTF-8. Node and WebKit both have these. */
+function decodeBase64UTF8(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
 }
 
 const attr = (s, name) => { const m = new RegExp(`${name}="([^"]*)"`).exec(s); return m ? m[1] : null; };
