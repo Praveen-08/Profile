@@ -483,3 +483,49 @@ test('animation can be tuned per group and per word: duration, distance, directi
     assert.ok(w.motion.inDuration <= life * 0.35 + 1e-9 && w.motion.outDuration <= life * 0.35 + 1e-9);
   }
 });
+
+test('groups style together: main, highlights, hook and pattern, with the word on top', async () => {
+  const { compose } = await import('../src/engine/compose.js');
+  const { ingest } = await import('../src/transcript/ingest.js');
+  const { builtinById } = await import('../src/templates/builtin/index.js');
+  const { merge } = await import('../src/templates/schema.js');
+  const frame = { width: 1080, height: 1920, fps: 30, aspect: '9:16', safeArea: true };
+  const transcript = ingest('Stop scrolling. This stunning family home has four bedrooms, two bathrooms and sweeping sea views from every room.', { format: 'text' });
+  const rgb = (c) => [c.r, c.g, c.b].map((v) => Math.round(v * 255)).join(',');
+  const template = merge(builtinById('pk-bold'), {
+    hook: { enabled: true, seconds: 1 },
+    groups: {
+      normal: { fontWeight: 'light', scale: 0.8, colour: '#dddddd', opacity: 0.7 },
+      highlight: { fontWeight: 'black', scale: 1.3, colour: '#00ff00' },
+      hook: { colour: '#ff0000', fontWeight: 'heavy' },
+    },
+  });
+  const phrases = compose({ transcript, template, frame }).phrases;
+  const words = phrases.flatMap((p) => p.words);
+  const hook = words.filter((w) => w.start < 1);
+  const rest = words.filter((w) => w.start >= 1.5);
+  assert.ok(hook.length && rest.length);
+
+  for (const w of hook) assert.equal(rgb(w.colour), '255,0,0', `hook word ${w.text}`);
+  for (const w of rest.filter((x) => x.level === 'normal')) {
+    assert.equal(rgb(w.colour), '221,221,221');
+    assert.equal(w.font.weight, 'light');
+    // Opacity scales the whole fade: it peaks at 70%, not 100%.
+    assert.ok(Math.max(...w.motion.opacity.map((k) => k.v)) <= 0.7 + 1e-9);
+  }
+  for (const w of rest.filter((x) => x.level !== 'normal')) {
+    assert.equal(rgb(w.colour), '0,255,0');
+    assert.equal(w.font.weight, 'black');
+  }
+
+  // A word's own colour beats the hook's.
+  const first = hook[0];
+  const solo = compose({ transcript, template, frame, overrides: { [first.id]: { colour: '#0000ff' } } })
+    .phrases.flatMap((p) => p.words).find((w) => w.id === first.id);
+  assert.equal(rgb(solo.colour), '0,0,255');
+
+  // With a colour pattern on highlights, the pattern colours them, not the group.
+  const patterned = compose({ transcript, template: merge(template, { colours: { pattern: ['#123456'], patternScope: 'highlights' } }), frame })
+    .phrases.flatMap((p) => p.words).filter((w) => w.level !== 'normal' && w.start >= 1.5);
+  for (const w of patterned) assert.equal(rgb(w.colour), '18,52,86');
+});

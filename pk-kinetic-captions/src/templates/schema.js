@@ -34,10 +34,20 @@ export const TEMPLATE_VERSION = 1;
  * @property {PositionConfig} position
  * @property {HierarchyConfig} hierarchy
  * @property {MotionConfig} motion
+ * @property {{normal?: GroupStyle, highlight?: GroupStyle, hook?: GroupStyle, pattern?: GroupStyle}} [groups]
+ *   The editor's styling per group of words. Any field left out follows the style.
+ * @property {{enabled: boolean, seconds: number}} [hook]  The opening line: phrases starting in the first `seconds`.
  * @property {InteractionConfig} interaction
  * @property {DecorationConfig} decoration
  * @property {RealEstateConfig} realEstate
  * @property {{author?:string, created?:string, updated?:string, notes?:string}} meta
+ */
+
+/**
+ * Styling that applies to a whole group of words — the same fields a single
+ * word can override.
+ * @typedef {Pick<import('../core/types.js').WordOverride,
+ *   "fontFamily"|"fontWeight"|"italic"|"casing"|"scale"|"colour"|"opacity"|"look"|"inAnimation"|"outAnimation"|"tune">} GroupStyle
  */
 
 /**

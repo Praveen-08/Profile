@@ -159,18 +159,37 @@ export function compose(opts) {
       ? { zone, since: held.since, runLength: held.runLength + 1 }
       : { zone, since: phrase.start, runLength: 1 };
 
-    // Build layout items, applying per-word scale and font overrides.
-    const items = phrase.words.map((w, i) => {
+    // Each word's style, resolved once, in reading order (the colour pattern
+    // counts as it goes): its level, then its group, then the pattern and the
+    // hook if it belongs to them, then the word's own settings.
+    const inHook = Boolean(template.hook?.enabled) && phrase.start < (template.hook?.seconds ?? 3);
+    const styles = phrase.words.map((w, i) => {
       const level = /** @type {Level} */ (phraseLevels[i]);
       const o = overrides[w.id] ?? {};
+      const g = template.groups ?? {};
+      const base = (level === 'normal' ? g.normal : g.highlight) ?? {};
+      const pattern = o.colour ? null : patternColour(level, pi);
+      const layers = [base, pattern ? g.pattern ?? {} : {}, inHook ? g.hook ?? {} : {}, o];
+      /** @type {import('../core/types.js').WordOverride} */
+      const e = Object.assign({}, ...layers);
+      e.tune = Object.assign({}, template.motion.tune?.[level] ?? {}, ...(pattern ? [template.motion.tune?.pattern ?? {}] : []), ...layers.map((l) => l.tune ?? {}));
+      // Colour: the word's, the hook's, the pattern's, then its group's.
+      const colourSource = o.colour ?? (inHook ? g.hook?.colour : undefined) ?? (pattern ? null : base.colour);
+      return { level, o, e, pattern, inHook, colourSource };
+    });
+
+    // Build layout items, applying per-word scale and font overrides.
+    const items = phrase.words.map((w, i) => {
+      const { level, e } = styles[i];
       /** @type {import('../core/types.js').FontSpec} */
       const font = {
         ...type.fonts[level],
-        ...(o.fontFamily ? { family: o.fontFamily } : {}),
-        ...(o.fontWeight ? { weight: o.fontWeight } : {}),
-        ...(o.italic !== undefined ? { italic: o.italic } : {}),
+        ...(e.fontFamily ? { family: e.fontFamily } : {}),
+        ...(e.fontWeight ? { weight: e.fontWeight } : {}),
+        ...(e.italic !== undefined ? { italic: e.italic } : {}),
+        ...(e.casing ? { casing: e.casing } : {}),
       };
-      return { id: w.id, text: w.text, level, font, size: type.sizes[level] * (o.scale ?? 1) };
+      return { id: w.id, text: w.text, level, font, size: type.sizes[level] * (e.scale ?? 1) };
     });
 
     const raw = layoutBlock(items, zone, template, frame);
@@ -198,8 +217,7 @@ export function compose(opts) {
 
     for (let i = 0; i < phrase.words.length; i++) {
       const w = phrase.words[i];
-      const level = /** @type {Level} */ (phraseLevels[i]);
-      const o = overrides[w.id] ?? {};
+      const { level, o, e, pattern: fromPattern, colourSource } = styles[i];
       const laid = byId.get(w.id);
       if (!laid) continue;
 
@@ -210,12 +228,11 @@ export function compose(opts) {
 
       const resolved = resolveInteraction(level, template, { depthOverride: o.depth });
       // A word can carry its own look — one word in Difference in a clean line.
-      const interaction = o.look && INTERACTIONS[o.look] ? { ...resolved, blend: INTERACTIONS[o.look].blend } : resolved;
-      const fromPattern = o.colour ? null : patternColour(level, pi);
-      let colour = o.colour ? parseColour(o.colour) : (fromPattern ?? palette[level]);
-      // A colour the editor picked for this word is theirs; the blend guard
-      // only adjusts colours the engine chose.
-      if (!o.colour) {
+      const interaction = e.look && INTERACTIONS[e.look] ? { ...resolved, blend: INTERACTIONS[e.look].blend } : resolved;
+      let colour = colourSource ? parseColour(colourSource) : (fromPattern ?? palette[level]);
+      // A colour the editor picked is theirs; the blend guard only adjusts
+      // colours the engine chose.
+      if (!colourSource && !fromPattern) {
         const adapted = adaptColourForBlend(colour, interaction.blend);
         if (adapted.note && !warnings.includes(adapted.note)) warnings.push(adapted.note);
         colour = adapted.colour;
@@ -233,20 +250,12 @@ export function compose(opts) {
         decoration: resolveDecoration(template, colour, laid.size, type.sizes.normal),
         position: o.position ?? laid.position,
         box: o.position ? { ...laid.box, x: o.position.x, y: o.position.y } : laid.box,
-        motion: buildMotion({
+        motion: withOpacity(buildMotion({
           level, template, life, capFraction, capabilities: caps,
-          // Words picked out by the colour pattern can move differently from
-          // the rest; a word's own setting still wins.
-          inOverride: o.inAnimation ?? (fromPattern ? template.motion.patternIn : undefined),
-          outOverride: o.outAnimation ?? (fromPattern ? template.motion.patternOut : undefined),
-          // The editor's adjustments: the word's level, then the colour
-          // pattern's (for pattern words), then the word's own.
-          tune: {
-            ...(template.motion.tune?.[level] ?? {}),
-            ...(fromPattern ? template.motion.tune?.pattern ?? {} : {}),
-            ...(o.tune ?? {}),
-          },
-        }),
+          inOverride: e.inAnimation ?? (fromPattern ? template.motion.patternIn : undefined),
+          outOverride: e.outAnimation ?? (fromPattern ? template.motion.patternOut : undefined),
+          tune: e.tune,
+        }), e.opacity),
         depth: interaction.depth,
         blend: interaction.blend,
         lane: 0,
@@ -394,4 +403,16 @@ export function describePlan(plan) {
     for (const w of plan.warnings) lines.push(`    · ${w}`);
   }
   return lines.join('\n');
+}
+
+/**
+ * Scale a word's whole opacity curve, so a word set to 60% still fades in and
+ * out — to 60% rather than to full.
+ * @param {import('../core/types.js').WordMotion} motion @param {number|undefined} opacity
+ */
+function withOpacity(motion, opacity) {
+  if (opacity === undefined || opacity >= 1) return motion;
+  const k = Math.max(0, opacity);
+  const curve = motion.opacity.length ? motion.opacity : [{ t: 0, v: 1 }];
+  return { ...motion, opacity: curve.map((f) => ({ ...f, v: f.v * k })) };
 }

@@ -46,6 +46,7 @@ const state = {
     mainLook: 'clean',
     highlightLook: 'clean',
     mainColour: /** @type {string|null} */ (null),
+    highlightColour: /** @type {string|null} */ (null),
     patternScope: 'off',
     pattern: ['#c9a84c', '#14b8a6', '#f97362', '#a78bfa'],
     // Where the editor dragged the captions, per orientation, as a fraction
@@ -671,7 +672,8 @@ $('#apply').onclick = async () => {
   }
 };
 
-$('#accent').oninput = () => { $('#accent-hex').value = $('#accent').value; regenerate(); };
+// Saved, so the highlight colour survives closing the panel (it used to reset).
+$('#accent').oninput = () => { $('#accent-hex').value = $('#accent').value; state.custom.highlightColour = $('#accent').value; changed(); };
 $('#accent-hex').onchange = () => {
   try {
     const hex = toHex(parseColour($('#accent-hex').value));
@@ -883,6 +885,7 @@ callNative('loadPrefs')
   .then(({ json }) => {
     if (!json) return;
     const saved = JSON.parse(json);
+    if (saved.highlightColour) { $('#accent').value = saved.highlightColour; $('#accent-hex').value = saved.highlightColour; }
     state.custom = {
       ...state.custom, ...saved, mainColour: saved.mainColour ?? null,
       offsetVertical: saved.offsetVertical ?? { x: 0, y: 0 },

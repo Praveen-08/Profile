@@ -269,7 +269,9 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * @property {string} [fontFamily]
  * @property {FontWeight} [fontWeight]
  * @property {boolean} [italic]
+ * @property {"none"|"upper"|"lower"|"title"} [casing]
  * @property {number} [scale]      Multiplier on the level's scale.
+ * @property {number} [opacity]    0–1, applied across the word's whole fade.
  * @property {Point} [position]    Absolute override, normalized.
  * @property {InAnimation} [inAnimation]
  * @property {OutAnimation} [outAnimation]
