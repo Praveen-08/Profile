@@ -50,8 +50,11 @@ Verified by running it:
 - that Final Cut *imports* a generated `.fcpxml` without complaint. DTD-valid
   is necessary, not sufficient. The import was started and stopped at Final
   Cut's "which library?" dialog — import into a scratch library, not a client's.
-- a real drag from Final Cut onto the panel (the code path is fixed — see below
-  — but not yet exercised by hand)
+- that the caption ingester reads Final Cut 12.2's captions. A real project
+  ("trial captions", library First 4) dragged onto the panel arrived intact —
+  `com.apple.finalcutpro.xml.v1-14`, 2.1 MB — but the panel reported no
+  captions on it. Either it has none, or the ingester misses how 12.2 writes
+  them. Drop it again and read the container's `tmp/last-drop.fcpxml` to tell.
 - "Send to Final Cut" end to end
 
 ---
@@ -120,6 +123,12 @@ Each of these failed **silently**, and each is now pinned by a test in
 10. **Styles would not have been shared** with the CLI: inside the sandbox,
     Application Support is the container's. The store uses the real home folder
     plus a home-relative-path entitlement exception.
+11. **The view did not follow the window.** `preferredContentSize` and a
+    required minimum height held it at one size; in the 480px window Final Cut
+    restored, the top of the panel was clipped. Size is now a low-priority
+    preference only.
+12. **Drop errors were out of sight**, in the status line at the foot of the
+    panel. They now appear under the drop zone.
 
 The 08 Track panel (`PKPropertyBoundary/fx/ext/`) is a working workflow
 extension on the same Mac and the reference for anything host-related.
@@ -258,8 +267,9 @@ same.
    project opens with its titles animating. If Final Cut complains, its
    message names the element — fix the exporter, then add the case to the DTD
    test.
-2. **Drag a captioned clip onto the panel.** Expect the captions to load with
-   their timing. If nothing happens, `log stream` (above) will say why.
+2. **Drag a project with captions onto the panel.** Expect the captions to
+   load with their timing. If it says there are none, compare against
+   `~/Library/Containers/nz.pkvisuals.kinetic-captions.extension/Data/tmp/last-drop.fcpxml`.
 3. **Send to Final Cut** from the panel and check the import, as in step 1.
 4. Push the branch (see Environment facts: it has to be a new session, or a
    push from the Mac).
