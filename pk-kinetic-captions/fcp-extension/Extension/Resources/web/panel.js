@@ -94,7 +94,7 @@ const state = {
      * picture; 'fixed' puts every phrase on one line (y, from the top, as a
      * fraction of the frame), kept inside the chosen platform's safe zone.
      */
-    place: { mode: 'style', yVertical: 0.66, yHorizontal: 0.82, safe: 'all', guides: true },
+    place: { mode: 'style', safe: 'reels', guides: true, lines: {}, zones: {} },
   },
   /** Per-phrase moves on top of the overall offset, keyed by first word id. */
   phraseNudges: /** @type {Record<string, {x: number, y: number}>} */ ({}),
@@ -304,18 +304,39 @@ SAFE_ZONES.all = {
 const TITLE_SAFE = { name: 'Title', top: 0.05, bottom: 0.05, left: 0.05, right: 0.05 };
 
 function place() {
-  state.custom.place = { mode: 'style', yVertical: 0.66, yHorizontal: 0.82, safe: 'all', guides: true, ...(state.custom.place ?? {}) };
-  return state.custom.place;
+  // Normalised in place, never copied: callers write into what this returns.
+  const p = state.custom.place ?? (state.custom.place = {});
+  // Settings saved before per-platform lines: start on Instagram.
+  if ('yVertical' in p) { p.safe = 'reels'; delete p.yVertical; delete p.yHorizontal; }
+  p.mode ??= 'style';
+  p.safe ??= 'reels';
+  p.guides ??= true;
+  p.lines ??= {};
+  p.zones ??= {};
+  return p;
 }
 const isFixed = () => place().mode === 'fixed';
-const lineKey = () => (isVertical() ? 'yVertical' : 'yHorizontal');
+/** Which platform's settings apply: vertical video has one per platform. */
+const platformKey = () => (isVertical() ? place().safe : 'horizontal');
 
-/** The safe rectangle in use (fractions from each edge), or null when off. */
-function safeZone() {
-  const p = place();
-  if (p.safe === 'off') return null;
-  return isVertical() ? (SAFE_ZONES[p.safe] ?? SAFE_ZONES.all) : TITLE_SAFE;
+/** The platform's safe rectangle (fractions from each edge), with the editor's changes. */
+function zoneFor(key) {
+  if (key === 'off') return null;
+  const base = key === 'horizontal' ? TITLE_SAFE : (SAFE_ZONES[key] ?? SAFE_ZONES.reels);
+  return { ...base, ...(place().zones[key] ?? {}) };
 }
+/** The safe rectangle in use, or null when off. */
+const safeZone = () => zoneFor(platformKey());
+
+/** Each platform keeps its own caption line; a new one starts just above its bottom zone. */
+function getLine() {
+  const key = platformKey();
+  const saved = place().lines[key];
+  if (saved !== undefined) return saved;
+  const z = zoneFor(key);
+  return z ? Math.min(0.68, 1 - z.bottom - 0.1) : 0.8;
+}
+function setLine(y) { place().lines[platformKey()] = y; }
 
 /**
  * Fixed place: every phrase centred on the caption line, across the middle
@@ -325,7 +346,7 @@ function safeZone() {
 function fixPositions(plan) {
   const z = safeZone() ?? { top: 0, bottom: 0, left: 0, right: 0 };
   // Engine coordinates: centre origin, +y up, fractions of the frame.
-  const lineY = 0.5 - place()[lineKey()];
+  const lineY = 0.5 - getLine();
   const midX = (z.left - z.right) / 2;
   const top = 0.5 - z.top, bottom = -0.5 + z.bottom, left = -0.5 + z.left, right = 0.5 - z.right;
   for (const phrase of plan.phrases) {
@@ -367,7 +388,7 @@ function drawGuides() {
     parts.push(`<text x="${x0 + W * 0.012}" y="${y0 - H * 0.008}" fill="rgba(255,255,255,.75)" font-size="${H * 0.017}" font-family="-apple-system, sans-serif">${z.name} safe zone</text>`);
   }
   if (isFixed()) {
-    const y = p[lineKey()] * H;
+    const y = getLine() * H;
     parts.push(`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="#c9a84c" stroke-width="${W / 300}" stroke-dasharray="${W / 40} ${W / 60}"/>`);
     parts.push(`<text x="${W * 0.985}" y="${y - H * 0.008}" text-anchor="end" fill="#c9a84c" font-size="${H * 0.017}" font-family="-apple-system, sans-serif">caption line</text>`);
   }
@@ -381,8 +402,20 @@ function showPlace() {
   for (const b of $$('#place-safe button')) b.classList.toggle('is-on', b.dataset.v === p.safe);
   $('#place-guides').checked = p.guides;
   $('#place-line-row').hidden = p.mode !== 'fixed';
-  $('#place-y').value = String(Math.round(p[lineKey()] * 100));
-  $('#place-y-val').textContent = `${Math.round(p[lineKey()] * 100)}% down`;
+  $('#place-y').value = String(Math.round(getLine() * 100));
+  $('#place-y-val').textContent = `${Math.round(getLine() * 100)}% down`;
+  // The zone's edges, for the platform in use.
+  const z = safeZone();
+  $('#zone-edit').hidden = !z || !$('#zone-toggle').classList.contains('is-on');
+  $('#zone-toggle').hidden = !z;
+  if (z) {
+    for (const edge of ['top', 'bottom', 'left', 'right']) {
+      $(`#zone-${edge}`).value = String(Math.round(z[edge] * 100));
+      $(`#zone-${edge}-val`).textContent = `${Math.round(z[edge] * 100)}%`;
+    }
+    $('#zone-name').textContent = z.name;
+    $('#zone-reset').disabled = !place().zones[platformKey()];
+  }
   $('#place-safe-row').hidden = !isVertical();
 }
 
@@ -647,7 +680,7 @@ function wirePreviewDrag() {
       // With a fixed caption line, moving a phrase or all of them moves the
       // line itself, so every phrase stays in the same place.
       if (isFixed() && !target.word) {
-        drag = { mode: 'line', y: e.clientY, base: place()[lineKey()] };
+        drag = { mode: 'line', y: e.clientY, base: getLine() };
         return pv.setPointerCapture(e.pointerId);
       }
       drag = { mode: 'move', x: e.clientX, y: e.clientY, target, base };
@@ -667,7 +700,7 @@ function wirePreviewDrag() {
       const snaps = [1 / 3, 0.5, 2 / 3, ...(z ? [1 - z.bottom - 0.04] : [])];
       const near = snaps.find((s) => Math.abs(s - y) < 0.012);
       if (near !== undefined && !e.altKey) y = near;
-      place()[lineKey()] = y;
+      setLine(y);
       showPlace();
       setStatus(`Caption line ${Math.round(y * 100)}% down${near !== undefined && !e.altKey ? ' · snapped' : ''} (hold ⌥ to move freely)`);
       regenerate();
@@ -1771,9 +1804,21 @@ for (const b of $$('#place-mode button')) {
 for (const b of $$('#place-safe button')) b.onclick = () => { place().safe = b.dataset.v; showPlace(); changed(); };
 $('#place-guides').onchange = () => { place().guides = $('#place-guides').checked; drawPreview(); changed(); };
 $('#place-y').oninput = () => {
-  place()[lineKey()] = Number($('#place-y').value) / 100;
+  setLine(Number($('#place-y').value) / 100);
   showPlace();
   changed();
 };
 showPlace();
+
+// Adjusting a platform's zone: the editor's own measurements win.
+$('#zone-toggle').onclick = () => { $('#zone-toggle').classList.toggle('is-on'); showPlace(); };
+for (const edge of ['top', 'bottom', 'left', 'right']) {
+  $(`#zone-${edge}`).oninput = () => {
+    const key = platformKey();
+    place().zones[key] = { ...(place().zones[key] ?? {}), [edge]: Number($(`#zone-${edge}`).value) / 100 };
+    showPlace();
+    changed();
+  };
+}
+$('#zone-reset').onclick = () => { delete place().zones[platformKey()]; showPlace(); changed(); };
 

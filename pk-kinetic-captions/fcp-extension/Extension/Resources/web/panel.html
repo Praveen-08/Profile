@@ -90,11 +90,20 @@
     <div id="place-safe-row" class="mt-s">
       <span class="hint">Keep clear of</span>
       <div class="seg wide mt-s" id="place-safe">
-        <button data-v="all" class="is-on">All apps</button><button data-v="reels">Reels</button><button data-v="tiktok">TikTok</button><button data-v="shorts">Shorts</button><button data-v="off">Off</button>
+        <button data-v="reels" class="is-on">Instagram</button><button data-v="tiktok">TikTok</button><button data-v="shorts">Shorts</button><button data-v="all">All apps</button><button data-v="off">Off</button>
+      </div>
+      <p class="hint mt-s">Each platform keeps its own caption line and zone — switch here to set up the next one.</p>
+      <button id="zone-toggle" class="linkish">Adjust the <span id="zone-name"></span> zone…</button>
+      <div id="zone-edit" class="zone-edit" hidden>
+        <label>Top</label><input type="range" id="zone-top" min="0" max="40" step="1"><span id="zone-top-val" class="mono"></span>
+        <label>Bottom</label><input type="range" id="zone-bottom" min="0" max="45" step="1"><span id="zone-bottom-val" class="mono"></span>
+        <label>Left</label><input type="range" id="zone-left" min="0" max="30" step="1"><span id="zone-left-val" class="mono"></span>
+        <label>Right</label><input type="range" id="zone-right" min="0" max="30" step="1"><span id="zone-right-val" class="mono"></span>
+        <button id="zone-reset" class="pv-btn">Back to default</button>
       </div>
     </div>
     <label class="check mt-s"><input type="checkbox" id="place-guides" checked> Show the safe zone on the preview</label>
-    <p class="hint">With the same place every time, drag a phrase up or down in the preview to move the caption line for all of them. It snaps to thirds and the middle.</p>
+    <p class="hint">With the same place every time, drag a phrase up or down in the preview to move the caption line for all of them. It snaps to thirds and the middle (hold ⌥ to move freely).</p>
   </section>
   <section class="pstep">
     <h2>Look</h2>
