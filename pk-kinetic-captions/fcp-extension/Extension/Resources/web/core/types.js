@@ -102,6 +102,14 @@ export const LEVEL_RANK = { normal: 0, emphasis: 1, hero: 2 };
  * @property {{enabled:boolean,width:number,colour:RGBA}} outline
  * @property {{enabled:boolean,opacity:number,blur:number,distance:number,angle:number,colour:RGBA}} shadow
  * @property {{enabled:boolean,intensity:number,radius:number,colour:RGBA}} glow
+ * @property {{enabled:boolean,from:RGBA,to:RGBA,angle:number}} gradient
+ * @property {boolean} shine
+ */
+
+/**
+ * A two-stop gradient fill. `angle` is in degrees: 0 runs left to right,
+ * 90 bottom to top. Colours are hex.
+ * @typedef {{enabled:boolean, from:string, to:string, angle?:number}} GradientFill
  */
 
 /* ------------------------------------------------------------------ *
@@ -280,6 +288,9 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * @property {Depth} [depth]
  * @property {Interaction} [look]  This word's own look (blend), whatever its level's is.
  * @property {import('../engine/motion.js').MotionTune} [tune]  This word's own animation adjustments.
+ * @property {GradientFill} [gradient]  A two-colour fill instead of the flat colour.
+ * @property {{enabled:boolean, colour?:string, intensity?:number, radius?:number}} [glow]  Glow, over the style's.
+ * @property {boolean} [shine]     A light sweep across the word as it lands.
  * @property {boolean} [hidden]
  */
 

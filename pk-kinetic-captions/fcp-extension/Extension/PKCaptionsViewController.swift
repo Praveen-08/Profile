@@ -128,6 +128,7 @@ final class PKCaptionsViewController: NSViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         try? store.prepare()
+        TitleInstaller.ensureInstalled()
         connectToHost()
 
         guard Bundle(for: Self.self).url(forResource: "panel", withExtension: "html", subdirectory: "web") != nil else {
@@ -160,10 +161,13 @@ final class PKCaptionsViewController: NSViewController {
     /// timing — so nothing has to be exported, and nothing has to be typed.
     private func receiveDraggedFCPXML(_ xml: String) {
         // Keep the last drop, so "no captions found" can be checked against
-        // what Final Cut actually sent. Inside the extension's container:
-        // ~/Library/Containers/nz.pkvisuals.kinetic-captions.extension/Data/tmp/
-        let copy = FileManager.default.temporaryDirectory.appendingPathComponent("last-drop.fcpxml")
-        try? xml.write(to: copy, atomically: true, encoding: .utf8)
+        // what Final Cut actually sent — and a customer can send it to support.
+        // Beside the styles, because a signed app's container is protected from
+        // every other process, including the person debugging it:
+        // ~/Library/Application Support/PK Visuals/Kinetic Captions/diagnostics/
+        let dir = store.root.appendingPathComponent("diagnostics", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? xml.write(to: dir.appendingPathComponent("last-drop.fcpxml"), atomically: true, encoding: .utf8)
         send(event: "timelineDropped", payload: ["fcpxml": xml])
     }
 
@@ -255,6 +259,7 @@ extension PKCaptionsViewController: WKScriptMessageHandler {
                 "host": hostDescription ?? "",
                 "storeRoot": store.root.path,
                 "outputFolder": ProExtensionTimelineBridge.outputFolder.path,
+                "pkTitle": TitleInstaller.isInstalled,
             ])
 
         case .beginDrag:

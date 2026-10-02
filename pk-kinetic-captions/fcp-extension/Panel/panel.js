@@ -759,11 +759,25 @@ document.addEventListener('drop', async (e) => {
   noteSource('That drop carried no timeline data.', true);
 });
 
+/** Whether the PK title is installed; the extension installs it on launch. */
+let pkTitleInstalled = false;
+
+/**
+ * Final Cut's Basic Title unless a word uses an effect only the PK title
+ * draws (gradient, glow), and the PK title is there to draw it.
+ * @param {object} extra
+ */
+function exportOptions(extra) {
+  const words = state.plan.phrases.flatMap((p) => p.words);
+  const needsPK = words.some((w) => w.decoration.gradient?.enabled || w.decoration.glow.enabled);
+  return { projectName: `${state.plan.templateName} Captions`, profile: needsPK && pkTitleInstalled ? 'pk' : 'native', ...extra };
+}
+
 $('#apply').onclick = async () => {
   if (!state.plan) return;
   try {
     setStatus('Building the titles…');
-    const { xml, stats } = exportFCPXML(state.plan, { projectName: `${state.plan.templateName} Captions` });
+    const { xml, stats } = exportFCPXML(state.plan, exportOptions({}));
     await callNative('sendToTimeline', { fcpxml: xml });
     setStatus(`${stats.titles} titles sent to Final Cut as a new project — choose where to import them.`);
   } catch (err) {
@@ -835,13 +849,38 @@ function styleEditor(host, { blank }, onChange) {
   const opacity = range(0.1, 1, 0.05);
   const look = segOf(LOOKS);
   const lookHint = el('p', { className: 'hint span2' });
+  // Effects. Gradient and glow are drawn in Final Cut by the PK title.
+  const gradOn = segOf([['', 'Off'], ['on', 'On']]);
+  const gradFrom = el('input', { type: 'color' });
+  const gradTo = el('input', { type: 'color' });
+  const gradAngle = range(0, 180, 15);
+  const gradPresets = el('div', { className: 'swatches' }, GRADIENTS.map(([name, from, to]) => {
+    const b = el('button', { className: 'swatch', title: name });
+    b.style.background = `linear-gradient(90deg, ${from}, ${to})`;
+    b.onclick = () => set({ gradient: { enabled: true, from, to, angle: value.gradient?.angle ?? 0 } });
+    return b;
+  }));
+  const glowOn = segOf([['', 'Off'], ['on', 'On']]);
+  const glowColour = el('input', { type: 'color' });
+  const glowStrength = range(0.1, 1, 0.05);
+  const glowSize = range(4, 60, 1);
+  const shineOn = segOf([['', 'Off'], ['on', 'On']]);
   const reset = el('button', { className: 'pv-btn reset', textContent: 'Reset style' });
   const row = (label, control) => [el('label', { textContent: label }), control];
   host.replaceChildren(
     ...row('Font', family), ...row('Style', face), ...row('Size', size.wrap), ...row('Capitals', casing),
     ...row('Colour', el('div', { className: 'rng' }, [colour, colourAuto])), ...row('Opacity', opacity.wrap),
-    ...row('Look', look), lookHint, reset,
+    ...row('Look', look), lookHint,
+    el('div', { className: 'ed-sub span2', textContent: 'Effects' }),
+    ...row('Gradient', gradOn), ...row('', gradPresets),
+    ...row('Colours', el('div', { className: 'rng' }, [gradFrom, el('span', { textContent: '→' }), gradTo])),
+    ...row('Angle', gradAngle.wrap),
+    ...row('Glow', glowOn), ...row('Glow colour', glowColour), ...row('Strength', glowStrength.wrap), ...row('Glow size', glowSize.wrap),
+    ...row('Shine', shineOn),
+    reset,
   );
+  const gradRows = [gradPresets, gradFrom.parentElement, gradAngle.wrap];
+  const glowRows = [glowColour, glowStrength.wrap, glowSize.wrap];
 
   function fillFamilies() {
     const current = value.fontFamily ?? '';
@@ -880,6 +919,17 @@ function styleEditor(host, { blank }, onChange) {
   opacity.input.oninput = () => set({ opacity: Number(opacity.input.value) });
   opacity.out.ondblclick = () => set({ opacity: undefined });
   for (const b of look.children) b.onclick = () => set({ look: b.dataset.v || undefined });
+  const grad = (patch) => set({ gradient: { enabled: true, from: shownColour, to: '#7C3AED', angle: 0, ...value.gradient, ...patch } });
+  for (const b of gradOn.children) b.onclick = () => (b.dataset.v ? grad({ enabled: true }) : set({ gradient: undefined }));
+  gradFrom.oninput = () => grad({ from: gradFrom.value });
+  gradTo.oninput = () => grad({ to: gradTo.value });
+  gradAngle.input.oninput = () => grad({ angle: Number(gradAngle.input.value) });
+  const glow = (patch) => set({ glow: { enabled: true, colour: value.gradient?.to ?? shownColour, intensity: 0.7, radius: 18, ...value.glow, ...patch } });
+  for (const b of glowOn.children) b.onclick = () => (b.dataset.v ? glow({ enabled: true }) : set({ glow: undefined }));
+  glowColour.oninput = () => glow({ colour: glowColour.value });
+  glowStrength.input.oninput = () => glow({ intensity: Number(glowStrength.input.value) });
+  glowSize.input.oninput = () => glow({ radius: Number(glowSize.input.value) });
+  for (const b of shineOn.children) b.onclick = () => set({ shine: b.dataset.v ? true : undefined });
   reset.onclick = () => { value = {}; show(value, shownColour); emit(); };
 
   /** @param {object} v @param {string} currentColour the colour the word or group shows now */
@@ -898,6 +948,22 @@ function styleEditor(host, { blank }, onChange) {
     opacity.out.textContent = value.opacity === undefined ? 'auto' : `${Math.round(value.opacity * 100)}%`;
     opacity.wrap.classList.toggle('is-auto', value.opacity === undefined);
     for (const b of look.children) b.classList.toggle('is-on', (b.dataset.v || '') === (value.look ?? ''));
+    const g = value.gradient?.enabled ? value.gradient : null;
+    for (const b of gradOn.children) b.classList.toggle('is-on', !!b.dataset.v === !!g);
+    gradFrom.value = g?.from ?? shownColour;
+    gradTo.value = g?.to ?? '#7c3aed';
+    gradAngle.input.value = String(g?.angle ?? 0);
+    gradAngle.out.textContent = `${g?.angle ?? 0}°`;
+    for (const r of gradRows) r.classList.toggle('is-off', !g);
+    const gl = value.glow?.enabled ? value.glow : null;
+    for (const b of glowOn.children) b.classList.toggle('is-on', !!b.dataset.v === !!gl);
+    glowColour.value = gl?.colour ?? shownColour;
+    glowStrength.input.value = String(gl?.intensity ?? 0.7);
+    glowStrength.out.textContent = `${Math.round((gl?.intensity ?? 0.7) * 100)}%`;
+    glowSize.input.value = String(gl?.radius ?? 18);
+    glowSize.out.textContent = `${gl?.radius ?? 18}px`;
+    for (const r of glowRows) r.classList.toggle('is-off', !gl);
+    for (const b of shineOn.children) b.classList.toggle('is-on', !!b.dataset.v === !!value.shine);
     // The looks that blend into the picture hide the colour by design — say so.
     lookHint.textContent = value.look === 'cinematic'
       ? 'Overlay blends the text into the picture: colour shows only faintly, and not at all over black.'
@@ -907,6 +973,16 @@ function styleEditor(host, { blank }, onChange) {
   show({});
   return { show };
 }
+
+/** Gradient presets: the pairs seen in the reference reels, plus the brand's gold. */
+const GRADIENTS = [
+  ['Ember', '#FF3B30', '#FF9500'],
+  ['Neon', '#FF2D55', '#2563EB'],
+  ['Violet', '#FFFFFF', '#8B5CF6'],
+  ['Royal', '#7C3AED', '#2563EB'],
+  ['Mint', '#34D399', '#22D3EE'],
+  ['Gold', '#F7E7A1', '#D4AF37'],
+];
 
 const TYPES = [
   { key: 'normal', anim: 'normal', title: 'Main text', hint: 'Every word that is not a highlight.', level: 'normal' },
@@ -972,6 +1048,8 @@ function summarise(t) {
   if (g.scale) parts.push(`${Math.round(g.scale * 100)}%`);
   if (g.colour) parts.push(g.colour);
   if (g.look) parts.push(LOOKS.find(([v]) => v === g.look)?.[1] ?? g.look);
+  const fx = [g.gradient?.enabled && 'gradient', g.glow?.enabled && 'glow', g.shine && 'shine'].filter(Boolean);
+  if (fx.length) parts.push(fx.join(' + '));
   parts.push(a.in ? `in: ${IN_ANIMS.find(([v]) => v === a.in)?.[1] ?? a.in}` : 'style animation');
   typeCards[t.key].summaryLine.textContent = parts.join(' · ');
 }
@@ -1141,7 +1219,7 @@ for (const [sel, key] of [['#pattern-scope', 'patternScope']]) {
  */
 $('#dragout').addEventListener('mousedown', () => {
   if (!state.plan) return;
-  const { xml } = exportFCPXML(state.plan, { as: 'clip', projectName: `${state.plan.templateName} Captions` });
+  const { xml } = exportFCPXML(state.plan, exportOptions({ as: 'clip' }));
   callNative('beginDrag', { fcpxml: xml }).catch((err) => setStatus(err.message, true));
 });
 $('#dragout').addEventListener('dragstart', (e) => e.preventDefault());
@@ -1187,7 +1265,8 @@ callNative('loadPrefs')
   .catch(() => { /* first run, or outside Final Cut */ });
 
 callNative('status')
-  .then(({ connected }) => {
+  .then(({ connected, pkTitle }) => {
+    pkTitleInstalled = !!pkTitle;
     markConnected(connected);
     setStatus(connected ? 'Drag a clip onto the panel to begin.' : 'Final Cut is not attached yet.');
   })

@@ -44,9 +44,33 @@ import { sample } from '../engine/motion.js';
 export const BASIC_TITLE_UID =
   '.../Titles.localized/Bumper:Opener.localized/Basic Title.localized/Basic Title.moti';
 
-/** The PK template, once installed by `pkkc install`. */
+/**
+ * The PK template, once installed. This is the uid Final Cut itself writes
+ * for a title in ~/Movies/Motion Templates.localized (read back from a
+ * project that used it): relative to the templates folder, and with the
+ * category and title folders unlocalized.
+ */
 export const PK_TITLE_UID =
-  '~/Movies/Motion Templates.localized/Titles.localized/PK Visuals.localized/PK Kinetic Caption.localized/PK Kinetic Caption.moti';
+  '~/Titles.localized/PK Visuals/PK Kinetic Caption/PK Kinetic Caption.moti';
+
+/**
+ * Published controls of the PK title, as Final Cut keys them: the title's
+ * group (10005), its text layer (10011), the style channel (5), the style
+ * object (10042), then the parameter's path inside the style. Read from a
+ * project exported by Final Cut after setting each control in its inspector.
+ */
+const PK_KEY = '9999/10005/10011/5/10042';
+export const PK_PARAMS = {
+  fill: `${PK_KEY}/14/15`,            // "0 (Color)" | "1 (Gradient)"
+  gradientStart: `${PK_KEY}/14/17/1/999140132/3`,
+  gradientEnd: `${PK_KEY}/14/17/1/999140133/3`,
+  glowColor: `${PK_KEY}/38/40`,
+  glowOpacity: `${PK_KEY}/38/43`,
+  glowBlur: `${PK_KEY}/38/44`,
+  glowRadius: `${PK_KEY}/38/45`,
+  outlineOpacity: `${PK_KEY}/30/35`,
+  shadowOpacity: `${PK_KEY}/21/26`,
+};
 
 /**
  * Engine blend mode -> FCPXML `adjust-blend` mode, in Final Cut's own form:
@@ -99,6 +123,12 @@ export function exportFCPXML(plan, opts = {}) {
 
   if (words.some((w) => w.motion.blur.some((k) => k.v > 0)) && profile === 'native') {
     warnings.push('This plan contains blur keyframes, which Final Cut\'s stock title cannot animate. They were not exported. Compose with capabilities.blur enabled only when exporting to the PK Motion title.');
+  }
+  if (profile === 'native' && words.some((w) => w.decoration.gradient?.enabled || w.decoration.glow.enabled)) {
+    warnings.push('Gradient and glow need the PK Kinetic Caption title; Final Cut\'s Basic Title draws these words in their flat colour.');
+  }
+  if (words.some((w) => w.decoration.shine)) {
+    warnings.push('Shine is drawn in the preview only for now; Final Cut shows these words without the sweep.');
   }
   if (words.some((w) => w.depth === 'background')) {
     warnings.push('This plan places type behind the subject. The exported project builds the layer stack; isolate the subject on the top copy of the shot using Final Cut\'s own masking, then the type sits behind them.');
@@ -199,11 +229,12 @@ function renderTitle(w, index, lane, plan, samples, profile) {
   const blend = renderBlend(w, life, fps, samples);
   const text = renderTextStyle(w, styleId, plan);
 
+  const params = profile === 'pk' ? renderPKParams(w) : '';
+
   // A dedicated video role lets the editor solo, hide or export every
   // caption in one click, which matters when there are two hundred of them.
-  void profile;
   return `              <title ref="r2" lane="${lane}" offset="${offset}" name="${esc(`${w.level}: ${w.text}`)}" start="0s" duration="${dur}" role="PK Captions">
-                <text>
+${params}                <text>
                   <text-style ref="${styleId}">${esc(w.text)}</text-style>
                 </text>
                 <text-style-def id="${styleId}">
@@ -285,6 +316,32 @@ ${frames}
                     </keyframeAnimation>
                   </param>
                 </adjust-blend>`;
+}
+
+/**
+ * The PK title's own controls: gradient fill and glow, which a text-style
+ * cannot express. Every control is written, on or off, because the template's
+ * defaults have the glow, outline and shadow switched on.
+ * @param {PlacedWord} w
+ */
+function renderPKParams(w) {
+  const d = w.decoration;
+  const rgb = (c) => toFCPColour(c).split(' ').slice(0, 3).join(' ');
+  const p = (name, key, value) => `                <param name="${name}" key="${key}" value="${value}"/>\n`;
+  const g = d.gradient;
+  let out = p('Fill', PK_PARAMS.fill, g?.enabled ? '1 (Gradient)' : '0 (Color)');
+  if (g?.enabled) {
+    out += p('Gradient Start', PK_PARAMS.gradientStart, rgb(g.from));
+    out += p('Gradient End', PK_PARAMS.gradientEnd, rgb(g.to));
+  }
+  out += p('Glow Opacity', PK_PARAMS.glowOpacity, d.glow.enabled ? num(Math.min(1, d.glow.intensity), 3) : '0');
+  if (d.glow.enabled) {
+    out += p('Glow Color', PK_PARAMS.glowColor, rgb(d.glow.colour));
+    out += p('Glow Blur', PK_PARAMS.glowBlur, num(d.glow.radius, 1));
+  }
+  if (!(d.outline.enabled && d.outline.width > 0)) out += p('Outline Opacity', PK_PARAMS.outlineOpacity, '0');
+  if (!(d.shadow.enabled && d.shadow.opacity > 0)) out += p('Shadow Opacity', PK_PARAMS.shadowOpacity, '0');
+  return out;
 }
 
 /** Font, size, colour, and the decoration the style asked for. */

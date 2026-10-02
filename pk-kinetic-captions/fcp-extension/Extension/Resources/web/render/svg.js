@@ -113,6 +113,23 @@ function drawWord(w, t, plan) {
   const family = [w.font.family, ...info.fallbacks, info.classification === 'serif' ? 'serif' : 'sans-serif']
     .map((f) => (f.includes(' ') ? `'${f}'` : f)).join(', ');
 
+  // Gradient fill and the shine sweep are per-word paint servers, so each
+  // word gets its own ids (word ids are unique within a plan).
+  const gid = `pk-${String(w.id).replace(/[^\w-]/g, '_')}`;
+  const grad = w.decoration.gradient?.enabled ? w.decoration.gradient : null;
+  const defs = [];
+  if (grad) defs.push(linearGradient(`${gid}-f`, grad.angle, [[0, toCSS(grad.from)], [1, toCSS(grad.to)]]));
+  // Shine: a soft white band crosses the word once, just after it lands.
+  const SHINE_START = 0.12, SHINE_LEN = 0.6;
+  const p = (local - SHINE_START) / SHINE_LEN;
+  const shining = w.decoration.shine && p > 0 && p < 1;
+  if (shining) {
+    const c = -0.3 + p * 1.6;   // the band's centre travels from off the left edge to off the right
+    defs.push(linearGradient(`${gid}-s`, 20, [
+      [c - 0.18, 'rgba(255,255,255,0)'], [c, 'rgba(255,255,255,0.85)'], [c + 0.18, 'rgba(255,255,255,0)'],
+    ]));
+  }
+
   /** @type {string[]} */
   const attrs = [
     `x="0"`, `y="0"`,
@@ -121,7 +138,7 @@ function drawWord(w, t, plan) {
     `font-weight="${WEIGHT_NUMERIC[w.font.weight] ?? 400}"`,
     w.font.italic ? 'font-style="italic"' : '',
     `letter-spacing="${round((w.font.tracking / 1000) * w.size)}"`,
-    `fill="${toCSS(w.colour)}"`,
+    `fill="${grad ? `url(#${gid}-f)` : toCSS(w.colour)}"`,
     `text-anchor="middle"`,
     `dominant-baseline="central"`,
   ].filter(Boolean);
@@ -153,8 +170,25 @@ function drawWord(w, t, plan) {
   // engine put it.
   const capOffset = (info.capHeight / 2 - 0.36) * w.size;
 
+  const text = escapeText(w.text);
+  const shine = shining
+    ? `<text ${attrs.filter((a) => !a.startsWith('fill=')).join(' ')} fill="url(#${gid}-s)">${text}</text>`
+    : '';
   return `<g transform="translate(${round(cx)} ${round(cy + capOffset)}) scale(${round(sc, 5)})" style="${style}">` +
-    `<text ${attrs.join(' ')}${stroke}>${escapeText(w.text)}</text></g>`;
+    (defs.length ? `<defs>${defs.join('')}</defs>` : '') +
+    `<text ${attrs.join(' ')}${stroke}>${text}</text>${shine}</g>`;
+}
+
+/**
+ * A linear gradient across the text's own box. `angle` in degrees: 0 runs
+ * left to right, 90 bottom to top.
+ * @param {string} id @param {number} angle @param {[number, string][]} stops
+ */
+function linearGradient(id, angle, stops) {
+  const rad = (angle * Math.PI) / 180;
+  const dx = Math.cos(rad) / 2, dy = Math.sin(rad) / 2;
+  const s = stops.map(([o, c]) => `<stop offset="${round(Math.min(1, Math.max(0, o)), 4)}" stop-color="${c}"/>`).join('');
+  return `<linearGradient id="${id}" x1="${round(0.5 - dx, 4)}" y1="${round(0.5 + dy, 4)}" x2="${round(0.5 + dx, 4)}" y2="${round(0.5 - dy, 4)}">${s}</linearGradient>`;
 }
 
 /** Zone, safe-area and subject overlays for the UI's layout view. */

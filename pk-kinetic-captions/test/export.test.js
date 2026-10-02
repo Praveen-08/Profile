@@ -316,3 +316,28 @@ test('a face picked from the installed fonts is exported by its exact name', () 
   const { xml } = exportFCPXML(make(t));
   assert.match(xml, /font="Montserrat" [^>]*fontFace="ExtraBold Italic"/);
 });
+
+test('the PK title carries gradient and glow as its own published controls', () => {
+  const t = merge(builtinById('pk-modern'), {
+    groups: { highlight: { gradient: { enabled: true, from: '#FF3B30', to: '#7C3AED' }, glow: { enabled: true, colour: '#7C3AED', intensity: 0.8, radius: 12 } } },
+  });
+  const plan = make(t);
+  const { xml, warnings } = exportFCPXML(plan, { profile: 'pk' });
+  assertWellFormed(xml);
+  assert.ok(xml.includes('uid="~/Titles.localized/PK Visuals/PK Kinetic Caption/PK Kinetic Caption.moti"'));
+  // Final Cut's own keys, read back from a project it exported.
+  assert.ok(xml.includes('key="9999/10005/10011/5/10042/14/15" value="1 (Gradient)"'), 'gradient fill');
+  assert.ok(xml.includes('key="9999/10005/10011/5/10042/14/17/1/999140132/3" value="1 0.231373 0.188235"'), 'start stop');
+  assert.ok(/key="9999\/10005\/10011\/5\/10042\/38\/43" value="0.8"/.test(xml), 'glow opacity');
+  // Words without a gradient switch the template's glow off rather than inherit it.
+  assert.ok(xml.includes('key="9999/10005/10011/5/10042/14/15" value="0 (Color)"'));
+  assert.ok(xml.includes('key="9999/10005/10011/5/10042/38/43" value="0"'));
+  // Params come before the text, as the DTD orders a title's children.
+  const title = xml.slice(xml.indexOf('<title '), xml.indexOf('</title>'));
+  assert.ok(title.indexOf('<param') < title.indexOf('<text>'));
+  assert.ok(!warnings.some((w) => w.includes('Gradient and glow')));
+
+  const native = exportFCPXML(plan);
+  assert.ok(!native.xml.includes('10042'));
+  assert.ok(native.warnings.some((w) => w.includes('Gradient and glow')));
+});

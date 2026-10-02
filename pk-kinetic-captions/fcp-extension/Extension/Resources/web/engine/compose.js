@@ -250,7 +250,7 @@ export function compose(opts) {
         font: item.font,
         size: laid.size,
         colour,
-        decoration: resolveDecoration(template, colour, laid.size, type.sizes.normal),
+        decoration: resolveDecoration(template, colour, laid.size, type.sizes.normal, e),
         position: o.position ?? laid.position,
         box: o.position ? { ...laid.box, x: o.position.x, y: o.position.y } : laid.box,
         motion: withOpacity(buildMotion({
@@ -334,9 +334,10 @@ function resolvePalette(template, opts) {
  * @param {import('../core/types.js').RGBA} colour
  * @param {number} size
  * @param {number} baseSize
+ * @param {import('../core/types.js').WordOverride} [e]  The word's own gradient, glow and shine.
  * @returns {import('../core/types.js').Decoration}
  */
-function resolveDecoration(t, colour, size, baseSize) {
+function resolveDecoration(t, colour, size, baseSize, e = {}) {
   const d = t.decoration;
   // Decoration is specified at the normal word's size and scales with the
   // word, otherwise a hero word gets a shadow that reads as a hairline.
@@ -348,7 +349,16 @@ function resolveDecoration(t, colour, size, baseSize) {
       enabled: d.shadow.enabled, opacity: d.shadow.opacity, blur: d.shadow.blur * k,
       distance: d.shadow.distance * k, angle: d.shadow.angle, colour: parseColour(d.shadow.colour),
     },
-    glow: { enabled: d.glow.enabled, intensity: d.glow.intensity, radius: d.glow.radius * k, colour: ref(d.glow.colour) },
+    glow: {
+      enabled: e.glow?.enabled ?? d.glow.enabled,
+      intensity: e.glow?.intensity ?? d.glow.intensity,
+      radius: (e.glow?.radius ?? d.glow.radius) * k,
+      colour: ref(e.glow?.colour ?? d.glow.colour),
+    },
+    gradient: e.gradient?.enabled
+      ? { enabled: true, from: parseColour(e.gradient.from), to: parseColour(e.gradient.to), angle: e.gradient.angle ?? 0 }
+      : { enabled: false, from: colour, to: colour, angle: 0 },
+    shine: !!e.shine,
   };
 }
 

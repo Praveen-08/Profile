@@ -129,3 +129,10 @@ body.panel { height: auto; min-height: 100vh; overflow: visible; background: var
 .type-card[open] > summary { border-bottom: 1px solid var(--line); }
 .type-card .card-body { padding: 4px 12px 12px; }
 .type-card .anim-ed { border: 0; padding: 0; }
+
+/* Effects */
+.anim-ed .is-off { opacity: .35; pointer-events: none; }
+.anim-ed .ed-sub.span2 { margin-top: 8px; }
+.swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.swatch { width: 30px; height: 18px; border-radius: 9px; border: 1px solid rgba(255,255,255,.18); cursor: pointer; padding: 0; }
+.swatch:hover { transform: scale(1.08); border-color: rgba(255,255,255,.6); }

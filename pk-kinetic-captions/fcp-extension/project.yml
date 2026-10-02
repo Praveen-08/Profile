@@ -77,6 +77,11 @@ targets:
       - path: Extension/Resources/web
         type: folder
         buildPhase: resources
+      # The PK Kinetic Caption Motion title (motion/publish.py builds it),
+      # installed into ~/Movies/Motion Templates on launch.
+      - path: Extension/Resources/title
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: nz.pkvisuals.kinetic-captions.extension
