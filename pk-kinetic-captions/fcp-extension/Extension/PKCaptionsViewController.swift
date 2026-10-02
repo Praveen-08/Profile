@@ -129,6 +129,8 @@ final class PKCaptionsViewController: NSViewController {
         super.viewDidLoad()
         try? store.prepare()
         TitleInstaller.ensureInstalled()
+        LicenseManager.shared.onChange = { [weak self] in self?.pushLicense() }
+        LicenseManager.shared.start()
         connectToHost()
 
         guard Bundle(for: Self.self).url(forResource: "panel", withExtension: "html", subdirectory: "web") != nil else {
@@ -217,6 +219,9 @@ extension PKCaptionsViewController: WKScriptMessageHandler {
             }
 
         case .sendToTimeline:
+            guard LicenseManager.shared.isUsable else {
+                return reply(to: id, ok: false, payload: ["error": LicenseManager.shared.summary])
+            }
             guard let xml = body["fcpxml"] as? String, !xml.isEmpty else {
                 return reply(to: id, ok: false, payload: ["error": "No FCPXML to send."])
             }
@@ -263,6 +268,10 @@ extension PKCaptionsViewController: WKScriptMessageHandler {
             ])
 
         case .beginDrag:
+            guard LicenseManager.shared.isUsable else {
+                webView.pendingDragXML = nil
+                return reply(to: id, ok: false, payload: ["error": LicenseManager.shared.summary])
+            }
             guard let xml = body["fcpxml"] as? String, !xml.isEmpty else {
                 return reply(to: id, ok: false, payload: ["error": "Nothing to drag yet."])
             }
@@ -315,6 +324,23 @@ extension PKCaptionsViewController: WKScriptMessageHandler {
                 reply(to: id, ok: false, payload: ["error": error.localizedDescription])
             }
 
+        case .license:
+            reply(to: id, ok: true, payload: licensePayload())
+
+        case .licenseActivate:
+            LicenseManager.shared.activate(key: body["key"] as? String ?? "") { [weak self] error in
+                guard let self else { return }
+                if let error { self.reply(to: id, ok: false, payload: ["error": error]) }
+                else { self.reply(to: id, ok: true, payload: self.licensePayload()) }
+            }
+
+        case .licenseDeactivate:
+            LicenseManager.shared.deactivateThisMac { [weak self] error in
+                guard let self else { return }
+                if let error { self.reply(to: id, ok: false, payload: ["error": error]) }
+                else { self.reply(to: id, ok: true, payload: self.licensePayload()) }
+            }
+
         case .log:
             let text = body["message"] as? String ?? "\(message.body)"
             panelLog.error("page: \(text, privacy: .public)")
@@ -347,4 +373,26 @@ extension PKCaptionsViewController: WKNavigationDelegate {
         if !allowed { panelLog.error("blocked navigation to \(action.request.url?.absoluteString ?? "?", privacy: .public)") }
         decisionHandler(allowed ? .allow : .cancel)
     }
+}
+
+// MARK: - Licence
+
+extension PKCaptionsViewController {
+
+    func licensePayload() -> [String: Any] {
+        let m = LicenseManager.shared
+        let kind: String
+        switch m.state {
+        case .checking: kind = "checking"
+        case .unlicensed: kind = "unlicensed"
+        case .trial: kind = "trial"
+        case .active: kind = "active"
+        case .expired: kind = "expired"
+        case .blocked: kind = "blocked"
+        }
+        return ["usable": m.isUsable, "state": kind, "summary": m.summary]
+    }
+
+    /// Tell the panel when the licence changes (a background re-check, a trial ending).
+    func pushLicense() { send(event: "license", payload: licensePayload()) }
 }

@@ -24,6 +24,15 @@
   <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
   <key>LSMinimumSystemVersion</key><string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 
+  <!-- Licensing (Licensing.swift). The store and product ids come from Lemon
+       Squeezy; a build without TFStoreID refuses keys. TFTeamID is what the
+       signature check expects. TFOwnerDevice is set only by build.sh, for the
+       developer's own Mac; release.sh leaves it empty. -->
+  <key>TFStoreID</key><string>$(PKKC_STORE_ID)</string>
+  <key>TFProductIDs</key><string>$(PKKC_PRODUCT_IDS)</string>
+  <key>TFTrialProductID</key><string>$(PKKC_TRIAL_PRODUCT_ID)</string>
+  <key>TFTeamID</key><string>W7SLDL8U36</string>
+  <key>TFOwnerDevice</key><string>$(PKKC_OWNER_DEVICE)</string>
   <key>NSExtension</key>
   <dict>
     <!-- This is what makes Final Cut list the panel under Window ▸ Extensions. -->

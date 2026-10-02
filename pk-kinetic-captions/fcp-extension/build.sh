@@ -124,6 +124,23 @@ APPEX="Contents/PlugIns/PKCaptionsExtension.appex"
 # A previous build's product would otherwise pass the checks below even when
 # this build failed.
 rm -rf "$BUILT"
+
+# Licensing. Store and product ids come from the environment (Lemon Squeezy).
+# A personal build is unlocked on this Mac only: TFOwnerDevice is a hash of
+# its hardware id, so it opens nothing anywhere else. Release builds
+# (PKKC_RELEASE=1, which release.sh sets) never carry it.
+OWNER_DEVICE=""
+if [ "${PKKC_RELEASE:-}" != "1" ]; then
+  UUID=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformUUID/{print $4}')
+  [ -n "$UUID" ] && OWNER_DEVICE=$(printf '%s' "$UUID|PKKineticCaptions" | shasum -a 256 | awk '{print $1}')
+fi
+LICENSE_ARGS=(
+  "PKKC_STORE_ID=${PKKC_STORE_ID:-}"
+  "PKKC_PRODUCT_IDS=${PKKC_PRODUCT_IDS:-}"
+  "PKKC_TRIAL_PRODUCT_ID=${PKKC_TRIAL_PRODUCT_ID:-}"
+  "PKKC_OWNER_DEVICE=$OWNER_DEVICE"
+)
+
 xcodebuild \
   -project "$HERE/$APP_NAME.xcodeproj" \
   -scheme "$APP_NAME" \
@@ -133,6 +150,7 @@ xcodebuild \
   CODE_SIGNING_REQUIRED=YES \
   CODE_SIGNING_ALLOWED=YES \
   ${SIGN_ARGS[@]+"${SIGN_ARGS[@]}"} \
+  "${LICENSE_ARGS[@]}" \
   build > "$HERE/.build.log" 2>&1
 STATUS=$?
 grep -E "error:|warning: .*(Swift|Info.plist)" "$HERE/.build.log" | sort -u | head -20

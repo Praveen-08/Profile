@@ -123,6 +123,7 @@ window.pkkc = {
   receive(event, payload) {
     if (event === 'timelineDropped') useTimelineXML(payload.fcpxml, 'dragged in');
     if (event === 'hostConnected') markConnected(true);
+    if (event === 'license') showLicence(payload);
   },
   /** Swift -> panel, answering a call. */
   resolve(payload) {
@@ -1340,3 +1341,47 @@ callNative('listTemplates')
   .catch(() => { /* built-ins are enough */ });
 
 export { state, useTimelineXML, adoptFrameFrom };
+
+/* ------------------------------------------------------------------ *
+ * Licence
+ * ------------------------------------------------------------------ */
+
+/** @param {{usable: boolean, state: string, summary: string}} lic */
+function showLicence(lic) {
+  const open = !lic.usable;
+  $('#licence').hidden = !open && !$('#licence').dataset.pinned;
+  $('#lic-summary').textContent = lic.summary;
+  $('#lic-move').hidden = !(lic.state === 'active' || lic.state === 'trial');
+  const badge = $('#lic-badge');
+  badge.hidden = false;
+  badge.textContent = lic.state === 'trial' ? lic.summary.replace(/\.$/, '') : lic.usable ? 'Licensed' : 'Activate';
+  badge.classList.toggle('is-warn', !lic.usable);
+}
+
+$('#lic-badge').onclick = () => {
+  const box = $('#licence');
+  box.hidden = !box.hidden;
+  box.dataset.pinned = box.hidden ? '' : '1';
+};
+$('#lic-activate').onclick = async () => {
+  const key = $('#lic-key').value.trim();
+  if (!key) return $('#lic-key').focus();
+  $('#lic-activate').disabled = true;
+  $('#lic-summary').textContent = 'Checking the key…';
+  try {
+    const lic = await callNative('licenseActivate', { key });
+    $('#lic-key').value = '';
+    $('#licence').dataset.pinned = '';
+    showLicence(lic);
+  } catch (err) {
+    $('#lic-summary').textContent = err.message;
+  } finally {
+    $('#lic-activate').disabled = false;
+  }
+};
+$('#lic-move').onclick = async () => {
+  try { showLicence(await callNative('licenseDeactivate')); }
+  catch (err) { $('#lic-summary').textContent = err.message; }
+};
+callNative('license').then(showLicence).catch(() => { /* outside Final Cut */ });
+

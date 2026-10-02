@@ -40,5 +40,9 @@ enum WebBridge {
         case grantAccess
         /// Installed font families and their faces.
         case fonts
+        /// Licence: where it stands, entering a key, freeing this Mac.
+        case license
+        case licenseActivate
+        case licenseDeactivate
     }
 }

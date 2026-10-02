@@ -1,8 +1,11 @@
 #!/bin/bash
 #
-# Notarize and staple the installed build, ready to give to someone else.
+# Build a customer copy, then notarize and staple it.
 #
-#   ./build.sh && ./release.sh
+#   PKKC_STORE_ID=… PKKC_PRODUCT_IDS=… PKKC_TRIAL_PRODUCT_ID=… ./release.sh
+#
+# It rebuilds with PKKC_RELEASE=1, so the copy carries no owner unlock, and
+# refuses to ship one without the store id (it could not take licence keys).
 #
 # Apple checks the app for malware and records that it did; the stapled ticket
 # lets it open on a customer's Mac without a warning, even offline. Uses the
@@ -15,6 +18,13 @@ APP="/Applications/PKKineticCaptions.app"
 PROFILE="${NOTARY_PROFILE:-08labs}"
 DIST="$HERE/dist"
 ZIP="$DIST/PKKineticCaptions.zip"
+
+[ -n "${PKKC_STORE_ID:-}" ] || { echo "Set PKKC_STORE_ID (and PKKC_PRODUCT_IDS) to the Lemon Squeezy ids first."; exit 1; }
+echo "▸ building the customer copy"
+PKKC_RELEASE=1 "$HERE/build.sh"
+PLIST="$APP/Contents/PlugIns/PKCaptionsExtension.appex/Contents/Info.plist"
+[ -z "$(/usr/libexec/PlistBuddy -c 'Print :TFOwnerDevice' "$PLIST" 2>/dev/null)" ] \
+  || { echo "The build still carries an owner unlock — refusing to release it."; exit 1; }
 
 mkdir -p "$DIST"
 echo "▸ checking the signature"

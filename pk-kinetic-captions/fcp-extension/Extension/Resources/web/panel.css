@@ -145,3 +145,13 @@ body.panel { height: auto; min-height: 100vh; overflow: visible; background: var
 }
 .pstyle .thumb svg { width: 100%; height: 100%; display: block; }
 .pstyle.is-on .thumb { box-shadow: 0 0 0 1px var(--gold); }
+
+/* Licence */
+.lic-badge { font: inherit; font-size: 10px; letter-spacing: .04em; padding: 3px 8px; margin-right: 8px; border-radius: 999px;
+  border: 1px solid var(--line, rgba(255,255,255,.12)); background: transparent; color: var(--muted); cursor: pointer; }
+.lic-badge.is-warn { color: var(--gold); border-color: var(--gold); }
+.licence { margin: 10px 12px; padding: 12px; border: 1px solid var(--gold); border-radius: 8px; background: var(--panel-2); }
+.licence p { margin: 0 0 8px; }
+.lic-row { display: flex; gap: 6px; }
+.lic-row input { flex: 1; min-width: 0; }
+.linkish { background: none; border: 0; padding: 6px 0 0; color: var(--muted); font: inherit; font-size: 11px; text-decoration: underline; cursor: pointer; }
