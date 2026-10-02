@@ -109,7 +109,8 @@ export const LEVEL_RANK = { normal: 0, emphasis: 1, hero: 2 };
 /**
  * A two-stop gradient fill. `angle` is in degrees: 0 runs left to right,
  * 90 bottom to top. Colours are hex.
- * @typedef {{enabled:boolean, from:string, to:string, angle?:number}} GradientFill
+ * `span: 'line'` runs one gradient across the whole line instead of each word.
+ * @typedef {{enabled:boolean, from:string, to:string, angle?:number, span?:'word'|'line'}} GradientFill
  */
 
 /* ------------------------------------------------------------------ *
@@ -151,7 +152,7 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * ------------------------------------------------------------------ */
 
 /**
- * @typedef {"fade"|"rise"|"slide"|"scale"|"pop"|"blur"|"stretch"|"type"|"reveal"|"maskReveal"} InAnimation
+ * @typedef {"fade"|"rise"|"slide"|"scale"|"pop"|"blur"|"stretch"|"rotate"|"typewriter"|"type"|"reveal"|"maskReveal"} InAnimation
  * @typedef {"fade"|"scale"|"slide"|"blur"|"shrink"|"maskExit"} OutAnimation
  * @typedef {"minimal"|"smooth"|"editorial"|"cinematic"|"luxury"|"punchy"|"energetic"} AnimationStyle
  */
@@ -172,6 +173,8 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * @property {Keyframe[]} offsetX
  * @property {Keyframe[]} offsetY
  * @property {Keyframe[]} blur
+ * @property {Keyframe[]} [rotation]  Degrees, + anticlockwise.
+ * @property {Keyframe[]} [reveal]    Fraction of the word shown, left to right (typewriter).
  * @property {number} inDuration
  * @property {number} outDuration
  * @property {InAnimation} inAnimation
@@ -215,6 +218,7 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * @property {Point} position     Anchor point of the word, normalized.
  * @property {Rect} box           Measured bounding box, normalized.
  * @property {WordMotion} motion
+ * @property {{colour: RGBA, until: number}} [active]  Colour while spoken; `until` is seconds from the word's start.
  * @property {Depth} depth
  * @property {BlendMode} blend
  * @property {number} lane        Render order within its depth. Higher draws later.
@@ -291,6 +295,7 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * @property {GradientFill} [gradient]  A two-colour fill instead of the flat colour.
  * @property {{enabled:boolean, colour?:string, intensity?:number, radius?:number}} [glow]  Glow, over the style's.
  * @property {boolean} [shine]     A light sweep across the word as it lands.
+ * @property {string} [activeColour]  Hex. The colour while the word is being spoken; it settles to its usual colour after.
  * @property {boolean} [hidden]
  */
 

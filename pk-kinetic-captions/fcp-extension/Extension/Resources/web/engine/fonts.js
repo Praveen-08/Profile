@@ -178,6 +178,18 @@ export function resolveItalic(family, wanted) {
   return wanted && familyInfo(family).italic;
 }
 
+/** Families whose condensed cut macOS installs as a separate family. */
+const SEPARATE_CONDENSED = new Set(['Avenir Next']);
+
+/**
+ * The family name to write to FCPXML for a family at a width.
+ * @param {string} family @param {FontWidth} width
+ */
+export function exportFamily(family, width) {
+  const info = familyInfo(family);
+  return width === 'condensed' && SEPARATE_CONDENSED.has(info.family) ? `${info.family} Condensed` : family;
+}
+
 /**
  * The FCPXML `fontFace` string. FCP matches these against the installed
  * face names, and gets it wrong quietly if the string is not one a font
@@ -204,7 +216,11 @@ export function faceName(family, weight, width, italic) {
   }
 
   const parts = [];
-  if (width === 'condensed') parts.push('Condensed');
+  // Avenir Next's condensed cut is a family of its own on macOS ("Avenir
+  // Next Condensed" / "Heavy"); see exportFamily. Asking Final Cut for
+  // "Avenir Next" / "Condensed Heavy" matched nothing and it drew the word in
+  // 6pt Helvetica.
+  if (width === 'condensed' && !SEPARATE_CONDENSED.has(info.family)) parts.push('Condensed');
   if (width === 'expanded') parts.push('Expanded');
   if (base !== 'Regular' || parts.length === 0) parts.push(base);
   if (italic) parts.push(base === 'Regular' && parts.length === 1 ? 'Italic' : 'Italic');

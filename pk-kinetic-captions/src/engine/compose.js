@@ -258,13 +258,18 @@ export function compose(opts) {
           inOverride: e.inAnimation ?? (fromPattern ? template.motion.patternIn : undefined),
           outOverride: e.outAnimation ?? (fromPattern ? template.motion.patternOut : undefined),
           tune: e.tune,
+          letters: [...w.text].length,
         }), e.opacity),
         depth: interaction.depth,
         blend: interaction.blend,
+        // Active word: its own colour while it is being said, then the usual one.
+        ...(e.activeColour ? { active: { colour: parseColour(e.activeColour), until: Math.max(0, snapToFrame(w.end, frame.fps) - start) } } : {}),
         lane: 0,
         overridden: Object.keys(o).length > 0,
       });
     }
+
+    spanLineGradients(placedWords, styles.map((s) => s.e), phrase.words.map((w) => w.id));
 
     const lanes = assignLanes(placedWords.map((w) => ({ id: w.id, level: w.level, size: w.size, depth: w.depth })));
     for (const w of placedWords) w.lane = lanes.get(w.id) ?? 1;
@@ -360,6 +365,40 @@ function resolveDecoration(t, colour, size, baseSize, e = {}) {
       : { enabled: false, from: colour, to: colour, angle: 0 },
     shine: !!e.shine,
   };
+}
+
+/**
+ * A gradient set to run across the whole line is cut into one slice per word:
+ * each word takes the part of the line's gradient that lies under it, so the
+ * line reads as one sweep of colour (red on the first word, blue on the last).
+ * @param {PlacedWord[]} words
+ * @param {import('../core/types.js').WordOverride[]} effective  Each word's resolved style, by phrase order.
+ * @param {string[]} order  The phrase's word ids, matching `effective`.
+ */
+function spanLineGradients(words, effective, order) {
+  const lineOf = (w) => Math.round(w.position.y * 400);
+  const spec = new Map(order.map((id, i) => [id, effective[i]?.gradient]));
+  /** @type {Map<number, PlacedWord[]>} */
+  const lines = new Map();
+  for (const w of words) {
+    const g = spec.get(w.id);
+    if (!g?.enabled || g.span !== 'line') continue;
+    const key = lineOf(w);
+    lines.set(key, [...(lines.get(key) ?? []), w]);
+  }
+  const mix = (a, b, t) => ({ r: a.r + (b.r - a.r) * t, g: a.g + (b.g - a.g) * t, b: a.b + (b.b - a.b) * t, a: 1 });
+  for (const line of lines.values()) {
+    const left = Math.min(...line.map((w) => w.position.x - w.box.w / 2));
+    const right = Math.max(...line.map((w) => w.position.x + w.box.w / 2));
+    const span = Math.max(1e-6, right - left);
+    for (const w of line) {
+      const g = /** @type {any} */ (spec.get(w.id));
+      const from = parseColour(g.from), to = parseColour(g.to);
+      const t0 = (w.position.x - w.box.w / 2 - left) / span;
+      const t1 = (w.position.x + w.box.w / 2 - left) / span;
+      w.decoration.gradient = { enabled: true, from: mix(from, to, t0), to: mix(from, to, t1), angle: 0 };
+    }
+  }
 }
 
 /** @param {ShotAnalysis[]|undefined} shots @param {number} start @param {number} end */

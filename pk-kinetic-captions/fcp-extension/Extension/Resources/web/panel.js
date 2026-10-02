@@ -21,7 +21,7 @@ import { frameFromFCPXML } from './frame.js';
 import { videoSegments, pictureAt } from './timeline.js';
 import { renderFrame } from './render/svg.js';
 import { setTextMeasurer } from './engine/typography.js';
-import { WEIGHT_NUMERIC } from './engine/fonts.js';
+import { WEIGHT_NUMERIC, exportFamily } from './engine/fonts.js';
 
 // Lay words out by their real width in the real font. The same face is what
 // Final Cut renders, so spacing in the export matches the preview.
@@ -40,8 +40,10 @@ import { WEIGHT_NUMERIC } from './engine/fonts.js';
     return installed.get(family);
   };
   setTextMeasurer((text, font) => {
-    if (!ctx || !isInstalled(font.family)) return NaN;
-    ctx.font = `${font.italic ? 'italic ' : ''}${WEIGHT_NUMERIC[font.weight] ?? 400} ${SIZE}px "${font.family}"`;
+    // Measure the family Final Cut will draw (Avenir Next's condensed cut is its own family).
+    const family = font.face ? font.family : exportFamily(font.family, font.width);
+    if (!ctx || !isInstalled(family)) return NaN;
+    ctx.font = `${font.italic ? 'italic ' : ''}${WEIGHT_NUMERIC[font.weight] ?? 400} ${SIZE}px "${family}"`;
     return ctx.measureText(text).width / SIZE;
   });
 }
@@ -769,7 +771,7 @@ let pkTitleInstalled = false;
  */
 function exportOptions(extra) {
   const words = state.plan.phrases.flatMap((p) => p.words);
-  const needsPK = words.some((w) => w.decoration.gradient?.enabled || w.decoration.glow.enabled);
+  const needsPK = words.some((w) => w.decoration.gradient?.enabled || w.decoration.glow.enabled || w.active);
   return { projectName: `${state.plan.templateName} Captions`, profile: needsPK && pkTitleInstalled ? 'pk' : 'native', ...extra };
 }
 
@@ -801,7 +803,7 @@ window.addEventListener('resize', () => drawPreview());
  * Text style editor — one block, used for each group and for a word
  * ------------------------------------------------------------------ */
 
-const IN_ANIMS = [['fade', 'Fade'], ['rise', 'Rise'], ['slide', 'Slide'], ['scale', 'Scale up'], ['pop', 'Pop'], ['stretch', 'Stretch'], ['reveal', 'Reveal']];
+const IN_ANIMS = [['fade', 'Fade'], ['rise', 'Rise'], ['slide', 'Slide'], ['scale', 'Scale up'], ['pop', 'Pop'], ['stretch', 'Stretch'], ['rotate', 'Rotate in'], ['typewriter', 'Typewriter'], ['reveal', 'Reveal']];
 const OUT_ANIMS = [['fade', 'Fade'], ['scale', 'Grow'], ['shrink', 'Shrink'], ['slide', 'Slide away'], ['maskExit', 'Cut']];
 const IN_EASES = [['out', 'Smooth'], ['outSoft', 'Soft'], ['outSlow', 'Slow settle'], ['inOut', 'Even'], ['back', 'Bouncy'], ['backHard', 'Springy'], ['linear', 'Linear']];
 const OUT_EASES = [['inOut', 'Smooth'], ['in', 'Accelerate'], ['linear', 'Linear']];
@@ -854,6 +856,7 @@ function styleEditor(host, { blank }, onChange) {
   const gradFrom = el('input', { type: 'color' });
   const gradTo = el('input', { type: 'color' });
   const gradAngle = range(0, 180, 15);
+  const gradSpan = segOf([['', 'Each word'], ['line', 'Whole line']]);
   const gradPresets = el('div', { className: 'swatches' }, GRADIENTS.map(([name, from, to]) => {
     const b = el('button', { className: 'swatch', title: name });
     b.style.background = `linear-gradient(90deg, ${from}, ${to})`;
@@ -865,6 +868,8 @@ function styleEditor(host, { blank }, onChange) {
   const glowStrength = range(0.1, 1, 0.05);
   const glowSize = range(4, 60, 1);
   const shineOn = segOf([['', 'Off'], ['on', 'On']]);
+  const activeOn = segOf([['', 'Off'], ['on', 'On']]);
+  const activeColour = el('input', { type: 'color' });
   const reset = el('button', { className: 'pv-btn reset', textContent: 'Reset style' });
   const row = (label, control) => [el('label', { textContent: label }), control];
   host.replaceChildren(
@@ -874,12 +879,13 @@ function styleEditor(host, { blank }, onChange) {
     el('div', { className: 'ed-sub span2', textContent: 'Effects' }),
     ...row('Gradient', gradOn), ...row('', gradPresets),
     ...row('Colours', el('div', { className: 'rng' }, [gradFrom, el('span', { textContent: '→' }), gradTo])),
-    ...row('Angle', gradAngle.wrap),
+    ...row('Angle', gradAngle.wrap), ...row('Spread', gradSpan),
     ...row('Glow', glowOn), ...row('Glow colour', glowColour), ...row('Strength', glowStrength.wrap), ...row('Glow size', glowSize.wrap),
     ...row('Shine', shineOn),
+    ...row('While spoken', activeOn), ...row('Spoken colour', activeColour),
     reset,
   );
-  const gradRows = [gradPresets, gradFrom.parentElement, gradAngle.wrap];
+  const gradRows = [gradPresets, gradFrom.parentElement, gradAngle.wrap, gradSpan];
   const glowRows = [glowColour, glowStrength.wrap, glowSize.wrap];
 
   function fillFamilies() {
@@ -930,6 +936,9 @@ function styleEditor(host, { blank }, onChange) {
   glowStrength.input.oninput = () => glow({ intensity: Number(glowStrength.input.value) });
   glowSize.input.oninput = () => glow({ radius: Number(glowSize.input.value) });
   for (const b of shineOn.children) b.onclick = () => set({ shine: b.dataset.v ? true : undefined });
+  for (const b of gradSpan.children) b.onclick = () => grad({ span: b.dataset.v || undefined });
+  for (const b of activeOn.children) b.onclick = () => set({ activeColour: b.dataset.v ? (value.activeColour ?? '#34D399') : undefined });
+  activeColour.oninput = () => set({ activeColour: activeColour.value });
   reset.onclick = () => { value = {}; show(value, shownColour); emit(); };
 
   /** @param {object} v @param {string} currentColour the colour the word or group shows now */
@@ -964,6 +973,10 @@ function styleEditor(host, { blank }, onChange) {
     glowSize.out.textContent = `${gl?.radius ?? 18}px`;
     for (const r of glowRows) r.classList.toggle('is-off', !gl);
     for (const b of shineOn.children) b.classList.toggle('is-on', !!b.dataset.v === !!value.shine);
+    for (const b of gradSpan.children) b.classList.toggle('is-on', (b.dataset.v || '') === (g?.span ?? ''));
+    for (const b of activeOn.children) b.classList.toggle('is-on', !!b.dataset.v === !!value.activeColour);
+    activeColour.value = value.activeColour ?? '#34d399';
+    activeColour.classList.toggle('is-off', !value.activeColour);
     // The looks that blend into the picture hide the colour by design — say so.
     lookHint.textContent = value.look === 'cinematic'
       ? 'Overlay blends the text into the picture: colour shows only faintly, and not at all over black.'
@@ -1048,7 +1061,7 @@ function summarise(t) {
   if (g.scale) parts.push(`${Math.round(g.scale * 100)}%`);
   if (g.colour) parts.push(g.colour);
   if (g.look) parts.push(LOOKS.find(([v]) => v === g.look)?.[1] ?? g.look);
-  const fx = [g.gradient?.enabled && 'gradient', g.glow?.enabled && 'glow', g.shine && 'shine'].filter(Boolean);
+  const fx = [g.gradient?.enabled && (g.gradient.span === 'line' ? 'line gradient' : 'gradient'), g.glow?.enabled && 'glow', g.shine && 'shine', g.activeColour && 'spoken colour'].filter(Boolean);
   if (fx.length) parts.push(fx.join(' + '));
   parts.push(a.in ? `in: ${IN_ANIMS.find(([v]) => v === a.in)?.[1] ?? a.in}` : 'style animation');
   typeCards[t.key].summaryLine.textContent = parts.join(' · ');
@@ -1115,6 +1128,7 @@ function animEditor(host, blank, onChange) {
   const inDur = range(0.05, 1.5, 0.05, (v) => `${v.toFixed(2)}s`);
   const dist = range(0, 4, 0.1, (v) => `${Math.round(v * 100)}%`);
   const scaleFrom = range(0.2, 1.5, 0.05, (v) => `${Math.round(v * 100)}%`);
+  const turn = range(-45, 45, 1, (v) => `${v}°`);
   const inEase = select(IN_EASES);
   const outType = select(OUT_ANIMS);
   const outDur = range(0.05, 1.5, 0.05, (v) => `${v.toFixed(2)}s`);
@@ -1125,7 +1139,7 @@ function animEditor(host, blank, onChange) {
   host.replaceChildren(
     el('div', { className: 'sub', textContent: 'Entrance' }),
     ...row('Type', inType), ...row('Direction', dir), ...row('Duration', inDur.wrap),
-    ...row('Distance', dist.wrap), ...row('Start scale', scaleFrom.wrap), ...row('Easing', inEase),
+    ...row('Distance', dist.wrap), ...row('Start scale', scaleFrom.wrap), ...row('Turn', turn.wrap), ...row('Easing', inEase),
     el('div', { className: 'sub', textContent: 'Exit' }),
     ...row('Type', outType), ...row('Duration', outDur.wrap), ...row('Easing', outEase),
     reset,
@@ -1139,10 +1153,10 @@ function animEditor(host, blank, onChange) {
   const tuneSet = (k, v) => { value = { ...value, tune: { ...(value.tune ?? {}), [k]: v } }; show(value); emit(); };
   const wireRange = (r, key) => { r.input.oninput = () => tuneSet(key, Number(r.input.value)); r.out.ondblclick = () => tuneSet(key, undefined); r.out.title = 'Double-click for auto'; };
 
-  inType.onchange = () => { value = { ...value, in: inType.value || undefined }; emit(); };
+  inType.onchange = () => { value = { ...value, in: inType.value || undefined }; show(value); emit(); };
   outType.onchange = () => { value = { ...value, out: outType.value || undefined }; emit(); };
   for (const b of dir.children) b.onclick = () => tuneSet('direction', b.dataset.v || undefined);
-  wireRange(inDur, 'inDuration'); wireRange(dist, 'distance'); wireRange(scaleFrom, 'scaleFrom'); wireRange(outDur, 'outDuration');
+  wireRange(inDur, 'inDuration'); wireRange(dist, 'distance'); wireRange(scaleFrom, 'scaleFrom'); wireRange(outDur, 'outDuration'); wireRange(turn, 'rotateFrom');
   inEase.onchange = () => tuneSet('ease', inEase.value || undefined);
   outEase.onchange = () => tuneSet('outEase', outEase.value || undefined);
   reset.onclick = () => { value = {}; show(value); emit(); };
@@ -1159,7 +1173,8 @@ function animEditor(host, blank, onChange) {
     inType.value = value.in ?? '';
     outType.value = value.out ?? '';
     for (const b of dir.children) b.classList.toggle('is-on', (b.dataset.v || '') === (t.direction ?? ''));
-    showRange(inDur, t.inDuration, 0.3); showRange(dist, t.distance, 1); showRange(scaleFrom, t.scaleFrom, 0.9); showRange(outDur, t.outDuration, 0.22);
+    showRange(inDur, t.inDuration, 0.3); showRange(dist, t.distance, 1); showRange(scaleFrom, t.scaleFrom, 0.9); showRange(outDur, t.outDuration, 0.22); showRange(turn, t.rotateFrom, 14);
+    turn.wrap.classList.toggle('is-off', (value.in ?? '') !== 'rotate');
     inEase.value = t.ease ?? '';
     outEase.value = t.outEase ?? '';
   }

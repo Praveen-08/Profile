@@ -341,3 +341,11 @@ test('the PK title carries gradient and glow as its own published controls', () 
   assert.ok(!native.xml.includes('10042'));
   assert.ok(native.warnings.some((w) => w.includes('Gradient and glow')));
 });
+
+test('a condensed Avenir Next is exported as its own family, the way macOS names it', () => {
+  // Final Cut matched nothing for "Avenir Next" / "Condensed Heavy" and drew
+  // the word in 6pt Helvetica.
+  const { xml } = exportFCPXML(make(builtinById('pk-modern')));
+  assert.ok(!xml.includes('fontFace="Condensed'), 'no "Condensed …" face inside Avenir Next');
+  if (xml.includes('Avenir Next Condensed')) assert.ok(/font="Avenir Next Condensed" fontSize="[\d.]+" fontFace="Heavy"/.test(xml));
+});

@@ -14,7 +14,7 @@
 
 import { sample } from '../engine/motion.js';
 import { toCSS, withAlpha } from '../core/colour.js';
-import { WEIGHT_NUMERIC, familyInfo } from '../engine/fonts.js';
+import { WEIGHT_NUMERIC, familyInfo, exportFamily } from '../engine/fonts.js';
 
 /** CSS blend-mode names for the engine's compositing modes. */
 const CSS_BLEND = {
@@ -104,13 +104,18 @@ function drawWord(w, t, plan) {
   const dx = sample(w.motion.offsetX, local, 0) * plan.frame.height;
   const dy = sample(w.motion.offsetY, local, 0) * plan.frame.height;
   const blur = sample(w.motion.blur, local, 0);
+  const rot = sample(w.motion.rotation ?? [], local, 0);
+  const shown = clamp01(sample(w.motion.reveal ?? [], local, 1));
+  if (shown <= 0.001) return '';
+  const colour = w.active && local < w.active.until ? w.active.colour : w.colour;
 
   // Normalized centre-origin, +y up  ->  SVG top-left origin, +y down.
   const cx = (0.5 + w.position.x) * plan.frame.width + dx;
   const cy = (0.5 - w.position.y) * plan.frame.height - dy;
 
   const info = familyInfo(w.font.family);
-  const family = [w.font.family, ...info.fallbacks, info.classification === 'serif' ? 'serif' : 'sans-serif']
+  const drawn = w.font.face ? w.font.family : exportFamily(w.font.family, w.font.width);
+  const family = [...new Set([drawn, w.font.family]), ...info.fallbacks, info.classification === 'serif' ? 'serif' : 'sans-serif']
     .map((f) => (f.includes(' ') ? `'${f}'` : f)).join(', ');
 
   // Gradient fill and the shine sweep are per-word paint servers, so each
@@ -123,6 +128,14 @@ function drawWord(w, t, plan) {
   const SHINE_START = 0.12, SHINE_LEN = 0.6;
   const p = (local - SHINE_START) / SHINE_LEN;
   const shining = w.decoration.shine && p > 0 && p < 1;
+  // Typewriter: a clip that uncovers the word from its left edge. Generous
+  // height so ascenders, descenders and the glow are never cut.
+  let clip = '';
+  if (shown < 0.999) {
+    const halfW = (w.box.w * plan.frame.width) / Math.max(sc, 0.01) / 2 + w.size * 0.1;
+    defs.push(`<clipPath id="${gid}-c"><rect x="${round(-halfW)}" y="${round(-w.size * 1.5)}" width="${round(2 * halfW * shown)}" height="${round(w.size * 3)}"/></clipPath>`);
+    clip = ` clip-path="url(#${gid}-c)"`;
+  }
   if (shining) {
     const c = -0.3 + p * 1.6;   // the band's centre travels from off the left edge to off the right
     defs.push(linearGradient(`${gid}-s`, 20, [
@@ -138,7 +151,7 @@ function drawWord(w, t, plan) {
     `font-weight="${WEIGHT_NUMERIC[w.font.weight] ?? 400}"`,
     w.font.italic ? 'font-style="italic"' : '',
     `letter-spacing="${round((w.font.tracking / 1000) * w.size)}"`,
-    `fill="${grad ? `url(#${gid}-f)` : toCSS(w.colour)}"`,
+    `fill="${grad ? `url(#${gid}-f)` : toCSS(colour)}"`,
     `text-anchor="middle"`,
     `dominant-baseline="central"`,
   ].filter(Boolean);
@@ -174,9 +187,11 @@ function drawWord(w, t, plan) {
   const shine = shining
     ? `<text ${attrs.filter((a) => !a.startsWith('fill=')).join(' ')} fill="url(#${gid}-s)">${text}</text>`
     : '';
-  return `<g transform="translate(${round(cx)} ${round(cy + capOffset)}) scale(${round(sc, 5)})" style="${style}">` +
+  // SVG rotates clockwise for +deg; the engine's + is anticlockwise.
+  const turn = Math.abs(rot) > 0.01 ? ` rotate(${round(-rot, 3)})` : '';
+  return `<g transform="translate(${round(cx)} ${round(cy + capOffset)})${turn} scale(${round(sc, 5)})" style="${style}">` +
     (defs.length ? `<defs>${defs.join('')}</defs>` : '') +
-    `<text ${attrs.join(' ')}${stroke}>${text}</text>${shine}</g>`;
+    `<g${clip}><text ${attrs.join(' ')}${stroke}>${text}</text>${shine}</g></g>`;
 }
 
 /**

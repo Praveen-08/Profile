@@ -42,6 +42,7 @@ export const EASING = {
  * @property {keyof EASING} [ease]    Entrance curve.
  * @property {keyof EASING} [outEase] Exit curve.
  * @property {number} [scaleFrom]    Starting scale for scale and pop entrances.
+ * @property {number} [rotateFrom]   Starting angle in degrees for the rotate entrance (+ is anticlockwise).
  */
 
 /**
@@ -89,9 +90,10 @@ export const STYLES = {
  * @param {OutAnimation} [args.outOverride]
  * @param {{blur?: boolean, perCharacter?: boolean, maskReveal?: boolean}} [args.capabilities]
  * @param {MotionTune} [args.tune]    Editor's adjustments; anything unset keeps the style's value.
+ * @param {number} [args.letters]    Characters in the word, which paces the typewriter.
  * @returns {WordMotion}
  */
-export function buildMotion({ level, template, life, capFraction, inOverride, outOverride, capabilities, tune = {} }) {
+export function buildMotion({ level, template, life, capFraction, inOverride, outOverride, capabilities, tune = {}, letters = 6 }) {
   const caps = { blur: true, perCharacter: true, maskReveal: true, ...(capabilities ?? {}) };
   const style = STYLES[template.motion.style] ?? STYLES.smooth;
   const speed = template.motion.speed || 1;
@@ -112,7 +114,9 @@ export function buildMotion({ level, template, life, capFraction, inOverride, ou
   // never actually read. At most 35% of its life goes to each, so at least
   // 30% is spent fully on screen.
   const budget = Math.max(0.05, life * 0.35);
-  const inDuration = Math.min(tune.inDuration ?? style.inDur * levelDur / speed, budget);
+  // A typewriter is paced by its letters (~28 a second) unless the editor set a time.
+  const natural = inAnimation === 'typewriter' ? Math.max(0.12, letters * 0.036) : style.inDur * levelDur / speed;
+  const inDuration = Math.min(tune.inDuration ?? natural, budget);
   const outDuration = Math.min(tune.outDuration ?? style.outDur * levelDur / speed, budget);
   const outStart = Math.max(inDuration + Math.min(0.04, life * 0.05), life - outDuration);
 
@@ -131,6 +135,8 @@ export function buildMotion({ level, template, life, capFraction, inOverride, ou
   /** @type {Keyframe[]} */ const offsetX = [];
   /** @type {Keyframe[]} */ const offsetY = [];
   /** @type {Keyframe[]} */ const blur = [];
+  /** @type {Keyframe[]} */ const rotation = [];
+  /** @type {Keyframe[]} */ const reveal = [];
 
   const ein = EASING[tune.ease ?? style.inEase] ?? EASING[style.inEase];
   // Exits must accelerate (see above), so only the accelerating curves are taken.
@@ -138,7 +144,7 @@ export function buildMotion({ level, template, life, capFraction, inOverride, ou
   const effectiveStyle = caps.blur ? style : { ...style, blur: 0 };
 
   // --- in ---
-  applyIn(inAnimation, { opacity, scale, offsetX, offsetY, blur }, { inDuration, dist, scaleFrom, style: effectiveStyle, ein, level, from });
+  applyIn(inAnimation, { opacity, scale, offsetX, offsetY, blur, rotation, reveal }, { inDuration, dist, scaleFrom, style: effectiveStyle, ein, level, from, rotateFrom: tune.rotateFrom });
 
   // Overshoot is additive and tiny, and only exists in the two styles that
   // declare it — this is the "no cheap animation" rule made structural.
@@ -151,7 +157,7 @@ export function buildMotion({ level, template, life, capFraction, inOverride, ou
 
   return {
     opacity: dedupe(opacity), scale: dedupe(scale), offsetX: dedupe(offsetX),
-    offsetY: dedupe(offsetY), blur: dedupe(blur),
+    offsetY: dedupe(offsetY), blur: dedupe(blur), rotation: dedupe(rotation), reveal: dedupe(reveal),
     inDuration, outDuration, inAnimation, outAnimation,
     perCharacter: caps.perCharacter && level === 'hero' && template.motion.perCharacterHero,
   };
@@ -175,7 +181,7 @@ const DIRECTIONS = {
   right: { x: -1.6, y: 0 },   // starts left, moves right
 };
 
-function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level, from }) {
+function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level, from, rotateFrom }) {
   const safe = settled(ein);
   const fadeIn = () => { ch.opacity.push({ t: 0, v: 0 }, { t: inDuration, v: 1, ease: safe }); };
   /** Travel in from `dir` (or the animation's own default) by `amount` of dist. */
@@ -213,6 +219,20 @@ function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level, fro
       fadeIn();
       ch.scale.push({ t: 0, v: scaleFrom * 0.9 }, { t: inDuration, v: 1, ease: ein });
       travel(DIRECTIONS.up, 0.5);
+      break;
+    case 'rotate':
+      // Swings in about its centre while it grows into place — the turn and
+      // the scale share one curve so the word lands as a single movement.
+      fadeIn();
+      ch.rotation.push({ t: 0, v: rotateFrom ?? 14 }, { t: inDuration, v: 0, ease: ein });
+      ch.scale.push({ t: 0, v: Math.min(scaleFrom, 0.9) }, { t: inDuration, v: 1, ease: ein });
+      if (from) travel(from, 1);
+      break;
+    case 'typewriter':
+      // Letters appear left to right at an even pace: `reveal` is the
+      // fraction of the word shown. Linear on purpose — typing does not ease.
+      ch.opacity.push({ t: 0, v: 1 });
+      ch.reveal.push({ t: 0, v: 0 }, { t: inDuration, v: 1, ease: EASING.linear });
       break;
     case 'type':
     case 'reveal':

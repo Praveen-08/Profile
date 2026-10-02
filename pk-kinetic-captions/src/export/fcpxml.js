@@ -32,7 +32,7 @@
 
 import { toFCPTime, timebaseFor, snapToFrame } from '../core/time.js';
 import { toFCPColour } from '../core/colour.js';
-import { faceName, WEIGHT_NUMERIC } from '../engine/fonts.js';
+import { faceName, exportFamily, WEIGHT_NUMERIC } from '../engine/fonts.js';
 import { sample } from '../engine/motion.js';
 
 /**
@@ -62,6 +62,7 @@ export const PK_TITLE_UID =
 const PK_KEY = '9999/10005/10011/5/10042';
 export const PK_PARAMS = {
   fill: `${PK_KEY}/14/15`,            // "0 (Color)" | "1 (Gradient)"
+  fillColor: `${PK_KEY}/14/16`,
   gradientStart: `${PK_KEY}/14/17/1/999140132/3`,
   gradientEnd: `${PK_KEY}/14/17/1/999140133/3`,
   glowColor: `${PK_KEY}/38/40`,
@@ -126,6 +127,9 @@ export function exportFCPXML(plan, opts = {}) {
   }
   if (profile === 'native' && words.some((w) => w.decoration.gradient?.enabled || w.decoration.glow.enabled)) {
     warnings.push('Gradient and glow need the PK Kinetic Caption title; Final Cut\'s Basic Title draws these words in their flat colour.');
+  }
+  if (profile === 'native' && words.some((w) => w.active)) {
+    warnings.push('The active-word colour needs the PK Kinetic Caption title; with Basic Title those words keep one colour.');
   }
   if (words.some((w) => w.decoration.shine)) {
     warnings.push('Shine is drawn in the preview only for now; Final Cut shows these words without the sweep.');
@@ -225,11 +229,12 @@ function renderTitle(w, index, lane, plan, samples, profile) {
   const baseX = w.position.x * plan.frame.width;
   const baseY = w.position.y * plan.frame.height;
 
+  const crop = renderReveal(w, plan, life, fps, samples);
   const transform = renderTransform(w, plan, baseX, baseY, life, fps, samples);
   const blend = renderBlend(w, life, fps, samples);
   const text = renderTextStyle(w, styleId, plan);
 
-  const params = profile === 'pk' ? renderPKParams(w) : '';
+  const params = profile === 'pk' ? renderPKParams(w, plan) : '';
 
   // A dedicated video role lets the editor solo, hide or export every
   // caption in one click, which matters when there are two hundred of them.
@@ -240,7 +245,7 @@ ${params}                <text>
                 <text-style-def id="${styleId}">
                   ${text}
                 </text-style-def>
-${transform}
+${crop}${transform}
 ${blend}
               </title>`;
 }
@@ -281,6 +286,16 @@ function renderTransform(w, plan, baseX, baseY, life, fps, samples) {
     lines.push(`                  <param name="position" value="${fcpPosition(baseX, baseY, plan)}"/>`);
   }
 
+  const rotation = w.motion.rotation ?? [];
+  if (rotation.some((k) => Math.abs(k.v) > 1e-3)) {
+    // Final Cut's rotation is in degrees, + anticlockwise — the engine's sense.
+    lines.push('                  <param name="rotation">', '                    <keyframeAnimation>');
+    for (const t of keyTimes(rotation, life, samples)) {
+      lines.push(`                      <keyframe time="${toFCPTime(t, fps)}" value="${num(sample(rotation, t, 0), 3)}" curve="linear"/>`);
+    }
+    lines.push('                    </keyframeAnimation>', '                  </param>');
+  }
+
   if (hasScale) {
     lines.push('                  <param name="scale">', '                    <keyframeAnimation>');
     for (const t of times) {
@@ -292,6 +307,41 @@ function renderTransform(w, plan, baseX, baseY, life, fps, samples) {
 
   lines.push('                </adjust-transform>');
   return lines.join('\n');
+}
+
+/**
+ * Typewriter: a trim crop whose right edge sweeps across the word, so its
+ * letters are uncovered left to right. Crop values are in percent of the
+ * frame height, like positions (read back from Final Cut's inspector).
+ * @returns {string} the element and a newline, or '' when the word has no reveal
+ */
+function renderReveal(w, plan, life, fps, samples) {
+  const reveal = w.motion.reveal ?? [];
+  if (!reveal.some((k) => k.v < 0.999)) return '';
+  const H = plan.frame.height;
+  const halfFrame = plan.frame.width / 2;
+  const wordW = w.box.w * plan.frame.width;
+  // The crop applies before the transform, where the title's text still sits
+  // centred in the frame — so the edges are measured from the centre, not
+  // from where the word ends up. (Measured in Final Cut 12.2: using the
+  // placed position cut words off the left half of the frame entirely.)
+  const left = -wordW / 2 - w.size * 0.05;
+  const span = wordW + w.size * 0.1;
+  const frames = keyTimes(reveal, life, samples).map((t) => {
+    const edge = left + span * clamp01(sample(reveal, t, 1));
+    const right = Math.max(0, halfFrame - edge) / H * 100;
+    return `                        <keyframe time="${toFCPTime(t, fps)}" value="${num(right, 3)}" curve="linear"/>`;
+  }).join('\n');
+  return `                <adjust-crop mode="trim">
+                  <trim-rect>
+                    <param name="right">
+                      <keyframeAnimation>
+${frames}
+                      </keyframeAnimation>
+                    </param>
+                  </trim-rect>
+                </adjust-crop>
+`;
 }
 
 /** Opacity and the compositing mode. */
@@ -324,12 +374,25 @@ ${frames}
  * defaults have the glow, outline and shadow switched on.
  * @param {PlacedWord} w
  */
-function renderPKParams(w) {
+function renderPKParams(w, plan) {
   const d = w.decoration;
   const rgb = (c) => toFCPColour(c).split(' ').slice(0, 3).join(' ');
   const p = (name, key, value) => `                <param name="${name}" key="${key}" value="${value}"/>\n`;
   const g = d.gradient;
   let out = p('Fill', PK_PARAMS.fill, g?.enabled ? '1 (Gradient)' : '0 (Color)');
+  if (w.active && !g?.enabled && w.active.until > 0) {
+    // Active word: its own colour while spoken, then the usual one. A hold,
+    // not a fade: the colour hands over on the frame the next word starts.
+    const fps = plan.frame.fps;
+    const until = w.active.until;
+    out += `                <param name="Fill Color" key="${PK_PARAMS.fillColor}">
+                  <keyframeAnimation>
+                    <keyframe time="0s" value="${rgb(w.active.colour)}" curve="linear"/>
+                    <keyframe time="${toFCPTime(Math.max(0, until - 1 / fps), fps)}" value="${rgb(w.active.colour)}" curve="linear"/>
+                    <keyframe time="${toFCPTime(until, fps)}" value="${rgb(w.colour)}" curve="linear"/>
+                  </keyframeAnimation>
+                </param>\n`;
+  }
   if (g?.enabled) {
     out += p('Gradient Start', PK_PARAMS.gradientStart, rgb(g.from));
     out += p('Gradient End', PK_PARAMS.gradientEnd, rgb(g.to));
@@ -358,7 +421,8 @@ function renderTextStyle(w, styleId, plan) {
   const k = 1080 / plan.frame.height;
   const size = w.size * k;
   const attrs = [
-    `font="${esc(f.family)}"`,
+    // An exact face the editor picked belongs to the family they picked.
+    `font="${esc(f.face ? f.family : exportFamily(f.family, f.width))}"`,
     `fontSize="${num(size, 1)}"`,
     `fontFace="${esc(face)}"`,
     `fontColor="${toFCPColour(w.colour)}"`,
