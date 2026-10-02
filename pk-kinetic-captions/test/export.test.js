@@ -393,3 +393,18 @@ test('every built-in style exports only faces that exist', () => {
     }
   }
 });
+
+test('a title is placed by its baseline, half a cap height below the centre the preview draws', async () => {
+  // Measured in Final Cut 12.2: a title at position 0 0 draws its baseline on
+  // the frame centre. Placing the word's centre there put every caption high
+  // by half its cap height (more on bigger text).
+  const { capHeightOf } = await import('../src/engine/typography.js');
+  const plan = make(builtinById('pk-minimal'));
+  const w = plan.phrases[0].words[0];
+  const { xml } = exportFCPXML(plan);
+  const title = xml.slice(xml.indexOf('<title '), xml.indexOf('</title>'));
+  const m = /position="(-?[\d.]+) (-?[\d.]+)"/.exec(title) ?? /<keyframe time="[^"]+" value="(-?[\d.]+) (-?[\d.]+)"/.exec(title);
+  const yPct = Number(m[2]);
+  const expected = (w.position.y * plan.frame.height - capHeightOf(w.font, w.size) / 2) / plan.frame.height * 100;
+  assert.ok(Math.abs(yPct - expected) < 0.6, `y ${yPct} vs ${expected}`);
+});

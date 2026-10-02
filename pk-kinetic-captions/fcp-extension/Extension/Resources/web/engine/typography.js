@@ -95,8 +95,21 @@ export function measureEm(text, font) {
 /** @param {string} text @param {FontSpec} font @param {number} sizePt @returns {number} */
 export const measureWidth = (text, font, sizePt) => measureEm(text, font) * sizePt;
 
+/** @type {((font: FontSpec) => number) | null} */
+let realCapHeight = null;
+/**
+ * Where the real font can be measured (the panel's canvas), its own cap
+ * height replaces the table value. It decides where a word's baseline goes
+ * in Final Cut, so a wrong guess shows as captions sitting high or low.
+ * @param {((font: FontSpec) => number) | null} fn  cap height in em, or NaN
+ */
+export function setCapMeasurer(fn) { realCapHeight = fn; }
+
 /** @param {FontSpec} font @param {number} sizePt @returns {number} Cap height in points. */
-export const capHeightOf = (font, sizePt) => familyInfo(font.family).capHeight * sizePt;
+export const capHeightOf = (font, sizePt) => {
+  const real = realCapHeight ? realCapHeight(font) : NaN;
+  return (Number.isFinite(real) && real > 0.3 && real < 1 ? real : familyInfo(font.family).capHeight) * sizePt;
+};
 
 /** @param {FontSpec} font @param {number} sizePt @returns {number} Line box height. */
 export const lineHeightOf = (font, sizePt) => sizePt * (font.lineHeight ?? 1.05);

@@ -12,6 +12,7 @@
  * @typedef {import('../core/types.js').ShotAnalysis} ShotAnalysis
  */
 
+import { capHeightOf } from '../engine/typography.js';
 import { sample } from '../engine/motion.js';
 import { toCSS, withAlpha } from '../core/colour.js';
 import { WEIGHT_NUMERIC, familyInfo, exportFamily } from '../engine/fonts.js';
@@ -115,6 +116,11 @@ function drawWord(w, t, plan, idPrefix = '') {
   const cy = (0.5 - w.position.y) * plan.frame.height - dy;
 
   const info = familyInfo(w.font.family);
+  // The word is drawn on its baseline, half a cap height below the point the
+  // plan positions — exactly as the exporter places it in Final Cut, so the
+  // preview and the timeline agree for any font and size. The group's origin
+  // stays at the middle of the capitals, so scale and rotation pivot there.
+  const baseline = capHeightOf(w.font, w.size) / 2;
   const drawn = w.font.face ? w.font.family : exportFamily(w.font.family, w.font.width);
   const family = [...new Set([drawn, w.font.family]), ...info.fallbacks, info.classification === 'serif' ? 'serif' : 'sans-serif']
     .map((f) => (f.includes(' ') ? `'${f}'` : f)).join(', ');
@@ -146,7 +152,7 @@ function drawWord(w, t, plan, idPrefix = '') {
 
   /** @type {string[]} */
   const attrs = [
-    `x="0"`, `y="0"`,
+    `x="0"`, `y="${round(baseline)}"`,
     `font-family="${escapeAttr(family)}"`,
     `font-size="${round(w.size)}"`,
     `font-weight="${WEIGHT_NUMERIC[w.font.weight] ?? 400}"`,
@@ -154,7 +160,6 @@ function drawWord(w, t, plan, idPrefix = '') {
     `letter-spacing="${round((w.font.tracking / 1000) * w.size)}"`,
     `fill="${grad ? `url(#${gid}-f)` : toCSS(colour)}"`,
     `text-anchor="middle"`,
-    `dominant-baseline="central"`,
   ].filter(Boolean);
 
   const filters = [];
@@ -179,10 +184,6 @@ function drawWord(w, t, plan, idPrefix = '') {
     filters.length ? `filter:${filters.join(' ')}` : '',
   ].filter(Boolean).join(';');
 
-  // Cap-height centring: SVG's `central` baseline sits on the x-height-ish
-  // middle, so nudge by the difference to land the cap box where the layout
-  // engine put it.
-  const capOffset = (info.capHeight / 2 - 0.36) * w.size;
 
   const text = escapeText(w.text);
   const shine = shining
@@ -190,7 +191,7 @@ function drawWord(w, t, plan, idPrefix = '') {
     : '';
   // SVG rotates clockwise for +deg; the engine's + is anticlockwise.
   const turn = Math.abs(rot) > 0.01 ? ` rotate(${round(-rot, 3)})` : '';
-  return `<g transform="translate(${round(cx)} ${round(cy + capOffset)})${turn} scale(${round(sc, 5)})" style="${style}">` +
+  return `<g transform="translate(${round(cx)} ${round(cy)})${turn} scale(${round(sc, 5)})" style="${style}">` +
     (defs.length ? `<defs>${defs.join('')}</defs>` : '') +
     `<g${clip}><text ${attrs.join(' ')}${stroke}>${text}</text>${shine}</g></g>`;
 }

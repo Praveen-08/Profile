@@ -516,12 +516,12 @@
 				<parameter name="Transform" id="100" flags="8589938704">
 					<parameter name="Position" id="101" flags="8589938704">
 						<foldFlags>15</foldFlags>
-						<parameter name="Y" id="2" flags="8606711824" default="0" value="-435.99998712539673"/>
+						<parameter name="Y" id="2" flags="8606711824" default="0" value="0"/>
 					</parameter>
 					<parameter name="Anchor Point" id="107" flags="8589938704">
 						<foldFlags>15</foldFlags>
-						<parameter name="X" id="1" flags="8606711824" default="0" value="864"/>
-						<parameter name="Y" id="2" flags="8606711824" default="0" value="50"/>
+						<parameter name="X" id="1" flags="8606711824" default="0" value="0"/>
+						<parameter name="Y" id="2" flags="8606711824" default="0" value="0"/>
 					</parameter>
 				</parameter>
 				<parameter name="Lighting" id="230" flags="8589938706">
@@ -554,9 +554,9 @@
 				</parameter>
 				<parameter name="Render Text" id="360" flags="8590000146" default="0" value="0"/>
 				<parameter name="Face Camera" id="352" flags="8589934610" default="0" value="0"/>
-				<parameter name="Layout Method" id="314" flags="8606777360" default="0" value="1"/>
-				<parameter name="Right Margin" id="324" flags="8606711824" default="0" value="1728"/>
-				<parameter name="Top Margin" id="325" flags="8606711824" default="0" value="100"/>
+				<parameter name="Layout Method" id="314" flags="8606777360" default="0" value="0"/>
+				<parameter name="Right Margin" id="324" flags="8606711824" default="0" value="0"/>
+				<parameter name="Top Margin" id="325" flags="8606711824" default="0" value="0"/>
 				<parameter name="Path Options" id="329" flags="8589938704">
 					<parameter name="Shape Source" id="339" flags="77326254096" default="0" value="0"/>
 					<parameter name="Align to Path" id="333" flags="8589934610" default="1" value="1"/>

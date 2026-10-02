@@ -20,7 +20,7 @@ import { parseColour, toHex } from './core/colour.js';
 import { frameFromFCPXML } from './frame.js';
 import { videoSegments, pictureAt } from './timeline.js';
 import { renderFrame } from './render/svg.js';
-import { setTextMeasurer } from './engine/typography.js';
+import { setTextMeasurer, setCapMeasurer } from './engine/typography.js';
 import { WEIGHT_NUMERIC, exportFamily } from './engine/fonts.js';
 
 // Lay words out by their real width in the real font. The same face is what
@@ -45,6 +45,18 @@ import { WEIGHT_NUMERIC, exportFamily } from './engine/fonts.js';
     if (!ctx || !isInstalled(family)) return NaN;
     ctx.font = `${font.italic ? 'italic ' : ''}${WEIGHT_NUMERIC[font.weight] ?? 400} ${SIZE}px "${family}"`;
     return ctx.measureText(text).width / SIZE;
+  });
+  // The font's own cap height, from an "H": it places each word's baseline.
+  const caps = new Map();
+  setCapMeasurer((font) => {
+    const family = font.face ? font.family : exportFamily(font.family, font.width);
+    if (!ctx || !isInstalled(family)) return NaN;
+    const key = `${family}|${font.weight}|${font.italic}`;
+    if (!caps.has(key)) {
+      ctx.font = `${font.italic ? 'italic ' : ''}${WEIGHT_NUMERIC[font.weight] ?? 400} ${SIZE}px "${family}"`;
+      caps.set(key, ctx.measureText('H').actualBoundingBoxAscent / SIZE);
+    }
+    return caps.get(key);
   });
 }
 

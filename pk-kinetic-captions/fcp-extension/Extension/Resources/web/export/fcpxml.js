@@ -34,6 +34,7 @@ import { toFCPTime, timebaseFor, snapToFrame } from '../core/time.js';
 import { toFCPColour } from '../core/colour.js';
 import { faceName, exportFamily, WEIGHT_NUMERIC } from '../engine/fonts.js';
 import { sample } from '../engine/motion.js';
+import { capHeightOf } from '../engine/typography.js';
 
 /**
  * Final Cut's own Basic Title. Present on every install, so the native profile
@@ -227,7 +228,11 @@ function renderTitle(w, index, lane, plan, samples, profile) {
   // Normalized centre-origin (+y up) -> pixels from the centre of the frame.
   // Converted to Final Cut's units only when written; see fcpPosition.
   const baseX = w.position.x * plan.frame.width;
-  const baseY = w.position.y * plan.frame.height;
+  // A title's position is where its text's *baseline* sits (measured in
+  // Final Cut 12.2: a centred word drew with its baseline on the frame's
+  // centre). The plan positions the middle of the capitals, as the preview
+  // draws them, so the baseline goes half a cap height lower.
+  const baseY = w.position.y * plan.frame.height - capHeightOf(w.font, w.size) / 2;
 
   const crop = renderReveal(w, plan, life, fps, samples);
   const transform = renderTransform(w, plan, baseX, baseY, life, fps, samples);
