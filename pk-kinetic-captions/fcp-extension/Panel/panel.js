@@ -938,6 +938,11 @@ function drawWords() {
       const styled = Object.keys(state.overrides[w.id] ?? {}).some((k) => !['breakBefore', 'withPrevious'].includes(k));
       chip.classList.toggle('is-custom', styled || Boolean(state.wordNudges[w.id]));
       if (state.overrides[w.id]?.withPrevious) chip.classList.add('is-with');
+      // A word that stays on into the next caption.
+      if (state.overrides[w.id]?.tune?.stayThrough) {
+        chip.classList.add('is-stays');
+        chip.title = `Stays on through ${state.overrides[w.id].tune.stayThrough === 1 ? 'the next caption' : `${state.overrides[w.id].tune.stayThrough} captions`} · ${chip.title}`;
+      }
       // Click selects; clicking the selected word again edits it in place.
       chip.onclick = (e) => {
         if (wordDrag.moved) return;
@@ -1662,6 +1667,11 @@ function animEditor(host, blank, onChange) {
   const outType = select(OUT_ANIMS);
   const outDur = range(0.05, 1.5, 0.05, (v) => `${v.toFixed(2)}s`);
   const outEase = select(OUT_EASES);
+  // How long it stays: with its own caption, or on through the next ones.
+  const stays = el('div', { className: 'seg' });
+  for (const [v, l] of [['0', 'Its caption'], ['1', '+ next caption'], ['2', '+ 2 captions']]) {
+    const b = el('button', { textContent: l }); b.dataset.v = v; stays.append(b);
+  }
   const reset = el('button', { className: 'pv-btn reset', textContent: 'Reset animation' });
 
   const row = (label, control) => [el('label', { textContent: label }), control];
@@ -1670,6 +1680,7 @@ function animEditor(host, blank, onChange) {
     ...row('Type', inType), ...row('Direction', dir), ...row('Duration', inDur.wrap),
     ...row('Distance', dist.wrap), ...row('Start scale', scaleFrom.wrap), ...row('Turn', turn.wrap), ...row('Easing', inEase),
     el('div', { className: 'sub', textContent: 'Exit' }),
+    ...row('Stays on', stays),
     ...row('Type', outType), ...row('Duration', outDur.wrap), ...row('Easing', outEase),
     reset,
   );
@@ -1688,6 +1699,7 @@ function animEditor(host, blank, onChange) {
   wireRange(inDur, 'inDuration'); wireRange(dist, 'distance'); wireRange(scaleFrom, 'scaleFrom'); wireRange(outDur, 'outDuration'); wireRange(turn, 'rotateFrom');
   inEase.onchange = () => tuneSet('ease', inEase.value || undefined);
   outEase.onchange = () => tuneSet('outEase', outEase.value || undefined);
+  for (const b of stays.children) b.onclick = () => tuneSet('stayThrough', b.dataset.v === '0' ? undefined : Number(b.dataset.v));
   reset.onclick = () => { value = {}; show(value); emit(); };
 
   /** Ranges show "auto" until the editor sets them. */
@@ -1705,6 +1717,7 @@ function animEditor(host, blank, onChange) {
     showRange(inDur, t.inDuration, 0.3); showRange(dist, t.distance, 1); showRange(scaleFrom, t.scaleFrom, 0.9); showRange(outDur, t.outDuration, 0.22); showRange(turn, t.rotateFrom, 14);
     turn.wrap.classList.toggle('is-off', (value.in ?? '') !== 'rotate');
     inEase.value = t.ease ?? '';
+    for (const b of stays.children) b.classList.toggle('is-on', b.dataset.v === String(t.stayThrough ?? 0));
     outEase.value = t.outEase ?? '';
   }
   show({});

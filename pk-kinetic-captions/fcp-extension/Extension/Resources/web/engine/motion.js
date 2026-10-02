@@ -45,6 +45,7 @@ export const EASING = {
  * @property {keyof EASING} [outEase] Exit curve.
  * @property {number} [scaleFrom]    Starting scale for scale and pop entrances.
  * @property {number} [rotateFrom]   Starting angle in degrees for the rotate entrance (+ is anticlockwise).
+ * @property {number} [stayThrough]  Captions after its own that the word stays on screen through (0–3).
  */
 
 /**

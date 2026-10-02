@@ -252,7 +252,14 @@ export function compose(opts) {
 
       const item = items[i];
       const start = snapToFrame(appears[i], frame.fps);
-      const end = snapToFrame(phraseEnd, frame.fps);
+      // A word can stay on through the next caption or two: it leaves with
+      // the caption it extends into, not with its own.
+      const stay = Math.max(0, Math.min(3, Math.round(e.tune?.stayThrough ?? 0)));
+      const into = stay ? phrases[Math.min(pi + stay, phrases.length - 1)] : null;
+      const after = stay ? phrases[Math.min(pi + stay, phrases.length - 1) + 1] : null;
+      const end = snapToFrame(into
+        ? Math.min(into.end + template.motion.hold, Math.max(into.end + 0.02, after ? after.start + 0.10 : Infinity))
+        : phraseEnd, frame.fps);
       const life = atLeastOneFrame(Math.max(end - start, 2 / frame.fps), frame.fps);
 
       const resolved = resolveInteraction(level, template, { depthOverride: e.depth });

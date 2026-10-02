@@ -592,3 +592,19 @@ test('a blink is whole frames on and off, then stays on', () => {
   assert.equal(seq[8], 1, 'then it stays');
   assert.ok(seq.every((v) => v === 0 || v === 1), 'never a fade between');
 });
+
+test('a word can stay on screen through the next caption', () => {
+  const transcript = ingest('This beautiful home has four bedrooms and a stunning view of the harbour at sunset', { format: 'text' });
+  const template = builtinById('pk-modern');
+  const frame = { width: 1080, height: 1920, fps: 30 };
+  const base = compose({ transcript, template, frame });
+  const w = base.phrases[0].words[0];
+  const plan = compose({ transcript, template, frame, overrides: { [w.id]: { tune: { stayThrough: 1 } } } });
+  const held = plan.phrases[0].words.find((x) => x.id === w.id);
+  const next = plan.phrases[1];
+  assert.ok(held.end >= next.words[next.words.length - 1].start, 'still on while the next caption plays');
+  assert.ok(Math.abs(held.end - Math.max(...next.words.map((x) => x.end))) < 0.05, 'leaves with that caption');
+  // Its neighbours keep their own timing.
+  const other = plan.phrases[0].words[1];
+  assert.equal(other.end, base.phrases[0].words[1].end);
+});
