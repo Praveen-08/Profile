@@ -40,6 +40,7 @@
   <div id="pv" class="pv" title="Drag to move the captions">
     <img id="pv-img" alt="">
     <div id="pv-svg"></div>
+    <div id="pv-guides" class="pv-guides"></div>
     <div id="pv-sel" class="pv-sel" hidden></div>
     <p id="pv-empty" class="pv-empty">No video in what was dropped — drag the project for a picture.</p>
     <div id="pv-access" class="pv-access" hidden>
@@ -76,6 +77,25 @@
 </nav>
 
 <div class="tab-pane" data-tab="style">
+  <section class="pstep">
+    <h2>Position</h2>
+    <div class="seg wide" id="place-mode">
+      <button data-v="style" class="is-on">Let the style move them</button><button data-v="fixed">Same place every time</button>
+    </div>
+    <div id="place-line-row" class="size-row mt-s" hidden>
+      <span class="hint">Caption line</span>
+      <input type="range" id="place-y" min="5" max="95" step="1" value="66">
+      <span id="place-y-val" class="mono">66% down</span>
+    </div>
+    <div id="place-safe-row" class="mt-s">
+      <span class="hint">Keep clear of</span>
+      <div class="seg wide mt-s" id="place-safe">
+        <button data-v="all" class="is-on">All apps</button><button data-v="reels">Reels</button><button data-v="tiktok">TikTok</button><button data-v="shorts">Shorts</button><button data-v="off">Off</button>
+      </div>
+    </div>
+    <label class="check mt-s"><input type="checkbox" id="place-guides" checked> Show the safe zone on the preview</label>
+    <p class="hint">With the same place every time, drag a phrase up or down in the preview to move the caption line for all of them. It snaps to thirds and the middle.</p>
+  </section>
   <section class="pstep">
     <h2>Look</h2>
     <div id="styles" class="pstyles"></div>

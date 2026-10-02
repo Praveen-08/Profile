@@ -89,6 +89,12 @@ const state = {
      * words the colour pattern picks out.
      */
     anim: { feel: '', reveal: '', groups: { normal: {}, high: {}, pattern: {} } },
+    /**
+     * Where captions sit. 'style' lets the style move them around the
+     * picture; 'fixed' puts every phrase on one line (y, from the top, as a
+     * fraction of the frame), kept inside the chosen platform's safe zone.
+     */
+    place: { mode: 'style', yVertical: 0.66, yHorizontal: 0.82, safe: 'all', guides: true },
   },
   /** Per-phrase moves on top of the overall offset, keyed by first word id. */
   phraseNudges: /** @type {Record<string, {x: number, y: number}>} */ ({}),
@@ -258,6 +264,7 @@ const offsetKey = () => (isVertical() ? 'offsetVertical' : 'offsetHorizontal');
  * plan itself, so the export carries exactly what the preview shows.
  */
 function applyPositions(plan) {
+  if (isFixed()) return fixPositions(plan);
   const all = state.custom[offsetKey()] ?? { x: 0, y: 0 };
   for (const phrase of plan.phrases) {
     const own = state.phraseNudges[phrase.words[0]?.id] ?? { x: 0, y: 0 };
@@ -269,6 +276,114 @@ function applyPositions(plan) {
       w.box = { ...w.box, x: w.box.x + dx, y: w.box.y + dy };
     }
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Safe zones and the fixed caption line
+ * ------------------------------------------------------------------ */
+
+/**
+ * Where each platform's own interface covers a vertical video, as fractions
+ * of the frame: the top bar, the caption/buttons block at the bottom, and
+ * the like/comment/share column on the right. Approximate — the apps change
+ * their layouts — and deliberately on the generous side.
+ */
+const SAFE_ZONES = {
+  reels: { name: 'Instagram Reels', top: 0.14, bottom: 0.22, left: 0.06, right: 0.13 },
+  tiktok: { name: 'TikTok', top: 0.10, bottom: 0.20, left: 0.06, right: 0.16 },
+  shorts: { name: 'YouTube Shorts', top: 0.08, bottom: 0.21, left: 0.06, right: 0.15 },
+};
+SAFE_ZONES.all = {
+  name: 'All platforms',
+  top: Math.max(...Object.values(SAFE_ZONES).map((z) => z.top)),
+  bottom: Math.max(...Object.values(SAFE_ZONES).map((z) => z.bottom)),
+  left: Math.max(...Object.values(SAFE_ZONES).map((z) => z.left)),
+  right: Math.max(...Object.values(SAFE_ZONES).map((z) => z.right)),
+};
+/** Horizontal video: broadcast title-safe, 5% each side. */
+const TITLE_SAFE = { name: 'Title', top: 0.05, bottom: 0.05, left: 0.05, right: 0.05 };
+
+function place() {
+  state.custom.place = { mode: 'style', yVertical: 0.66, yHorizontal: 0.82, safe: 'all', guides: true, ...(state.custom.place ?? {}) };
+  return state.custom.place;
+}
+const isFixed = () => place().mode === 'fixed';
+const lineKey = () => (isVertical() ? 'yVertical' : 'yHorizontal');
+
+/** The safe rectangle in use (fractions from each edge), or null when off. */
+function safeZone() {
+  const p = place();
+  if (p.safe === 'off') return null;
+  return isVertical() ? (SAFE_ZONES[p.safe] ?? SAFE_ZONES.all) : TITLE_SAFE;
+}
+
+/**
+ * Fixed place: every phrase centred on the caption line, across the middle
+ * of the safe zone, and pushed back inside it if it would cross an edge.
+ * Per-word nudges still apply on top, for the odd word that needs it.
+ */
+function fixPositions(plan) {
+  const z = safeZone() ?? { top: 0, bottom: 0, left: 0, right: 0 };
+  // Engine coordinates: centre origin, +y up, fractions of the frame.
+  const lineY = 0.5 - place()[lineKey()];
+  const midX = (z.left - z.right) / 2;
+  const top = 0.5 - z.top, bottom = -0.5 + z.bottom, left = -0.5 + z.left, right = 0.5 - z.right;
+  for (const phrase of plan.phrases) {
+    const ws = phrase.words;
+    if (!ws.length) continue;
+    const pad = (w) => w.box.h * 0.45;    // room for ascenders and descenders around the cap height
+    const t = Math.max(...ws.map((w) => w.box.y + w.box.h / 2 + pad(w)));
+    const b = Math.min(...ws.map((w) => w.box.y - w.box.h / 2 - pad(w)));
+    const l = Math.min(...ws.map((w) => w.box.x - w.box.w / 2));
+    const r = Math.max(...ws.map((w) => w.box.x + w.box.w / 2));
+    let dy = lineY - (t + b) / 2;
+    let dx = midX - (l + r) / 2;
+    if (t + dy > top) dy = top - t;
+    if (b + dy < bottom) dy = bottom - b;
+    if (r + dx > right) dx = right - r;
+    if (l + dx < left) dx = left - l;
+    for (const w of ws) {
+      const mine = state.wordNudges[w.id] ?? { x: 0, y: 0 };
+      const ox = dx + mine.x, oy = dy + mine.y;
+      w.position = { x: w.position.x + ox, y: w.position.y + oy };
+      w.box = { ...w.box, x: w.box.x + ox, y: w.box.y + oy };
+    }
+  }
+}
+
+/** The guides over the preview: what the apps cover, and the caption line. */
+function drawGuides() {
+  const host = $('#pv-guides');
+  const p = place();
+  const z = safeZone();
+  if (!state.plan || !p.guides || (!z && !isFixed())) { host.innerHTML = ''; return; }
+  const W = state.frame.width, H = state.frame.height;
+  const parts = [];
+  if (z) {
+    const x0 = z.left * W, x1 = W - z.right * W, y0 = z.top * H, y1 = H - z.bottom * H;
+    // Shade what the app covers; outline what is left.
+    parts.push(`<path d="M0 0H${W}V${H}H0Z M${x0} ${y0}V${y1}H${x1}V${y0}Z" fill="rgba(255,64,64,.16)" fill-rule="evenodd"/>`);
+    parts.push(`<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="${W / 400}" stroke-dasharray="${W / 60} ${W / 90}"/>`);
+    parts.push(`<text x="${x0 + W * 0.012}" y="${y0 - H * 0.008}" fill="rgba(255,255,255,.75)" font-size="${H * 0.017}" font-family="-apple-system, sans-serif">${z.name} safe zone</text>`);
+  }
+  if (isFixed()) {
+    const y = p[lineKey()] * H;
+    parts.push(`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="#c9a84c" stroke-width="${W / 300}" stroke-dasharray="${W / 40} ${W / 60}"/>`);
+    parts.push(`<text x="${W * 0.985}" y="${y - H * 0.008}" text-anchor="end" fill="#c9a84c" font-size="${H * 0.017}" font-family="-apple-system, sans-serif">caption line</text>`);
+  }
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${parts.join('')}</svg>`;
+}
+
+/** Show the Position controls from state. */
+function showPlace() {
+  const p = place();
+  for (const b of $$('#place-mode button')) b.classList.toggle('is-on', b.dataset.v === p.mode);
+  for (const b of $$('#place-safe button')) b.classList.toggle('is-on', b.dataset.v === p.safe);
+  $('#place-guides').checked = p.guides;
+  $('#place-line-row').hidden = p.mode !== 'fixed';
+  $('#place-y').value = String(Math.round(p[lineKey()] * 100));
+  $('#place-y-val').textContent = `${Math.round(p[lineKey()] * 100)}% down`;
+  $('#place-safe-row').hidden = !isVertical();
 }
 
 function planDuration() {
@@ -298,6 +413,7 @@ function drawPreview() {
   $('#pv-time').textContent = `${state.time.toFixed(1)}s`;
   $('#pv-svg').innerHTML = renderFrame(state.plan, { time: state.time, plate: 'none', scale: 1, standalone: true });
   $('#pv-empty').hidden = state.segments.length > 0;
+  drawGuides();
   drawSelection();
   requestFrame(state.time);
 }
@@ -528,6 +644,12 @@ function wirePreviewDrag() {
       const base = target.word ? { ...(state.wordNudges[target.word] ?? { x: 0, y: 0 }) }
         : target.phrase ? { ...(state.phraseNudges[target.phrase.words[0].id] ?? { x: 0, y: 0 }) }
           : { ...state.custom[offsetKey()] };
+      // With a fixed caption line, moving a phrase or all of them moves the
+      // line itself, so every phrase stays in the same place.
+      if (isFixed() && !target.word) {
+        drag = { mode: 'line', y: e.clientY, base: place()[lineKey()] };
+        return pv.setPointerCapture(e.pointerId);
+      }
       drag = { mode: 'move', x: e.clientX, y: e.clientY, target, base };
     }
     pv.setPointerCapture(e.pointerId);
@@ -538,6 +660,19 @@ function wirePreviewDrag() {
     const rect = pv.getBoundingClientRect();
     const dx = (e.clientX - drag.x) / rect.width;
     const dy = (e.clientY - drag.y) / rect.height;
+    if (drag.mode === 'line') {
+      // Snap to the thirds, the middle, and the safe zone's lower edge area.
+      let y = Math.min(0.95, Math.max(0.05, drag.base + dy));
+      const z = safeZone();
+      const snaps = [1 / 3, 0.5, 2 / 3, ...(z ? [1 - z.bottom - 0.04] : [])];
+      const near = snaps.find((s) => Math.abs(s - y) < 0.012);
+      if (near !== undefined && !e.altKey) y = near;
+      place()[lineKey()] = y;
+      showPlace();
+      setStatus(`Caption line ${Math.round(y * 100)}% down${near !== undefined && !e.altKey ? ' · snapped' : ''} (hold ⌥ to move freely)`);
+      regenerate();
+      return;
+    }
     if (drag.mode === 'move') {
       const next = { x: drag.base.x + dx, y: drag.base.y - dy };
       if (drag.target.word) state.wordNudges[drag.target.word] = next;
@@ -609,6 +744,14 @@ function customPatch(base) {
       pattern: c.patternScope === 'off' ? [] : c.pattern,
       patternScope: c.patternScope === 'off' ? 'highlights' : c.patternScope,
     },
+    // Fixed place: one composition the panel then puts on the caption line,
+    // with lines broken to fit between the safe zone's sides.
+    ...(isFixed() ? {
+      position: { mode: 'static', home: 'center', faceAvoidance: false, align: 'center' },
+      hierarchy: {
+        maxWidth: Math.min(base.hierarchy.maxWidth, (() => { const z = safeZone(); return z ? (1 - z.left - z.right) * 0.96 : 0.9; })()),
+      },
+    } : {}),
   };
 }
 
@@ -619,6 +762,7 @@ function showCustom() {
   $('#size-val').textContent = `${c[sizeKey()]}%`;
   $('#size-orient').textContent = isVertical() ? '· vertical' : '· horizontal';
   setSeg('#pattern-scope', c.patternScope);
+  showPlace();
   showGroupStyle();
   drawPattern();
   $('#a-feel').value = c.anim?.feel ?? '';
@@ -1610,4 +1754,26 @@ for (const b of $$('#word-mode button')) {
 }
 // Start the word inspector on its Text part.
 for (const part of $$('#style-word [data-part]')) part.hidden = part.dataset.part !== 'text';
+
+/* ------------------------------------------------------------------ *
+ * Position controls
+ * ------------------------------------------------------------------ */
+
+for (const b of $$('#place-mode button')) {
+  b.onclick = () => {
+    place().mode = b.dataset.v;
+    // A fixed line replaces the per-phrase moves; undo brings them back.
+    if (b.dataset.v === 'fixed') state.phraseNudges = {};
+    showPlace();
+    changed();
+  };
+}
+for (const b of $$('#place-safe button')) b.onclick = () => { place().safe = b.dataset.v; showPlace(); changed(); };
+$('#place-guides').onchange = () => { place().guides = $('#place-guides').checked; drawPreview(); changed(); };
+$('#place-y').oninput = () => {
+  place()[lineKey()] = Number($('#place-y').value) / 100;
+  showPlace();
+  changed();
+};
+showPlace();
 
