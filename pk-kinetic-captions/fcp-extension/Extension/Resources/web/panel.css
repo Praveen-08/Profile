@@ -273,3 +273,14 @@ body.panel {
 .pstyle.setup { position: relative; cursor: pointer; }
 .setup-del { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 10px; border: 0; background: rgba(0,0,0,.55); color: #fff; font-size: 13px; line-height: 20px; padding: 0; cursor: pointer; opacity: 0; }
 .pstyle.setup:hover .setup-del { opacity: 1; }
+
+/* The main action: one click, nothing to line up */
+.pfoot .send { grid-column: 1 / -1; display: grid; gap: 2px; padding: 12px; cursor: pointer; text-align: center;
+  border: 0; border-radius: var(--radius); background: var(--gold); color: #141414; font: inherit; }
+.pfoot .send b { font-size: 14px; font-weight: 700; }
+.pfoot .send span { font-size: 11px; opacity: .75; }
+.pfoot .send:disabled { opacity: .35; cursor: default; }
+.pfoot .dragrow { grid-column: 1 / -1; }
+.pfoot .dragchip { padding: 7px 10px; margin-bottom: 0; background: none; border-color: var(--line-strong, rgba(255,255,255,.2)); }
+.pfoot .dragchip b { font-size: 12px; font-weight: 500; }
+.pfoot .dragchip span { font-size: 10px; }

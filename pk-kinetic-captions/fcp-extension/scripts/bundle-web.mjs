@@ -22,7 +22,7 @@ const PANEL = path.resolve(HERE, '../Panel');
 const OUT = path.resolve(HERE, '../Extension/Resources/web');
 
 /** The two doors into the engine. Everything else is pulled in by following imports. */
-const ENTRIES = ['engine/compose.js', 'export/fcpxml.js', 'render/svg.js', 'transcript/ingest.js', 'transcript/sync.js', 'templates/schema.js', 'templates/builtin/index.js'];
+const ENTRIES = ['engine/compose.js', 'export/fcpxml.js', 'export/captioned.js', 'render/svg.js', 'transcript/ingest.js', 'transcript/sync.js', 'templates/schema.js', 'templates/builtin/index.js'];
 
 /**
  * Follow the import graph from the entry points.

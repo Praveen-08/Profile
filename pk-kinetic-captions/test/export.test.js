@@ -408,3 +408,76 @@ test('a title is placed by its baseline, half a cap height below the centre the 
   const expected = (w.position.y * plan.frame.height - capHeightOf(w.font, w.size) / 2) / plan.frame.height * 100;
   assert.ok(Math.abs(yPct - expected) < 0.6, `y ${yPct} vs ${expected}`);
 });
+
+/** A small project as Final Cut exports it: a 01:00:00:00 start, a gap with
+ *  connected clips and markers, and its own titles using ts1 and r1–r3. */
+const PROJECT = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE fcpxml>
+<fcpxml version="1.11">
+  <resources>
+    <format id="r1" frameDuration="1001/24000s" width="1080" height="1920"/>
+    <asset id="r2" name="shot" start="0s" duration="60s" hasVideo="1"><media-rep kind="original-media" src="file:///tmp/shot.mov"/></asset>
+    <effect id="r3" name="Basic Title" uid=".../Titles.localized/Bumper:Opener.localized/Basic Title.localized/Basic Title.moti"/>
+  </resources>
+  <library>
+    <event name="Houses">
+      <project name="Houses &amp; Co" uid="ABC" modDate="2026-10-02 10:00:00 +1300">
+        <sequence format="r1" duration="30s" tcStart="3600s" tcFormat="NDF">
+          <spine>
+            <gap name="Gap" offset="3600s" start="3600s" duration="30s">
+              <asset-clip ref="r2" lane="1" offset="3600s" name="shot" start="10s" duration="30s" format="r1"/>
+              <title ref="r3" lane="2" offset="3605s" name="Theirs" start="0s" duration="2s">
+                <text><text-style ref="ts1">Theirs</text-style></text>
+                <text-style-def id="ts1"><text-style font="Helvetica" fontSize="60"/></text-style-def>
+              </title>
+              <marker start="3610s" duration="1001/24000s" value="Marker 1"/>
+            </gap>
+          </spine>
+        </sequence>
+      </project>
+    </event>
+  </library>
+</fcpxml>`;
+
+test('a captioned copy of the project: captions at its first frame, the original untouched', async (t) => {
+  const { captionedProject } = await import('../src/export/captioned.js');
+  const plan = make(builtinById('pk-reel-bold'), { width: 1080, height: 1920, fps: 23.976 });
+  const front = exportFCPXML(plan, { as: 'clip' }).xml;
+  const out = captionedProject(PROJECT, [{ xml: front, lane: 11, name: 'Captions — in front' }, { xml: front, lane: 9, name: 'Captions — behind' }]);
+
+  // A new project, named for the original, without the original's uid.
+  assert.ok(out.includes('<project name="Houses &amp; Co — captions"'));
+  assert.ok(!/<project[^>]*uid=/.test(out));
+  // Both layers at the gap's own start (its clock reads 3600s at the project's first frame).
+  assert.ok(/<ref-clip ref="pk0r\d+" lane="11" offset="3600s" name="Captions — in front"/.test(out));
+  assert.ok(/<ref-clip ref="pk1r\d+" lane="9" offset="3600s"/.test(out));
+  // Connected clips go before the gap's markers, as the DTD orders them.
+  assert.ok(out.indexOf('name="Captions — in front"') < out.indexOf('<marker'));
+  // Ids that cannot collide with the project's own r1–r3 and ts1.
+  assert.ok(out.includes('id="pk0ts1"') && out.includes('ref="pk0ts1"') && out.includes('<text-style-def id="ts1">'));
+  assert.equal((out.match(/\bid="r1"/g) ?? []).length, 1);
+
+  // A project whose first item is self-closing still takes the captions.
+  const lone = PROJECT.replace(/<gap[\s\S]*<\/gap>/, '<asset-clip ref="r2" offset="3600s" name="shot" start="10s" duration="30s" format="r1"/>');
+  const out2 = captionedProject(lone, front);
+  assert.ok(/<asset-clip [^>]*name="shot"[^>]*><ref-clip ref="pk0r\d+" lane="9" offset="10s"/.test(out2), 'offset in the clip’s own clock');
+
+  // And Final Cut's DTD accepts the result.
+  const { execFileSync } = await import('node:child_process');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const dtd = '/Applications/Final Cut Pro.app/Contents/Frameworks/Interchange.framework/Versions/A/Resources/FCPXMLv1_11.dtd';
+  if (!fs.existsSync(dtd)) return t.skip('Final Cut Pro is not installed');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pkkc-dtd-'));
+  try {
+    fs.copyFileSync(dtd, path.join(dir, 'fcpxml.dtd'));
+    for (const [i, xml] of [out, out2].entries()) {
+      const file = path.join(dir, `p${i}.fcpxml`);
+      fs.writeFileSync(file, xml);
+      execFileSync('xmllint', ['--noout', '--dtdvalid', path.join(dir, 'fcpxml.dtd'), file], { stdio: 'pipe' });
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

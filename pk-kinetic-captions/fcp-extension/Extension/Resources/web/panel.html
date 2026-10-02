@@ -30,8 +30,8 @@
 
 <section class="pstep" id="step-source">
   <div id="pdrop" class="pdrop">
-    <strong>Drag a clip here</strong>
-    <span>from the browser or the timeline</span>
+    <strong>Drag your project here</strong>
+    <span>from the Final Cut browser — its captions come in, and a synced copy goes back</span>
   </div>
   <p id="source-note" class="hint"></p>
 </section>
@@ -86,6 +86,20 @@
 
 <div class="tab-pane" data-tab="style">
   <section class="pstep">
+    <h2>Your setups</h2>
+    <p class="hint">A setup is everything here — look, sizes, each type, motion, position and safe zone. Each project remembers its own automatically; save one by name to use it on other homes.</p>
+    <div class="size-row">
+      <input type="text" id="setup-name" class="setup-name" placeholder="Name this setup, e.g. Garima — luxury">
+      <button id="setup-save" class="pv-btn">Save setup</button>
+    </div>
+    <p id="setups-empty" class="hint">No saved setups yet.</p>
+    <div id="setups" class="pstyles mt-s"></div>
+  </section>
+  <section class="pstep">
+    <h2>Look</h2>
+    <div id="styles" class="pstyles"></div>
+  </section>
+  <section class="pstep">
     <h2>Position</h2>
     <div class="seg wide" id="place-mode">
       <button data-v="style" class="is-on">Let the style move them</button><button data-v="fixed">Same place every time</button>
@@ -112,20 +126,6 @@
     </div>
     <label class="check mt-s"><input type="checkbox" id="place-guides" checked> Show the safe zone on the preview</label>
     <p class="hint">With the same place every time, drag a phrase up or down in the preview to move the caption line for all of them. It snaps to thirds and the middle (hold ⌥ to move freely).</p>
-  </section>
-  <section class="pstep">
-    <h2>Your setups</h2>
-    <p class="hint">A setup is everything here — look, sizes, each type, motion, position and safe zone. Each project remembers its own automatically; save one by name to use it on other homes.</p>
-    <div class="size-row">
-      <input type="text" id="setup-name" class="setup-name" placeholder="Name this setup, e.g. Garima — luxury">
-      <button id="setup-save" class="pv-btn">Save setup</button>
-    </div>
-    <p id="setups-empty" class="hint">No saved setups yet.</p>
-    <div id="setups" class="pstyles mt-s"></div>
-  </section>
-  <section class="pstep">
-    <h2>Look</h2>
-    <div id="styles" class="pstyles"></div>
   </section>
   <section class="pstep">
     <h2>Overall size <span id="size-orient" class="hint"></span></h2>
@@ -230,15 +230,17 @@
 </div>
 
 <footer class="pfoot">
+  <button id="apply" class="send" disabled>
+    <b>Send to Final Cut</b><span id="send-sub">a copy of your project with the captions in sync</span>
+  </button>
   <div class="dragrow">
     <div id="dragout-back" class="dragchip" hidden title="The words set behind the agent. In Final Cut: put this above your clip, then a copy of the clip with a Magnetic Mask on the agent above it.">
-      <b>Drag: behind the agent</b><span>above your clip, under the masked copy</span>
+      <b>Drag: behind</b><span>under the masked copy</span>
     </div>
     <div id="dragout" class="dragchip is-off" title="Drag onto your Final Cut timeline, above the clip">
-      <b>Drag to timeline</b><span>drop it above your clip, like a title</span>
+      <b>Or drag onto a timeline</b><span>line it up with the project's start</span>
     </div>
   </div>
-  <button id="apply" class="ghost sm wide" disabled>Or import as a new project</button>
   <p id="status" class="hint"></p>
 </footer>
 

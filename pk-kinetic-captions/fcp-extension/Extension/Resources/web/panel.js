@@ -13,6 +13,7 @@
 
 import { compose } from './engine/compose.js';
 import { exportFCPXML } from './export/fcpxml.js';
+import { captionedProject } from './export/captioned.js';
 import { ingest, distributeLine } from './transcript/ingest.js';
 import { merge } from './templates/schema.js';
 import { BUILTIN_TEMPLATES } from './templates/builtin/index.js';
@@ -193,6 +194,8 @@ function useTimelineXML(xml, how) {
       return noteSource('That timeline has no captions on it. Transcribe the clip in Final Cut first.', true);
     }
     state.rawTranscript = transcript;
+    state.droppedXml = xml;
+    state.projectName = /<project\b[^>]*\bname="([^"]*)"/.exec(xml)?.[1]?.replace(/&amp;/g, '&') ?? '';
     state.textEdits = [];
     state.transcript = transcript;
     state.segments = videoSegments(xml);
@@ -470,7 +473,11 @@ function drawPreview() {
   $('#pv-svg').innerHTML = renderFrame(state.plan, { time: state.time, plate: 'none', scale: 1, standalone: true, ...(behind ? { depth: 'foreground' } : {}) });
   $('#pv-cut').hidden = !behind || state.playing || !$('#pv-cut').getAttribute('src');
   $('#dragout-back').hidden = !behind;
-  $('#dragout b').textContent = behind ? 'Drag: in front' : 'Drag to timeline';
+  $('#dragout b').textContent = behind ? 'Or drag: in front' : 'Or drag onto a timeline';
+  const isProject = Boolean(state.droppedXml && /<project\b/.test(state.droppedXml));
+  $('#send-sub').textContent = isProject
+    ? `a copy of “${state.projectName}” with the captions in sync${behind ? ', ready for the masked shot' : ''}`
+    : 'as a new project (drag the project itself for a synced copy)';
   $('#pv-empty').hidden = state.segments.length > 0;
   drawGuides();
   drawSelection();
@@ -1080,13 +1087,35 @@ function exportOptions(extra) {
   return { projectName: `${state.plan.templateName} Captions`, profile: needsPK && pkTitleInstalled ? 'pk' : 'native', ...extra };
 }
 
+/*
+ * Send to Final Cut. When a project was dropped, the fastest route: a copy of
+ * that project with the captions already connected at its first frame, so
+ * nothing has to be lined up by eye. Words behind the agent go on a lower
+ * lane than the rest, leaving the lane between for the masked copy of the
+ * shot. Otherwise (a clip was dropped), the captions as a project of their own.
+ */
 $('#apply').onclick = async () => {
   if (!state.plan) return;
   try {
     setStatus('Building the titles…');
-    const { xml, stats } = exportFCPXML(state.plan, exportOptions({}));
+    let xml, message;
+    if (state.droppedXml && /<project\b/.test(state.droppedXml)) {
+      const behind = hasBehind();
+      const layer = (only, name, lane) => ({ xml: exportFCPXML(state.plan, exportOptions({ as: 'clip', ...(only ? { only } : {}), projectName: name })).xml, lane, name });
+      const clips = behind
+        ? [layer('background', 'Captions — behind the agent', 9), layer('foreground', 'Captions — in front', 11)]
+        : [layer(null, 'Captions', 9)];
+      xml = captionedProject(state.droppedXml, clips);
+      message = behind
+        ? `Sent “${state.projectName} — captions”. Choose the library, open it, then copy your clip onto the empty lane between the two caption layers and add a Magnetic Mask to the agent.`
+        : `Sent “${state.projectName} — captions”. Choose the library and open it — the captions are already in sync. Your original project is unchanged.`;
+    } else {
+      const out = exportFCPXML(state.plan, exportOptions({}));
+      xml = out.xml;
+      message = `${out.stats.titles} titles sent to Final Cut as a new project — choose where to import them.`;
+    }
     await callNative('sendToTimeline', { fcpxml: xml });
-    setStatus(`${stats.titles} titles sent to Final Cut as a new project — choose where to import them.`);
+    setStatus(message);
   } catch (err) {
     setStatus(err.message, true);
   }
