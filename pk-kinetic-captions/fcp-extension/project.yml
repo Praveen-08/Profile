@@ -49,6 +49,13 @@ targets:
     platform: macOS
     sources:
       - path: Host
+        excludes:
+          - Fonts/**
+      # Caption fonts (SIL OFL), installed for the editor on first launch so
+      # Final Cut can draw what the panel previews.
+      - path: Host/Fonts
+        type: folder
+        buildPhase: resources
     # No `info:` block, here or below. With one, xcodegen regenerates the
     # plist on every run — and for the extension that silently deleted
     # NSExtension, so Final Cut never listed the panel. The plists are

@@ -7,8 +7,8 @@
  * things a web view cannot do: talk to Final Cut, and read and write the
  * styles folder.
  *
- * There is no video preview here on purpose. Final Cut's viewer is the
- * preview; a second, smaller one in a side panel would only disagree with it.
+ * The preview draws the same plan the export writes, over a still of the
+ * editor's own footage, so what is styled here is what lands in Final Cut.
  */
 
 import { compose } from './engine/compose.js';
@@ -685,12 +685,42 @@ function drawWords() {
  * Wiring
  * ------------------------------------------------------------------ */
 
+/** A small rendered sample of each style, drawn once per style. */
+const thumbs = new Map();
+const THUMB_FRAME = { width: 1080, height: 1350, fps: 30 };
+const THUMB_LINE = 'Simply STUNNING views';
+function styleThumb(t) {
+  if (thumbs.has(t.id)) return thumbs.get(t.id);
+  let svg = '';
+  try {
+    const plan = compose({ transcript: ingest(THUMB_LINE, { format: 'text' }), template: t, frame: THUMB_FRAME });
+    const phrase = plan.phrases.find((p) => p.words.some((w) => w.level !== 'normal')) ?? plan.phrases[0];
+    // The moment every word of the phrase has landed and none has started to leave.
+    const landed = Math.max(...phrase.words.map((w) => w.start + w.motion.inDuration)) + 0.04;
+    const leaving = Math.min(...phrase.words.map((w) => w.end - w.motion.outDuration));
+    svg = renderFrame(plan, { time: Math.min(landed, leaving - 0.02), plate: 'none', scale: 0.12, standalone: true, idPrefix: `t-${t.id}-` });
+    // Frame the caption, not the whole picture: a 4:5 window around the
+    // phrase with room to breathe, so the type reads at thumbnail size.
+    const { width: W, height: H } = THUMB_FRAME;
+    const xs = phrase.words.flatMap((w) => [(0.5 + w.position.x - w.box.w / 2) * W, (0.5 + w.position.x + w.box.w / 2) * W]);
+    const ys = phrase.words.flatMap((w) => [(0.5 - w.position.y - w.box.h / 2) * H, (0.5 - w.position.y + w.box.h / 2) * H]);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const vw = Math.min(W, Math.max((Math.max(...xs) - Math.min(...xs)) * 1.3, ((Math.max(...ys) - Math.min(...ys)) * 2.2) * 4 / 5, W * 0.45));
+    const vh = vw * 5 / 4;
+    svg = svg.replace(/viewBox="[^"]*"/, `viewBox="${Math.round(cx - vw / 2)} ${Math.round(cy - vh / 2)} ${Math.round(vw)} ${Math.round(vh)}"`);
+  } catch { /* a style that cannot render a sample still gets its name */ }
+  thumbs.set(t.id, svg);
+  return svg;
+}
+
 function buildStyles() {
   const host = $('#styles');
   host.replaceChildren(...[...BUILTIN_TEMPLATES, ...state.userTemplates].map((t) => {
     const el = document.createElement('button');
     el.className = `pstyle${t.id === state.templateId ? ' is-on' : ''}`;
-    el.innerHTML = '<b></b><i></i>';
+    el.innerHTML = '<span class="thumb"></span><b></b><i></i>';
+    el.querySelector('.thumb').innerHTML = styleThumb(t);
+    el.title = t.description ?? '';
     el.querySelector('b').textContent = t.name;
     el.querySelector('i').textContent = `${t.fonts.normal.family} · ${t.fonts.hero.family}`;
     el.onclick = () => {

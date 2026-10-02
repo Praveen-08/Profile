@@ -23,7 +23,7 @@ body.panel { height: auto; min-height: 100vh; overflow: visible; background: var
 .pdrop strong { font-size: 13px; font-weight: 500; }
 .pdrop span { font-size: 11px; color: var(--muted); }
 
-.pstyles { display: flex; flex-direction: column; gap: 4px; }
+.pstyles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
 .pstyle {
   display: block; width: 100%; text-align: left; padding: 7px 9px; font: inherit; color: inherit;
   background: var(--panel-2); border: 1px solid transparent; border-radius: 5px; cursor: pointer;
@@ -136,3 +136,12 @@ body.panel { height: auto; min-height: 100vh; overflow: visible; background: var
 .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
 .swatch { width: 30px; height: 18px; border-radius: 9px; border: 1px solid rgba(255,255,255,.18); cursor: pointer; padding: 0; }
 .swatch:hover { transform: scale(1.08); border-color: rgba(255,255,255,.6); }
+
+/* Style thumbnails */
+.pstyle { text-align: left; }
+.pstyle .thumb {
+  display: block; aspect-ratio: 4 / 5; margin: -2px -2px 7px; border-radius: 7px; overflow: hidden;
+  background: radial-gradient(120% 90% at 30% 20%, #3a3f4a 0%, #1a1c21 55%, #0d0e11 100%);
+}
+.pstyle .thumb svg { width: 100%; height: 100%; display: block; }
+.pstyle.is-on .thumb { box-shadow: 0 0 0 1px var(--gold); }

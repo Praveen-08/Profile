@@ -60,6 +60,28 @@ export const FAMILIES = [
     widths: ['normal'], italic: true,
     fallbacks: ['SF Pro Display', 'Helvetica Neue'], widthFactor: 1.0, capHeight: 0.727,
   },
+  // The caption families the app installs (SIL OFL; Host/Fonts). Weights
+  // are the cuts bundled, so a preset never asks for one that is not there.
+  {
+    family: 'Montserrat', classification: 'sans', systemMac: false,
+    weights: ['regular', 'semibold', 'bold', 'extrabold', 'black'], widths: ['normal'], italic: false,
+    fallbacks: ['Avenir Next', 'Helvetica Neue'], widthFactor: 1.12, capHeight: 0.7,
+  },
+  {
+    family: 'Poppins', classification: 'sans', systemMac: false,
+    weights: ['semibold', 'bold', 'extrabold', 'black'], widths: ['normal'], italic: false,
+    fallbacks: ['Avenir Next', 'Helvetica Neue'], widthFactor: 1.1, capHeight: 0.7,
+  },
+  {
+    family: 'Anton', classification: 'display', systemMac: false,
+    weights: ['regular'], widths: ['normal'], italic: false,
+    fallbacks: ['Impact', 'Helvetica Neue'], widthFactor: 0.72, capHeight: 0.74,
+  },
+  {
+    family: 'Bebas Neue', classification: 'display', systemMac: false,
+    weights: ['regular'], widths: ['normal'], italic: false,
+    fallbacks: ['Impact', 'Helvetica Neue'], widthFactor: 0.68, capHeight: 0.7,
+  },
   {
     family: 'Didot', classification: 'serif', systemMac: true,
     weights: ['regular', 'bold'], widths: ['normal'], italic: true,
@@ -178,6 +200,11 @@ export function resolveItalic(family, wanted) {
   return wanted && familyInfo(family).italic;
 }
 
+/** Families whose faces use Google Fonts' names ("ExtraBold", "SemiBold"). */
+const GOOGLE_NAMING = new Set(['Montserrat', 'Poppins', 'Inter', 'Playfair Display', 'Anton', 'Bebas Neue', 'League Spartan', 'Oswald', 'DM Sans']);
+/** Display families with one face only. */
+const SINGLE_WEIGHT = new Set(['Anton', 'Bebas Neue']);
+
 /** Families whose condensed cut macOS installs as a separate family. */
 const SEPARATE_CONDENSED = new Set(['Avenir Next']);
 
@@ -209,6 +236,10 @@ export function faceName(family, weight, width, italic) {
   let base = w;
   if (info.family === 'Avenir Next') {
     base = { thin: 'Ultra Light', extralight: 'Ultra Light', light: 'Ultra Light', regular: 'Regular', medium: 'Medium', semibold: 'Demi Bold', bold: 'Bold', extrabold: 'Heavy', black: 'Heavy' }[weight] ?? 'Regular';
+  } else if (GOOGLE_NAMING.has(info.family)) {
+    // Google Fonts' static cuts name their faces in CamelCase.
+    base = { thin: 'Thin', extralight: 'ExtraLight', light: 'Light', regular: 'Regular', medium: 'Medium', semibold: 'SemiBold', bold: 'Bold', extrabold: 'ExtraBold', black: 'Black' }[weight] ?? 'Regular';
+    if (SINGLE_WEIGHT.has(info.family)) base = 'Regular';
   } else if (info.family === 'Helvetica Neue') {
     base = { thin: 'Thin', extralight: 'UltraLight', light: 'Light', regular: 'Regular', medium: 'Medium', semibold: 'Bold', bold: 'Bold', extrabold: 'Bold', black: 'Black' }[weight] ?? 'Regular';
   } else if (info.classification === 'serif' && (weight === 'black' || weight === 'extrabold')) {

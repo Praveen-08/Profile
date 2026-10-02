@@ -349,3 +349,47 @@ test('a condensed Avenir Next is exported as its own family, the way macOS names
   assert.ok(!xml.includes('fontFace="Condensed'), 'no "Condensed …" face inside Avenir Next');
   if (xml.includes('Avenir Next Condensed')) assert.ok(/font="Avenir Next Condensed" fontSize="[\d.]+" fontFace="Heavy"/.test(xml));
 });
+
+/**
+ * Every face a built-in style exports, checked against the faces macOS and the
+ * bundled fonts actually publish (NSFontManager, October 2026). Final Cut
+ * matches fontFace exactly and silently draws 6pt Helvetica when it misses,
+ * so a new style or a mapping change must keep to faces that exist.
+ */
+const KNOWN_FACES = new Set([
+  'Anton|Regular',
+  'Avenir Next Condensed|Heavy',
+  'Avenir Next|Bold',
+  'Avenir Next|Medium',
+  'Avenir Next|Regular',
+  'Avenir Next|Ultra Light',
+  'Cormorant Garamond|Light',
+  'Didot|Italic',
+  'Helvetica Neue|Bold',
+  'Helvetica Neue|Condensed Black',
+  'Helvetica Neue|Light',
+  'Helvetica Neue|Medium',
+  'Helvetica Neue|Regular',
+  'Helvetica Neue|Thin',
+  'Inter|Black',
+  'Inter|Bold',
+  'Montserrat|Black',
+  'Montserrat|ExtraBold',
+  'Montserrat|SemiBold',
+  'Playfair Display|Bold',
+  'Playfair Display|Italic',
+  'Poppins|Black',
+  'Poppins|Bold',
+  'Poppins|ExtraBold',
+]);
+
+test('every built-in style exports only faces that exist', () => {
+  for (const t of BUILTIN_TEMPLATES) {
+    for (const frame of [FRAME_916, FRAME_169]) {
+      const { xml } = exportFCPXML(make(t, frame));
+      for (const m of xml.matchAll(/font="([^"]+)" fontSize="[^"]+" fontFace="([^"]+)"/g)) {
+        assert.ok(KNOWN_FACES.has(m[1] + '|' + m[2]), t.id + ': ' + m[1] + ' / ' + m[2] + ' is not an installed face');
+      }
+    }
+  }
+});

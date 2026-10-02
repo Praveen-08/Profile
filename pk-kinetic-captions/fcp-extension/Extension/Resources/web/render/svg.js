@@ -68,7 +68,7 @@ export function renderFrame(plan, opts) {
   const behind = live.filter((w) => w.depth === 'background');
   const front = live.filter((w) => w.depth !== 'background');
 
-  for (const w of behind) parts.push(drawWord(w, t, plan));
+  for (const w of behind) parts.push(drawWord(w, t, plan, opts.idPrefix));
 
   // A behind-subject look needs something to be behind. With a real plate FCP
   // supplies the isolated subject; in preview we draw the analysed subject box
@@ -78,7 +78,7 @@ export function renderFrame(plan, opts) {
     parts.push(`<rect x="${(0.5 + s.x - s.w / 2) * width}" y="${(0.5 - s.y - s.h / 2) * height}" width="${s.w * width}" height="${s.h * height}" rx="${s.w * width * 0.14}" fill="${plate === 'none' ? '#101214' : plate}" opacity="0.94"/>`);
   }
 
-  for (const w of front) parts.push(drawWord(w, t, plan));
+  for (const w of front) parts.push(drawWord(w, t, plan, opts.idPrefix));
 
   if (opts.guides) parts.push(drawGuides(plan, opts));
 
@@ -93,9 +93,10 @@ export function renderFrame(plan, opts) {
  * @param {PlacedWord} w
  * @param {number} t
  * @param {CaptionPlan} plan
+ * @param {string} [idPrefix]  Keeps paint-server ids unique when several frames share a page.
  * @returns {string}
  */
-function drawWord(w, t, plan) {
+function drawWord(w, t, plan, idPrefix = '') {
   const local = t - w.start;
   const opacity = clamp01(sample(w.motion.opacity, local, 1));
   if (opacity <= 0.001) return '';
@@ -120,7 +121,7 @@ function drawWord(w, t, plan) {
 
   // Gradient fill and the shine sweep are per-word paint servers, so each
   // word gets its own ids (word ids are unique within a plan).
-  const gid = `pk-${String(w.id).replace(/[^\w-]/g, '_')}`;
+  const gid = `pk-${idPrefix}${String(w.id).replace(/[^\w-]/g, '_')}`;
   const grad = w.decoration.gradient?.enabled ? w.decoration.gradient : null;
   const defs = [];
   if (grad) defs.push(linearGradient(`${gid}-f`, grad.angle, [[0, toCSS(grad.from)], [1, toCSS(grad.to)]]));
