@@ -324,6 +324,17 @@ extension PKCaptionsViewController: WKScriptMessageHandler {
                 reply(to: id, ok: false, payload: ["error": error.localizedDescription])
             }
 
+        case .loadEdits:
+            reply(to: id, ok: true, payload: ["json": store.loadEdits(body["key"] as? String ?? "") ?? ""])
+
+        case .saveEdits:
+            do {
+                try store.saveEdits(body["key"] as? String ?? "", body["json"] as? String ?? "")
+                reply(to: id, ok: true, payload: [:])
+            } catch {
+                reply(to: id, ok: false, payload: ["error": error.localizedDescription])
+            }
+
         case .license:
             reply(to: id, ok: true, payload: licensePayload())
 

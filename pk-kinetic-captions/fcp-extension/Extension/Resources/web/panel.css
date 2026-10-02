@@ -159,3 +159,6 @@ body.panel { height: auto; min-height: 100vh; overflow: visible; background: var
 /* Quick level bar under the preview */
 .pv-quick { gap: 10px; align-items: center; justify-content: flex-start; }
 .pv-quick .hint b { color: var(--text, #fff); font-weight: 600; }
+
+.pv-row .spacer { flex: 1; }
+.pv-btn:disabled { opacity: .35; cursor: default; }

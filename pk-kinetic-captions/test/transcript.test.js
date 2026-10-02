@@ -164,3 +164,36 @@ test('mCaptionsAI caption titles give word timing when there are no captions', a
   const both = `<fcpxml><caption offset="0s" duration="1s"><text><text-style>Hello there</text-style></text></caption>${title('10010/24000s', { StartTime: '10010/24000s', Words: words })}</fcpxml>`;
   assert.deepEqual(ingest(both, { format: 'fcpxml' }).words.map((w) => w.text), ['Hello', 'there']);
 });
+
+test('captions are placed in project time, through the clip they are connected to', () => {
+  // A project starting at 01:00:00:00; a clip connected 10s in, trimmed to
+  // start 5s into its media; a caption 7s into that clip's clock — so 2s
+  // after the clip appears, 12s into the project. Read raw, it landed at 7s.
+  const xml = `<fcpxml version="1.11"><library><event><project name="p"><sequence duration="60s" tcStart="3600s"><spine>
+    <gap name="Gap" offset="3600s" start="3600s" duration="60s">
+      <asset-clip ref="a1" lane="1" offset="3610s" start="5s" duration="20s">
+        <caption lane="1" offset="7s" duration="2s"><text><text-style>hello there</text-style></text></caption>
+      </asset-clip>
+      <caption lane="2" offset="3630s" duration="1s"><text><text-style>later</text-style></text></caption>
+    </gap>
+    <asset-clip ref="a1" offset="3660s" start="0s" duration="10s">
+      <caption lane="1" offset="1s" duration="1s"><text><text-style>end</text-style></text></caption>
+    </asset-clip></spine></sequence></project></event></library></fcpxml>`;
+  const t = ingest(xml);
+  const at = Object.fromEntries(t.words.map((w) => [w.text, Number(w.start.toFixed(3))]));
+  assert.equal(at.hello, 12);
+  assert.equal(at.later, 30);
+  assert.equal(at.end, 61);
+});
+
+test('mCaptions titles connected to a clip are placed through its clock too', async () => {
+  const { parseFCPXMLCaptionTitles } = await import('../src/transcript/ingest.js');
+  const block = Buffer.from(JSON.stringify({ StartTime: '2s', Words: [{ Text: 'Hi', RawStartTime: '2.5s', RawEndTime: '3s' }] })).toString('base64');
+  const xml = `<fcpxml><library><event><project name="p"><sequence tcStart="3600s"><spine>
+    <asset-clip ref="a1" offset="3605s" start="10s" duration="20s">
+      <title lane="1" offset="12s" duration="2s"><text><text-style ref="a">Hi</text-style><text-style ref="b">${block}</text-style></text></title>
+    </asset-clip></spine></sequence></project></event></library></fcpxml>`;
+  // Clip at 5s, title 2s into it (7s), word 0.5s into the title: 7.5s.
+  const [w] = parseFCPXMLCaptionTitles(xml);
+  assert.equal(Number(w.start.toFixed(3)), 7.5);
+});

@@ -15,6 +15,8 @@
  * @typedef {import('../core/types.js').Transcript} Transcript
  */
 
+import { timelineItems, seconds, textOf } from './fcpxml-tree.js';
+
 let wordCounter = 0;
 const nextId = (i) => `w${String(i).padStart(4, '0')}`;
 
@@ -202,10 +204,26 @@ const num = (v) => (typeof v === 'number' ? v : typeof v === 'string' ? parseFlo
  * FCPXML captions (what FCP's own "Transcribe to Captions" exports)
  * ------------------------------------------------------------------ */
 
-/** @param {string} src @returns {Word[]} */
+/**
+ * Final Cut captions, at their place in the project. A caption's own offset
+ * is in the clock of the clip it is connected to; `timelineItems` maps it to
+ * project seconds. A fragment with no project or sequence (a bare clip) is
+ * read as it stands.
+ * @param {string} src @returns {Word[]}
+ */
 export function parseFCPXMLCaptions(src) {
   /** @type {Word[]} */
   const out = [];
+  const items = timelineItems(src).filter((i) => i.node.name === 'caption');
+  if (items.length) {
+    for (const { node, at } of items) {
+      if (node.attrs.enabled === '0') continue;
+      const dur = seconds(node.attrs.duration);
+      const text = textOf(node).replace(/\s+/g, ' ').trim();
+      if (text && dur > 0) out.push(...distributeLine(text, at, at + dur));
+    }
+    return out;
+  }
   const captionRe = /<caption\b([^>]*)>([\s\S]*?)<\/caption>/g;
   let m;
   while ((m = captionRe.exec(src))) {
@@ -246,13 +264,20 @@ export function parseFCPXMLCaptions(src) {
 export function parseFCPXMLCaptionTitles(src) {
   /** @type {Word[]} */
   const out = [];
+  // Where each title starts in the project, in document order — the order
+  // the regex below meets them. A bare fragment keeps the title's own offset.
+  const placed = timelineItems(src).filter((i) => i.node.name === 'title').map((i) => i.at);
   const titleRe = /<title\b([^>]*)>([\s\S]*?)<\/title>/g;
   let m;
+  let index = -1;
   while ((m = titleRe.exec(src))) {
+    index++;
     const data = captionTitleData(m[2]);
     if (!data?.Words?.length) continue;
 
-    const offset = fcpTimeToSeconds(attr(m[1], 'offset'));
+    // The raw word times share StartTime's clock (where the title sat when
+    // made), so a word's place is the title's place plus how far in it is said.
+    const offset = placed.length === countTitles(src) ? placed[index] : fcpTimeToSeconds(attr(m[1], 'offset'));
     const made = fcpTimeToSeconds(data.StartTime ?? null);
     const shift = Number.isFinite(offset) && Number.isFinite(made) ? offset - made : 0;
 
@@ -266,6 +291,8 @@ export function parseFCPXMLCaptionTitles(src) {
   }
   return out.sort((a, b) => a.start - b.start);
 }
+
+const countTitles = (src) => (src.match(/<title\b/g) ?? []).length;
 
 /** The base64 JSON word block inside one title's content, if it has one. */
 function captionTitleData(body) {

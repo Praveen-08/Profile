@@ -41,6 +41,9 @@ enum WebBridge {
         /// Installed font families and their faces.
         case fonts
         /// Licence: where it stands, entering a key, freeing this Mac.
+        /// The editor's word edits for one project, kept between sessions.
+        case loadEdits
+        case saveEdits
         case license
         case licenseActivate
         case licenseDeactivate

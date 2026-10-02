@@ -41,6 +41,30 @@ struct TemplateStore {
         try json.write(to: prefs, atomically: true, encoding: .utf8)
     }
 
+    // MARK: Word edits, per project
+
+    /// The editor's word-by-word work on one project: per-word styles,
+    /// levels and positions. Keyed by the panel's hash of the project, so
+    /// dropping the same project again brings its edits back.
+    private var edits: URL { root.appendingPathComponent("edits", isDirectory: true) }
+
+    /// Only the panel's own hash shape is accepted as a file name, so a key
+    /// can never reach outside the folder.
+    private func editsFile(_ key: String) -> URL? {
+        guard key.range(of: "^p[0-9a-f]{8,32}$", options: .regularExpression) != nil else { return nil }
+        return edits.appendingPathComponent("\(key).json")
+    }
+
+    func loadEdits(_ key: String) -> String? {
+        editsFile(key).flatMap { try? String(contentsOf: $0, encoding: .utf8) }
+    }
+
+    func saveEdits(_ key: String, _ json: String) throws {
+        guard let file = editsFile(key) else { throw CocoaError(.fileWriteInvalidFileName) }
+        try FileManager.default.createDirectory(at: edits, withIntermediateDirectories: true)
+        try json.write(to: file, atomically: true, encoding: .utf8)
+    }
+
     func prepare() throws {
         for dir in [templates, thumbnails] {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

@@ -183,7 +183,13 @@ function useTimelineXML(xml, how) {
     state.time = 0;
     adoptFrameFrom(xml);
     noteSource(`${transcript.words.length} words ${how}.`);
+    state.editsKey = projectKey(xml, transcript);
+    // Nothing is saved for this project until its saved edits have been
+    // read back, or the empty state of a fresh drop would overwrite them.
+    state.editsReady = false;
+    history.reset();
     regenerate();
+    restoreEdits(state.editsKey, transcript);
   } catch (err) {
     noteSource(`Could not read that timeline: ${err.message}`, true);
   }
@@ -226,6 +232,8 @@ function regenerate() {
 
     applyPositions(state.plan);
     drawPreview();
+    history.record();
+    saveEditsSoon();
 
     const s = state.plan.stats;
     $('#wstats').textContent = `${s.words} words · ${s.byLevel.normal}/${s.byLevel.emphasis}/${s.byLevel.hero}`;
@@ -1411,4 +1419,131 @@ $('#lic-move').onclick = async () => {
   catch (err) { $('#lic-summary').textContent = err.message; }
 };
 callNative('license').then(showLicence).catch(() => { /* outside Final Cut */ });
+
+/* ------------------------------------------------------------------ *
+ * Word edits: kept per project, with undo
+ * ------------------------------------------------------------------ */
+
+/** FNV-1a, 32-bit, as hex: a short stable name for a project. */
+function fnv(text) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16).padStart(8, '0');
+}
+
+/**
+ * Which project this is: its name, plus its opening words so two projects
+ * that share a name ("Untitled Project") stay apart.
+ */
+function projectKey(xml, transcript) {
+  const name = /<project\b[^>]*\bname="([^"]*)"/.exec(xml)?.[1] ?? /<sequence\b[^>]*\bname="([^"]*)"/.exec(xml)?.[1] ?? '';
+  const opening = transcript.words.slice(0, 24).map((w) => `${w.text}@${w.start.toFixed(1)}`).join(' ');
+  return `p${fnv(name)}${fnv(opening)}`;
+}
+
+/** The editor's work that undo and saving cover. */
+const editable = () => ({
+  templateId: state.templateId, patch: state.patch, custom: state.custom,
+  overrides: state.overrides, wordNudges: state.wordNudges, phraseNudges: state.phraseNudges,
+});
+
+const history = (() => {
+  /** @type {string[]} */ let past = [];
+  /** @type {string[]} */ let future = [];
+  let current = '';
+  let lastAt = 0;
+  let restoring = false;
+  const buttons = () => {
+    const u = $('#pv-undo'), r = $('#pv-redo');
+    if (u) u.disabled = !past.length;
+    if (r) r.disabled = !future.length;
+  };
+  return {
+    reset() { past = []; future = []; current = ''; buttons(); },
+    /** After every redesign: a change since the last one becomes an undo step. */
+    record() {
+      if (restoring) return;
+      const now = JSON.stringify(editable());
+      if (!current) { current = now; return buttons(); }
+      if (now === current) return;
+      // A slider or a drag sends many small changes; within a moment they
+      // are one step, so undo goes back to before the gesture, not one pixel.
+      const t = Date.now();
+      if (t - lastAt > 700 || !past.length) past.push(current);
+      lastAt = t;
+      if (past.length > 200) past.shift();
+      future = [];
+      current = now;
+      buttons();
+    },
+    undo() { if (past.length) { future.push(current); this.apply(past.pop()); } },
+    redo() { if (future.length) { past.push(current); this.apply(future.pop()); } },
+    apply(json) {
+      const s = JSON.parse(json);
+      Object.assign(state, {
+        templateId: s.templateId, patch: s.patch, custom: s.custom,
+        overrides: s.overrides, wordNudges: s.wordNudges, phraseNudges: s.phraseNudges,
+      });
+      current = json;
+      lastAt = 0;
+      restoring = true;
+      try { refreshAll(); } finally { restoring = false; }
+      buttons();
+      callNative('savePrefs', { json: JSON.stringify(state.custom) }).catch(() => {});
+    },
+  };
+})();
+
+/** Redraw every control from state, after undo or a restore. */
+function refreshAll() {
+  showCustom();
+  buildStyles();
+  regenerate();
+  showTypeCards();
+  showWord();
+}
+
+let editsTimer = 0;
+/** Keep this project's word edits on disk, a moment after the last change. */
+function saveEditsSoon() {
+  if (!state.editsKey || !state.editsReady) return;
+  clearTimeout(editsTimer);
+  editsTimer = setTimeout(() => {
+    // Each edited word's text is stored beside its edits: a word id is its
+    // position in the transcript, so if the captions change in Final Cut an
+    // edit only comes back onto the same word.
+    const ids = new Set([...Object.keys(state.overrides), ...Object.keys(state.wordNudges), ...Object.keys(state.phraseNudges)]);
+    const words = Object.fromEntries((state.transcript?.words ?? []).filter((w) => ids.has(w.id)).map((w) => [w.id, w.text]));
+    const json = JSON.stringify({ version: 1, saved: new Date().toISOString(), words, overrides: state.overrides, wordNudges: state.wordNudges, phraseNudges: state.phraseNudges });
+    callNative('saveEdits', { key: state.editsKey, json }).catch(() => {});
+  }, 500);
+}
+
+/** Bring back the word edits saved for this project, where the words still match. */
+async function restoreEdits(key, transcript) {
+  let saved = null;
+  try { saved = JSON.parse((await callNative('loadEdits', { key })).json || 'null'); } catch { /* none, or outside Final Cut */ }
+  if (state.editsKey !== key) return;          // another project was dropped meanwhile
+  state.editsReady = true;
+  if (!saved) return;
+  const text = new Map(transcript.words.map((w) => [w.id, w.text]));
+  const same = (id) => saved.words?.[id] !== undefined && text.get(id) === saved.words[id];
+  const keep = (rec) => Object.fromEntries(Object.entries(rec ?? {}).filter(([id]) => same(id)));
+  const overrides = keep(saved.overrides), wordNudges = keep(saved.wordNudges), phraseNudges = keep(saved.phraseNudges);
+  const count = new Set([...Object.keys(overrides), ...Object.keys(wordNudges), ...Object.keys(phraseNudges)]).size;
+  if (!count) return;
+  Object.assign(state, { overrides, wordNudges, phraseNudges });
+  history.reset();
+  refreshAll();
+  noteSource(`${transcript.words.length} words · your edits to ${count} word${count === 1 ? '' : 's'} are back.`);
+}
+
+$('#pv-undo').onclick = () => history.undo();
+$('#pv-redo').onclick = () => history.redo();
+window.addEventListener('keydown', (e) => {
+  if (!e.metaKey || e.key.toLowerCase() !== 'z') return;
+  if (e.target instanceof HTMLElement && e.target.closest('input[type="text"], textarea')) return;
+  e.preventDefault();
+  if (e.shiftKey) history.redo(); else history.undo();
+});
 

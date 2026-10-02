@@ -144,9 +144,12 @@ export function videoSegments(xml) {
     return null;
   }
 
+  // Project seconds from the sequence's own start (usually 01:00:00:00), the
+  // same clock the captions are read in (src/transcript/fcpxml-tree.js).
+  const origin = seconds(sequence.attrs.tcStart);
   for (const item of spine.children) {
     if (!CLIPS.has(item.name)) continue;
-    visit(item, seconds(item.attrs.offset), 0);
+    visit(item, seconds(item.attrs.offset) - origin, 0);
   }
   return out.sort((a, b) => a.start - b.start || a.lane - b.lane);
 }
