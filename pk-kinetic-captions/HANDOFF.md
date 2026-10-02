@@ -260,6 +260,42 @@ same.
 
 ---
 
+## PK title, effects, presets, licensing (2026-10-02)
+
+Done and verified by importing into Final Cut 12.2:
+
+- **PK Kinetic Caption Motion title** (`motion/`): `base.moti` is a Motion-made
+  Final Cut Title; `publish.py` adds 20 published controls and writes the
+  installable copy to `motion/` and `fcp-extension/Extension/Resources/title/`.
+  The extension installs it into `~/Movies/Motion Templates.localized/Titles.localized/PK Visuals/`
+  on launch (TitleInstaller.swift). FCPXML keys are `9999/10005/10011/5/10042/<channel>`
+  (see `PK_PARAMS` in `src/export/fcpxml.js`); gradient stops are `14/17/1/999140132/3`
+  and `.../999140133/3`. Colour values are "r g b".
+- **Export profile 'pk'**: gradient fill, glow, spoken-word colour (Fill Color
+  keyframes). The panel picks it only when a word needs it and the title is installed.
+- **Animations**: rotate (adjust-transform rotation keyframes), typewriter
+  (keyframed trim crop, in % of frame height, measured from the frame centre because
+  Final Cut crops before the transform). Line-wide gradients slice one gradient per word.
+- **Fix**: condensed Avenir Next exports as the family "Avenir Next Condensed"
+  (Final Cut drew "Avenir Next / Condensed Heavy" in 6pt Helvetica). A test pins
+  every exported face to one macOS really publishes.
+- **Presets**: Reel Bold, Active Word, Neon Gradient, Typewriter Glow, Gold Luxe.
+  The host app installs the OFL fonts in `Host/Fonts` into `~/Library/Fonts` when missing.
+- **Licensing**: ported from 08 Track. Send/drag need a licence or trial; preview is
+  free. `build.sh` unlocks this Mac (TFOwnerDevice hash); `release.sh` needs
+  `PKKC_STORE_ID`/`PKKC_PRODUCT_IDS`/`PKKC_TRIAL_PRODUCT_ID`, rebuilds with
+  `PKKC_RELEASE=1` and refuses a copy that still carries the owner unlock. After a
+  release, run `./build.sh` again to get the owner copy back in /Applications.
+
+Not done:
+
+- **Shine** is drawn in the preview only; the Motion title has no light sweep yet
+  (needs a gradient-sweep behaviour published in `base.moti`). Export warns.
+- **Lemon Squeezy products** do not exist yet; until they do a customer build
+  cannot take keys.
+- Per-letter slide-in (the "letters sliding in" reference) is not built; typewriter
+  covers the per-letter reveal.
+
 ## What to do next, in order
 
 1. **Finish the import test.** Open a generated `.fcpxml` in Final Cut, choose
