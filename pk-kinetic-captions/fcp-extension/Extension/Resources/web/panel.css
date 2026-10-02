@@ -298,3 +298,11 @@ body.panel {
 .wgroup.is-target { border-color: var(--gold); background: rgba(201,168,76,.08); }
 .wgroup.is-bad { border-color: var(--danger, #e5484d); }
 .wghost { position: fixed; z-index: 50; pointer-events: none; padding: 3px 8px; border-radius: 4px; background: var(--gold); color: #141414; font-size: 12px; font-weight: 600; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+
+/* Delete and edit in the captions list */
+.wchip { position: relative; }
+.wx { position: absolute; top: -6px; right: -6px; width: 14px; height: 14px; border-radius: 7px; background: #3a3d44; color: #fff;
+  font-size: 10px; line-height: 14px; text-align: center; cursor: pointer; opacity: 0; transition: opacity .1s; }
+.wchip:hover .wx, .wchip.is-sel .wx { opacity: 1; }
+.wx:hover { background: var(--danger, #e5484d); }
+.wedit-word { font: inherit; font-size: 12px; color: inherit; background: var(--panel-2); border: 1px solid var(--gold); border-radius: 4px; padding: 3px 6px; min-width: 4ch; }

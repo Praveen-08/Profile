@@ -548,7 +548,7 @@ function showWord() {
   void pct;
   wordStyle.show(o, toHex(w.colour));
   wordEditor.show({ in: o.inAnimation, out: o.outAnimation, tune: o.tune });
-  $('#w-hide').textContent = 'Hide word';
+  $('#w-hide').textContent = 'Delete word';
 }
 
 /** Change the selected word's overrides, then redesign. */
@@ -938,7 +938,17 @@ function drawWords() {
       const styled = Object.keys(state.overrides[w.id] ?? {}).some((k) => !['breakBefore', 'withPrevious'].includes(k));
       chip.classList.toggle('is-custom', styled || Boolean(state.wordNudges[w.id]));
       if (state.overrides[w.id]?.withPrevious) chip.classList.add('is-with');
-      chip.onclick = () => { if (!wordDrag.moved) select(w.id, { seek: true }); };
+      // Click selects; clicking the selected word again edits it in place.
+      chip.onclick = (e) => {
+        if (wordDrag.moved) return;
+        if (e.target.closest('.wx')) return;
+        if (state.selected === w.id) return editWordInline(chip, w);
+        select(w.id, { seek: true });
+      };
+      const x = Object.assign(document.createElement('span'), { className: 'wx', textContent: '×', title: 'Delete this word' });
+      x.setAttribute('role', 'button');
+      x.onclick = (e) => { e.stopPropagation(); deleteWords([w.id]); };
+      chip.append(x);
       group.append(chip);
     });
 
@@ -962,7 +972,9 @@ function drawWords() {
       regenerate();
       replayCurrentPhrase();
     };
-    tools.append(edit, reveal);
+    const del = Object.assign(document.createElement('button'), { className: 'wtool', textContent: '🗑', title: 'Delete this whole caption' });
+    del.onclick = (e) => { e.stopPropagation(); deleteWords(phrase.words.map((w) => w.id)); };
+    tools.append(edit, reveal, del);
     group.append(tools);
   });
   const hidden = Object.entries(state.overrides).filter(([, o]) => o.hidden);
@@ -1070,7 +1082,7 @@ function cycleBreak(pi, wi) {
 const wordDrag = { id: '', pi: -1, wi: -1, x: 0, y: 0, moved: false, ghost: /** @type {HTMLElement|null} */ (null), over: /** @type {HTMLElement|null} */ (null) };
 $('#words').addEventListener('pointerdown', (e) => {
   const chip = e.target.closest('.wchip');
-  if (!chip || e.button !== 0) return;
+  if (!chip || e.button !== 0 || e.target.closest('.wx, input')) return;
   Object.assign(wordDrag, { id: chip.dataset.id, pi: Number(chip.dataset.phrase), wi: Number(chip.dataset.index), x: e.clientX, y: e.clientY, moved: false, pointer: e.pointerId });
 });
 $('#words').addEventListener('pointermove', (e) => {
@@ -2295,4 +2307,119 @@ $('#setup-save').onclick = async () => {
   setStatus(`Saved “${name}”. Use it on any home from Style ▸ Your setups.`);
 };
 $('#setup-name').onkeydown = (e) => { if (e.key === 'Enter') $('#setup-save').click(); };
+
+/* ------------------------------------------------------------------ *
+ * Deleting and editing words in the captions list
+ * ------------------------------------------------------------------ */
+
+/**
+ * Hold the captions around some words exactly as they are now, so changing
+ * those words (deleting, retyping) does not regroup their neighbours. Line
+ * breaks the editor made are kept; automatic wraps stay automatic.
+ */
+function pinCaptionsAround(ids) {
+  const ps = state.plan.phrases;
+  const hit = new Set(ps.map((p, i) => (p.words.some((w) => ids.includes(w.id)) ? i : -1)).filter((i) => i >= 0));
+  const range = new Set([...hit].flatMap((i) => [i - 1, i, i + 1]).filter((i) => i >= 0 && i < ps.length));
+  for (const i of range) {
+    ps[i].words.forEach((w, k) => {
+      const keep = state.overrides[w.id]?.breakBefore === 'line' && k > 0 ? 'line' : k === 0 ? 'caption' : 'join';
+      state.overrides[w.id] = { ...(state.overrides[w.id] ?? {}), breakBefore: keep };
+    });
+    const after = ps[i + 1]?.words[0]?.id;
+    if (after) state.overrides[after] = { ...(state.overrides[after] ?? {}), breakBefore: 'caption' };
+  }
+}
+
+/** Take words off the captions (undo brings them back; so does "Restore"). */
+function deleteWords(ids) {
+  const wasSelected = ids.includes(state.selected);
+  pinCaptionsAround(ids);
+  // A deleted word that started a caption hands that start to the next word left in it.
+  for (const p of state.plan.phrases) {
+    const left = p.words.filter((w) => !ids.includes(w.id));
+    if (left.length && left.length < p.words.length && ids.includes(p.words[0].id)) {
+      state.overrides[left[0].id] = { ...(state.overrides[left[0].id] ?? {}), breakBefore: 'caption' };
+    }
+  }
+  for (const id of ids) state.overrides[id] = { ...(state.overrides[id] ?? {}), hidden: true };
+  if (wasSelected) state.selected = null;
+  regenerate();
+  showWord();
+  setStatus(`Deleted ${ids.length === 1 ? 'a word' : `${ids.length} words`}. ⌘Z brings ${ids.length === 1 ? 'it' : 'them'} back.`);
+}
+
+/**
+ * Retype one word where it is. Empty deletes it; several words replace it,
+ * sharing its time, and stay in its caption.
+ */
+function editWordInline(chip, w) {
+  const words = new Map((state.transcript?.words ?? []).map((x) => [x.id, x]));
+  const current = state.overrides[w.id]?.text ?? words.get(w.id)?.text ?? w.text;
+  const input = Object.assign(document.createElement('input'), { type: 'text', className: 'wedit-word', value: current, spellcheck: true });
+  input.style.width = `${Math.max(4, current.length + 2)}ch`;
+  chip.replaceWith(input);
+  input.focus();
+  input.select();
+  input.oninput = () => { input.style.width = `${Math.max(4, input.value.length + 2)}ch`; };
+  let done = false;
+  const finish = (save) => {
+    if (done) return;
+    done = true;
+    const text = input.value.replace(/\s+/g, ' ').trim();
+    if (!save || text === current) return drawWords();
+    if (!text) return deleteWords([w.id]);
+    editWordText(w.id, text);
+  };
+  input.onkeydown = (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  };
+  input.onblur = () => finish(true);
+}
+
+/** Replace one word's text; extra words share its time and its caption. */
+function editWordText(id, text) {
+  pinCaptionsAround([id]);
+  const tokens = text.split(' ');
+  if (tokens.length === 1) {
+    // One word for one word: a text override keeps every setting on it.
+    state.overrides[id] = { ...(state.overrides[id] ?? {}), text };
+    regenerate();
+    return;
+  }
+  const rawIds = rawIdsOf(id);
+  const others = (state.textEdits ?? []).filter((e) => !e.ids.some((r) => rawIds.includes(r)));
+  // Keep the rest of an earlier edit's run as it was typed.
+  const prior = (state.textEdits ?? []).find((e) => e.ids.some((r) => rawIds.includes(r)));
+  let newText = text;
+  if (prior) {
+    const parts = prior.text.split(' ');
+    const at = id.includes('.') ? Number(id.split('.').pop()) : 0;
+    parts.splice(at, 1, ...tokens);
+    newText = parts.join(' ');
+  }
+  state.textEdits = [...others, { ids: rawIds, text: newText }];
+  const { text: _, ...rest } = state.overrides[id] ?? {};
+  if (Object.keys(rest).length) state.overrides[id] = rest; else delete state.overrides[id];
+  // The new words stay in this word's caption.
+  const first = rawIds[0];
+  newText.split(' ').forEach((_, k) => {
+    if (k > 0) state.overrides[`${first}.${k}`] = { ...(state.overrides[`${first}.${k}`] ?? {}), breakBefore: 'join' };
+  });
+  regenerate();
+}
+
+// Keys on a selected word: Delete removes it, Enter edits it.
+window.addEventListener('keydown', (e) => {
+  if (!state.selected || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable]')) return;
+  if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteWords([state.selected]); }
+  if (e.key === 'Enter') {
+    const chip = $(`#words .wchip[data-id="${state.selected}"]`);
+    const w = allWords().find((x) => x.id === state.selected);
+    if (chip && w) { e.preventDefault(); showTab('words'); editWordInline(chip, w); }
+  }
+});
 
