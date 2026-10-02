@@ -207,6 +207,8 @@ function useTimelineXML(xml, how) {
     adoptFrameFrom(xml);
     noteSource(`${transcript.words.length} words ${how}.`);
     $('#step-source').classList.add('is-loaded');
+    // Shaping the captions is the first step: start there.
+    showTab('words');
     state.editsKey = projectKey(xml, transcript);
     // Nothing is saved for this project until its saved edits have been
     // read back, or the empty state of a fresh drop would overwrite them.
@@ -898,11 +900,48 @@ function changed() {
 function drawWords() {
   const host = $('#words');
   host.replaceChildren();
-  for (const phrase of state.plan.phrases) {
-    // Each caption is its own group, so its grouping can be read and changed.
+  state.plan.phrases.forEach((phrase, pi) => {
+    // Each caption is its own group: drag words between neighbouring groups,
+    // click between two words to break a line or split the caption.
     const group = document.createElement('div');
     group.className = 'wgroup';
+    group.dataset.phrase = String(pi);
     host.append(group);
+
+    const num = Object.assign(document.createElement('span'), { className: 'wnum', textContent: String(pi + 1) });
+    group.append(num);
+
+    phrase.words.forEach((w, wi) => {
+      if (wi > 0) {
+        // Between two words: shows and cycles the break before the second.
+        const brk = state.overrides[w.id]?.breakBefore;
+        const newLine = brk === 'line' || (w.line ?? 0) > (phrase.words[wi - 1].line ?? 0);
+        const gap = document.createElement('button');
+        gap.className = `wgap${brk === 'line' ? ' is-line' : newLine ? ' is-wrap' : ''}`;
+        gap.dataset.id = w.id;
+        gap.title = brk === 'line' ? 'New line here — click to split the caption here'
+          : 'Click: new line here · click again: split the caption here';
+        gap.textContent = newLine ? '↵' : '';
+        gap.onclick = (e) => { e.stopPropagation(); cycleBreak(pi, wi); };
+        group.append(gap);
+        if (newLine) group.append(Object.assign(document.createElement('span'), { className: 'wnl' }));
+      }
+      const chip = document.createElement('button');
+      chip.className = `wchip lv-${w.level}`;
+      chip.dataset.id = w.id;
+      chip.dataset.phrase = String(pi);
+      chip.dataset.index = String(wi);
+      chip.textContent = w.text;
+      chip.title = `${w.level} · ${w.start.toFixed(2)}s — drag to the caption before or after · double-click: main ↔ highlight`;
+      chip.classList.toggle('is-sel', w.id === state.selected);
+      // The dot marks a word styled on its own — not one only regrouped.
+      const styled = Object.keys(state.overrides[w.id] ?? {}).some((k) => !['breakBefore', 'withPrevious'].includes(k));
+      chip.classList.toggle('is-custom', styled || Boolean(state.wordNudges[w.id]));
+      if (state.overrides[w.id]?.withPrevious) chip.classList.add('is-with');
+      chip.onclick = () => { if (!wordDrag.moved) select(w.id, { seek: true }); };
+      group.append(chip);
+    });
+
     // Caption tools: edit its text; words one by one, or all at once.
     const tools = document.createElement('span');
     tools.className = 'wtools';
@@ -924,28 +963,8 @@ function drawWords() {
       replayCurrentPhrase();
     };
     tools.append(edit, reveal);
-    for (const w of phrase.words) {
-      if (state.overrides[w.id]?.breakBefore === 'line' && w !== phrase.words[0]) {
-        const nl = document.createElement('span');
-        nl.className = 'wnl';
-        nl.textContent = '↵';
-        nl.title = 'New line';
-        group.append(nl);
-      }
-      const chip = document.createElement('button');
-      chip.className = `wchip lv-${w.level}`;
-      chip.dataset.id = w.id;
-      chip.title = 'Double-click: main text ↔ highlight';
-      chip.textContent = w.text;
-      chip.title = `${w.level} · ${w.start.toFixed(2)}s`;
-      chip.classList.toggle('is-sel', w.id === state.selected);
-      chip.classList.toggle('is-custom', Boolean(state.overrides[w.id] || state.wordNudges[w.id]));
-      chip.onclick = () => select(w.id, { seek: true });
-      if (state.overrides[w.id]?.withPrevious) chip.classList.add('is-with');
-      group.append(chip);
-    }
     group.append(tools);
-  }
+  });
   const hidden = Object.entries(state.overrides).filter(([, o]) => o.hidden);
   if (hidden.length) {
     const restore = document.createElement('button');
@@ -961,6 +980,141 @@ function drawWords() {
     host.append(restore);
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Caption structure: which words share a caption, and where lines break
+ * ------------------------------------------------------------------ */
+
+/**
+ * Write a caption structure for a run of captions as explicit breaks, so the
+ * optimiser keeps exactly this grouping: each caption's first word starts a
+ * caption, the rest join it (or start a new line), and the word after the
+ * run starts the next caption.
+ * @param {{ids: string[], lines: Set<string>}[]} caps
+ * @param {string|undefined} after  the first word after the run
+ */
+function setStructure(caps, after) {
+  const put = (id, b) => {
+    const { breakBefore: _, ...rest } = state.overrides[id] ?? {};
+    state.overrides[id] = b ? { ...rest, breakBefore: b } : rest;
+    if (!Object.keys(state.overrides[id]).length) delete state.overrides[id];
+  };
+  for (const cap of caps) {
+    cap.ids.forEach((id, k) => put(id, k === 0 ? 'caption' : cap.lines.has(id) ? 'line' : 'join'));
+  }
+  if (after) put(after, 'caption');
+  regenerate();
+}
+
+/** A caption as ids, with the words that start a new line in it. */
+function capOf(phrase) {
+  const lines = new Set(phrase.words.filter((w, k) => k > 0 && (state.overrides[w.id]?.breakBefore === 'line'
+    || (w.line ?? 0) > (phrase.words[k - 1].line ?? 0))).map((w) => w.id));
+  return { ids: phrase.words.map((w) => w.id), lines };
+}
+const firstAfter = (pi) => state.plan.phrases[pi + 1]?.words[0]?.id;
+
+/** Move a word — with the words before it in its caption — to the caption before. */
+function moveToPrevious(pi, wi) {
+  const ps = state.plan.phrases;
+  if (pi === 0) return setStatus('This is the first caption — there is none before it.', true);
+  const prev = capOf(ps[pi - 1]), cur = capOf(ps[pi]);
+  const moved = cur.ids.slice(0, wi + 1), rest = cur.ids.slice(wi + 1);
+  const caps = [{ ids: [...prev.ids, ...moved], lines: new Set([...prev.lines].concat([...cur.lines].filter((id) => moved.includes(id)))) }];
+  if (rest.length) caps.push({ ids: rest, lines: new Set([...cur.lines].filter((id) => rest.includes(id) && id !== rest[0])) });
+  setStructure(caps, firstAfter(pi));
+}
+
+/** Move a word — with the words after it in its caption — to the caption after. */
+function moveToNext(pi, wi) {
+  const ps = state.plan.phrases;
+  if (pi >= ps.length - 1) return setStatus('This is the last caption — there is none after it.', true);
+  const cur = capOf(ps[pi]), next = capOf(ps[pi + 1]);
+  const keep = cur.ids.slice(0, wi), moved = cur.ids.slice(wi);
+  const caps = [];
+  if (keep.length) caps.push({ ids: keep, lines: new Set([...cur.lines].filter((id) => keep.includes(id))) });
+  caps.push({ ids: [...moved, ...next.ids], lines: new Set([...cur.lines].filter((id) => moved.includes(id) && id !== moved[0]).concat([...next.lines])) });
+  setStructure(caps, firstAfter(pi + 1));
+}
+
+/** Between two words: nothing → new line → new caption → nothing. */
+function cycleBreak(pi, wi) {
+  const phrase = state.plan.phrases[pi];
+  const cap = capOf(phrase);
+  const id = cap.ids[wi];
+  const explicit = state.overrides[id]?.breakBefore === 'line';
+  if (!explicit && !cap.lines.has(id)) {
+    cap.lines.add(id);                                   // a new line here
+    setStructure([cap], firstAfter(pi));
+    setStatus('New line. Click the ↵ again to split the caption there.');
+  } else if (explicit || cap.lines.has(id)) {
+    if (explicit) {
+      // Split the caption here.
+      setStructure([
+        { ids: cap.ids.slice(0, wi), lines: new Set([...cap.lines].filter((x) => cap.ids.indexOf(x) < wi)) },
+        { ids: cap.ids.slice(wi), lines: new Set([...cap.lines].filter((x) => cap.ids.indexOf(x) > wi)) },
+      ], firstAfter(pi));
+      setStatus('Split into two captions. Drag a word back to join them again.');
+    } else {
+      // An automatic wrap: make it explicit first, so the next click splits.
+      setStructure([cap], firstAfter(pi));
+      const o = state.overrides[id] ?? {};
+      state.overrides[id] = { ...o, breakBefore: 'line' };
+      regenerate();
+    }
+  }
+}
+
+/* Dragging a word between captions, with the pointer — not HTML drag and
+   drop, which Final Cut's web view can take for a clip being dropped. */
+const wordDrag = { id: '', pi: -1, wi: -1, x: 0, y: 0, moved: false, ghost: /** @type {HTMLElement|null} */ (null), over: /** @type {HTMLElement|null} */ (null) };
+$('#words').addEventListener('pointerdown', (e) => {
+  const chip = e.target.closest('.wchip');
+  if (!chip || e.button !== 0) return;
+  Object.assign(wordDrag, { id: chip.dataset.id, pi: Number(chip.dataset.phrase), wi: Number(chip.dataset.index), x: e.clientX, y: e.clientY, moved: false, pointer: e.pointerId });
+});
+$('#words').addEventListener('pointermove', (e) => {
+  if (!wordDrag.id) return;
+  if (!wordDrag.moved && Math.hypot(e.clientX - wordDrag.x, e.clientY - wordDrag.y) < 5) return;
+  if (!wordDrag.moved) {
+    wordDrag.moved = true;
+    // Only now: a press that never moves stays an ordinary click.
+    try { $('#words').setPointerCapture(wordDrag.pointer); } catch { /* released already */ }
+    const ghost = document.createElement('div');
+    ghost.className = 'wghost';
+    ghost.textContent = $(`#words .wchip[data-id="${wordDrag.id}"]`)?.textContent ?? '';
+    document.body.append(ghost);
+    wordDrag.ghost = ghost;
+    $('#words').classList.add('is-dragging');
+  }
+  wordDrag.ghost.style.left = `${e.clientX + 8}px`;
+  wordDrag.ghost.style.top = `${e.clientY + 8}px`;
+  const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('.wgroup');
+  if (wordDrag.over && wordDrag.over !== target) wordDrag.over.classList.remove('is-target', 'is-bad');
+  wordDrag.over = target ?? null;
+  if (target) {
+    const tp = Number(target.dataset.phrase);
+    target.classList.add(Math.abs(tp - wordDrag.pi) === 1 ? 'is-target' : 'is-bad');
+  }
+});
+const endWordDrag = (e) => {
+  if (!wordDrag.id) return;
+  const { pi, wi, moved, over } = wordDrag;
+  wordDrag.ghost?.remove();
+  over?.classList.remove('is-target', 'is-bad');
+  $('#words').classList.remove('is-dragging');
+  wordDrag.id = '';
+  wordDrag.ghost = null;
+  if (!moved || !over || e.type === 'pointercancel') return;
+  const tp = Number(over.dataset.phrase);
+  if (tp === pi - 1) moveToPrevious(pi, wi);
+  else if (tp === pi + 1) moveToNext(pi, wi);
+  else if (tp !== pi) setStatus('Drag a word to the caption just before or just after it.', true);
+  // The click that ends a drag is not a selection.
+  setTimeout(() => { wordDrag.moved = false; }, 0);
+};
+$('#words').addEventListener('pointerup', endWordDrag);
+$('#words').addEventListener('pointercancel', endWordDrag);
 
 /* ------------------------------------------------------------------ *
  * Wiring

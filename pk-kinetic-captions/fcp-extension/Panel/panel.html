@@ -81,7 +81,7 @@
 </section>
 
 <nav class="ptabs" id="tabs">
-  <button data-tab="style" class="is-on">Style</button><button data-tab="types">Customise</button><button data-tab="words">Words</button>
+  <button data-tab="words">1 · Captions</button><button data-tab="style" class="is-on">2 · Style</button><button data-tab="types">3 · Customise</button>
 </nav>
 
 <div class="tab-pane" data-tab="style">
@@ -185,7 +185,12 @@
 
 <div class="tab-pane" data-tab="words" hidden>
   <section class="pstep">
-    <p id="word-empty" class="hint">Click a word in the picture or the list below to style it on its own.</p>
+    <h2>Captions <span id="wstats" class="hint"></span></h2>
+    <p class="hint">Drag a word into the caption before or after it. Click between two words for a new line; click the ↵ again to split the caption there. Click a word to style it below.</p>
+    <div id="words" class="words"></div>
+  </section>
+  <section class="pstep">
+    <p id="word-empty" class="hint">Click a word in the picture or the captions above to style it on its own.</p>
     <div id="step-word" hidden>
   <div class="w-head">
     <button id="w-prev" class="pv-btn" title="Previous word">◀</button>
@@ -222,10 +227,6 @@
     <button id="w-reset" class="pv-btn">Reset this word</button>
   </div>
 </div>
-  </section>
-  <section class="pstep">
-    <h2>All words <span id="wstats" class="hint"></span></h2>
-    <div id="words" class="words"></div>
   </section>
 </div>
 

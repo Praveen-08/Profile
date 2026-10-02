@@ -284,3 +284,17 @@ body.panel {
 .pfoot .dragchip { padding: 7px 10px; margin-bottom: 0; background: none; border-color: var(--line-strong, rgba(255,255,255,.2)); }
 .pfoot .dragchip b { font-size: 12px; font-weight: 500; }
 .pfoot .dragchip span { font-size: 10px; }
+
+/* Caption structure editing */
+.wgroup { position: relative; padding: 8px 8px 8px 26px; gap: 2px 0; flex: 1 1 100%; width: 100%; box-sizing: border-box; }
+.wnum { position: absolute; left: 7px; top: 9px; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wgap { width: 9px; align-self: stretch; min-height: 22px; border: 0; padding: 0; margin: 0 1px; background: none; cursor: pointer;
+  color: var(--gold); font-size: 11px; line-height: 22px; border-radius: 3px; }
+.wgap:hover { background: rgba(201,168,76,.18); }
+.wgap.is-line, .wgap.is-wrap { width: 16px; }
+.wgap.is-wrap { color: var(--muted); }
+.wchip { cursor: grab; touch-action: none; }
+#words.is-dragging .wchip { cursor: grabbing; }
+.wgroup.is-target { border-color: var(--gold); background: rgba(201,168,76,.08); }
+.wgroup.is-bad { border-color: var(--danger, #e5484d); }
+.wghost { position: fixed; z-index: 50; pointer-events: none; padding: 3px 8px; border-radius: 4px; background: var(--gold); color: #141414; font-size: 12px; font-weight: 600; box-shadow: 0 6px 18px rgba(0,0,0,.5); }

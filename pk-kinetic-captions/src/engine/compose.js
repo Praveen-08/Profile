@@ -115,7 +115,9 @@ export function compose(opts) {
   /* 3 — phrase ----------------------------------------------------- */
   // The editor's own caption breaks: start a new caption at a word, or keep
   // it with the caption before.
-  const breaks = new Map(words.map((w, i) => [i, overrides[w.id]?.breakBefore]).filter(([, b]) => b === 'caption' || b === 'join'));
+  // A new line inside a caption also keeps the word in that caption.
+  const breaks = new Map(words.map((w, i) => [i, overrides[w.id]?.breakBefore]).filter(([, b]) => b === 'caption' || b === 'join' || b === 'line')
+    .map(([i, b]) => [i, b === 'line' ? 'join' : b]));
   const phrases = groupPhrases(words, template, { scores, breaks });
 
   /* 4 — levels ----------------------------------------------------- */
@@ -280,6 +282,7 @@ export function compose(opts) {
         // Where the word sat before its own resize: what placing the phrase as
         // a whole goes by, so one bigger word does not move the rest.
         layoutBox: laidOut.box,
+        line: laidOut.line ?? 0,
         motion: withOpacity(buildMotion({
           level, template, life, capFraction, capabilities: caps,
           inOverride: e.inAnimation ?? (fromPattern ? template.motion.patternIn : undefined),
