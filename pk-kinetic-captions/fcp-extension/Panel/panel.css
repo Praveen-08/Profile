@@ -261,3 +261,10 @@ body.panel {
 .wtool.is-on { color: var(--gold); border-color: var(--gold); }
 .wchip.is-with { margin-left: -2px; border-left-style: dotted; }
 .wedit { flex: 1; font: inherit; font-size: 13px; color: inherit; background: var(--panel-2); border: 1px solid var(--gold); border-radius: 5px; padding: 6px 8px; }
+
+/* Behind the agent: words, then the cut-out agent, then the front words */
+.pv .pv-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.pv img.pv-layer { object-fit: contain; }
+.pv #pv-back svg { width: 100%; height: 100%; display: block; }
+.dragrow { display: flex; gap: 8px; }
+.dragrow .dragchip { flex: 1; }

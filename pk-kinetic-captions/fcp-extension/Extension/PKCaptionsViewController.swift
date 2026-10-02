@@ -292,9 +292,12 @@ extension PKCaptionsViewController: WKScriptMessageHandler {
                     "error": "needsAccess", "folder": folder.lastPathComponent, "path": path,
                 ])
             }
-            frames.frame(path: path, seconds: time, maxHeight: CGFloat(height)) { [weak self] result in
+            frames.frame(path: path, seconds: time, maxHeight: CGFloat(height), cutout: body["cutout"] as? Bool ?? false) { [weak self] result in
                 switch result {
-                case .success(let url): self?.reply(to: id, ok: true, payload: ["image": url])
+                case .success(let frame):
+                    var payload: [String: Any] = ["image": frame.image]
+                    if let person = frame.person { payload["person"] = person }
+                    self?.reply(to: id, ok: true, payload: payload)
                 case .failure(let error): self?.reply(to: id, ok: false, payload: ["error": error.localizedDescription])
                 }
             }

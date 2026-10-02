@@ -50,7 +50,7 @@ export function renderFrame(plan, opts) {
   const live = [];
   for (const phrase of plan.phrases) {
     for (const w of phrase.words) {
-      if (t >= w.start - 1e-6 && t < w.end) live.push(w);
+      if (t >= w.start - 1e-6 && t < w.end && (!opts.depth || (opts.depth === 'background') === (w.depth === 'background'))) live.push(w);
     }
   }
   // Background lanes first, then foreground, each by lane order.

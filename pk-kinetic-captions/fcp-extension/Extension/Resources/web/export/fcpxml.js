@@ -92,6 +92,7 @@ const BLEND_NAMES = {
  * @typedef {object} ExportOptions
  * @property {string} [projectName]
  * @property {string} [eventName]
+ * @property {"background"|"foreground"} [only]  Export just the words behind the agent, or just those in front.
  * @property {"native"|"pk"} [profile]   Stock Basic Title, or the installed PK template.
  * @property {number} [easingSamples]    Keyframes baked per transition.
  * @property {boolean} [includeGuideGap] Emit the spine gap that holds the titles.
@@ -111,7 +112,13 @@ export function exportFCPXML(plan, opts = {}) {
   /** @type {string[]} */
   const warnings = [];
 
-  const words = plan.phrases.flatMap((p) => p.words).sort((a, b) => a.start - b.start || a.lane - b.lane);
+  // `only` exports one layer: the words behind the agent, or those in front.
+  // Each becomes its own clip, stacked in Final Cut either side of a masked
+  // copy of the shot; inside it, every word is simply on top.
+  const words = plan.phrases.flatMap((p) => p.words)
+    .filter((w) => !opts.only || (opts.only === 'background') === (w.depth === 'background'))
+    .map((w) => (opts.only ? { ...w, depth: /** @type {const} */ ('foreground') } : w))
+    .sort((a, b) => a.start - b.start || a.lane - b.lane);
   if (!words.length) warnings.push('The plan contains no words, so the exported project is empty.');
 
   const extent = words.length ? Math.max(...words.map((w) => w.end)) : 1;

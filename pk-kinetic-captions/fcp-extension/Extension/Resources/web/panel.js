@@ -459,7 +459,14 @@ function drawPreview() {
   $('#pv-scrub').max = String(dur);
   $('#pv-scrub').value = String(state.time);
   $('#pv-time').textContent = `${state.time.toFixed(1)}s`;
-  $('#pv-svg').innerHTML = renderFrame(state.plan, { time: state.time, plate: 'none', scale: 1, standalone: true });
+  // Words behind the agent are drawn under a cut-out of the people in the
+  // frame, as the masked copy of the shot covers them in Final Cut.
+  const behind = hasBehind();
+  $('#pv-back').innerHTML = behind ? renderFrame(state.plan, { time: state.time, plate: 'none', scale: 1, standalone: true, depth: 'background', idPrefix: 'b-' }) : '';
+  $('#pv-svg').innerHTML = renderFrame(state.plan, { time: state.time, plate: 'none', scale: 1, standalone: true, ...(behind ? { depth: 'foreground' } : {}) });
+  $('#pv-cut').hidden = !behind || state.playing || !$('#pv-cut').getAttribute('src');
+  $('#dragout-back').hidden = !behind;
+  $('#dragout b').textContent = behind ? 'Drag: in front' : 'Drag to timeline';
   $('#pv-empty').hidden = state.segments.length > 0;
   drawGuides();
   drawSelection();
@@ -556,6 +563,9 @@ let frameBusy = false;
 let frameWanted = /** @type {number|null} */ (null);
 let frameShown = { src: '', time: -1 };
 
+/** Whether any word is set behind the agent. */
+const hasBehind = () => Boolean(state.plan?.phrases.some((p) => p.words.some((w) => w.depth === 'background')));
+
 function requestFrame(t) {
   frameWanted = t;
   if (!frameBusy) pumpFrame();
@@ -568,12 +578,21 @@ function pumpFrame() {
   const pic = pictureAt(state.segments, t);
   const img = $('#pv-img');
   if (!pic) { img.hidden = true; frameShown = { src: '', time: -1 }; return; }
-  if (pic.src === frameShown.src && (pic.still || Math.abs(pic.time - frameShown.time) < 1 / 30)) return;
+  // Cutting the agent out takes about half a second, so it is done for a
+  // still picture, not during playback.
+  const cutout = hasBehind() && !state.playing;
+  if (pic.src === frameShown.src && (pic.still || Math.abs(pic.time - frameShown.time) < 1 / 30) && cutout === frameShown.cutout) return;
 
   frameBusy = true;
   const height = Math.round(Math.min(1080, $('#pv').clientHeight * (window.devicePixelRatio || 1)));
-  callNative('frame', { path: pic.src, time: pic.time, height })
-    .then(({ image }) => { img.src = image; img.hidden = false; frameShown = { src: pic.src, time: pic.time }; })
+  callNative('frame', { path: pic.src, time: pic.time, height, cutout })
+    .then(({ image, person }) => {
+      img.src = image; img.hidden = false;
+      const cut = $('#pv-cut');
+      if (person) cut.src = person; else cut.removeAttribute('src');
+      cut.hidden = !cutout || !person;
+      frameShown = { src: pic.src, time: pic.time, cutout };
+    })
     .catch((err) => {
       if (err.message === 'needsAccess') return askForAccess(pic.src, err.folder);
       setStatus(`Preview: ${err.message}`, true);
@@ -603,7 +622,7 @@ let playFrom = 0, playClock = 0;
 function togglePlay() {
   state.playing = !state.playing;
   $('#pv-play').textContent = state.playing ? '❚❚' : '▶';
-  if (!state.playing) return;
+  if (!state.playing) { drawPreview(); return; }     // paused: fetch the frame with its cut-out
   if (state.time >= planDuration() - 0.05) state.time = 0;
   playFrom = state.time;
   playClock = performance.now();
@@ -1131,6 +1150,7 @@ function styleEditor(host, { blank }, onChange) {
   const colourAuto = el('button', { className: 'pv-btn', textContent: 'Style colour' });
   const opacity = range(0.1, 1, 0.05);
   const look = segOf(LOOKS);
+  const layer = segOf([['', 'Style'], ['foreground', 'In front'], ['background', 'Behind the agent']]);
   const lookHint = el('p', { className: 'hint span2' });
   // Effects. Gradient and glow are drawn in Final Cut by the PK title.
   const gradOn = segOf([['', 'Off'], ['on', 'On']]);
@@ -1159,6 +1179,7 @@ function styleEditor(host, { blank }, onChange) {
     ...row('Font', family), ...row('Style', face), ...row('Size', size.wrap), ...row('Capitals', casing),
     ...row('Colour', el('div', { className: 'rng' }, [colour, colourAuto])), ...row('Opacity', opacity.wrap),
     ...row('Blend', look), lookHint,
+    ...row('Layer', layer),
   ]);
   const fxPart = el('div', { className: 'anim-ed ed-part' }, [
     el('div', { className: 'ed-sub span2', textContent: 'Gradient' }),
@@ -1214,6 +1235,7 @@ function styleEditor(host, { blank }, onChange) {
   opacity.input.oninput = () => set({ opacity: Number(opacity.input.value) });
   opacity.out.ondblclick = () => set({ opacity: undefined });
   for (const b of look.children) b.onclick = () => set({ look: b.dataset.v || undefined });
+  for (const b of layer.children) b.onclick = () => set({ depth: b.dataset.v || undefined });
   const grad = (patch) => set({ gradient: { enabled: true, from: shownColour, to: '#7C3AED', angle: 0, ...value.gradient, ...patch } });
   for (const b of gradOn.children) b.onclick = () => (b.dataset.v ? grad({ enabled: true }) : set({ gradient: undefined }));
   gradFrom.oninput = () => grad({ from: gradFrom.value });
@@ -1246,6 +1268,7 @@ function styleEditor(host, { blank }, onChange) {
     opacity.out.textContent = value.opacity === undefined ? 'auto' : `${Math.round(value.opacity * 100)}%`;
     opacity.wrap.classList.toggle('is-auto', value.opacity === undefined);
     for (const b of look.children) b.classList.toggle('is-on', (b.dataset.v || '') === (value.look ?? ''));
+    for (const b of layer.children) b.classList.toggle('is-on', (b.dataset.v || '') === (value.depth ?? ''));
     const g = value.gradient?.enabled ? value.gradient : null;
     for (const b of gradOn.children) b.classList.toggle('is-on', !!b.dataset.v === !!g);
     gradFrom.value = g?.from ?? shownColour;
@@ -1570,10 +1593,17 @@ for (const [sel, key] of [['#pattern-scope', 'patternScope']]) {
  */
 $('#dragout').addEventListener('mousedown', () => {
   if (!state.plan) return;
-  const { xml } = exportFCPXML(state.plan, exportOptions({ as: 'clip' }));
+  const { xml } = exportFCPXML(state.plan, exportOptions({ as: 'clip', ...(hasBehind() ? { only: 'foreground' } : {}) }));
   callNative('beginDrag', { fcpxml: xml }).catch((err) => setStatus(err.message, true));
 });
 $('#dragout').addEventListener('dragstart', (e) => e.preventDefault());
+// The words behind the agent, as their own clip, to go under the masked shot.
+$('#dragout-back').addEventListener('mousedown', () => {
+  if (!state.plan) return;
+  const { xml } = exportFCPXML(state.plan, exportOptions({ as: 'clip', only: 'background', projectName: `${state.plan.templateName} Captions — behind` }));
+  callNative('beginDrag', { fcpxml: xml }).catch((err) => setStatus(err.message, true));
+});
+$('#dragout-back').addEventListener('dragstart', (e) => e.preventDefault());
 
 seg('#emphasis', (v) => { state.patch.hierarchy = { ...(state.patch.hierarchy ?? {}), emphasisDensity: v }; });
 seg('#density', (v) => { state.patch.hierarchy = { ...(state.patch.hierarchy ?? {}), captionDensity: v }; });

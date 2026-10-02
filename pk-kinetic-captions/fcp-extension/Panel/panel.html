@@ -39,6 +39,8 @@
 <section class="pstep" id="step-preview" hidden>
   <div id="pv" class="pv" title="Drag to move the captions">
     <img id="pv-img" alt="">
+    <div id="pv-back" class="pv-layer"></div>
+    <img id="pv-cut" class="pv-layer" alt="" hidden>
     <div id="pv-svg"></div>
     <div id="pv-guides" class="pv-guides"></div>
     <div id="pv-sel" class="pv-sel" hidden></div>
@@ -218,8 +220,13 @@
 </div>
 
 <footer class="pfoot">
-  <div id="dragout" class="dragchip is-off" title="Drag onto your Final Cut timeline, above the clip">
-    <b>Drag to timeline</b><span>drop it above your clip, like a title</span>
+  <div class="dragrow">
+    <div id="dragout-back" class="dragchip" hidden title="The words set behind the agent. In Final Cut: put this above your clip, then a copy of the clip with a Magnetic Mask on the agent above it.">
+      <b>Drag: behind the agent</b><span>above your clip, under the masked copy</span>
+    </div>
+    <div id="dragout" class="dragchip is-off" title="Drag onto your Final Cut timeline, above the clip">
+      <b>Drag to timeline</b><span>drop it above your clip, like a title</span>
+    </div>
   </div>
   <button id="apply" class="ghost sm wide" disabled>Or import as a new project</button>
   <p id="status" class="hint"></p>
