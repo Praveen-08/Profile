@@ -335,11 +335,14 @@ function select(id, { seek: doSeek = false } = {}) {
 function showWord() {
   const host = $('#step-word');
   const w = selectedWord();
+  $('#pv-quick').hidden = !w;
   if (!w) { host.hidden = true; return; }
   host.hidden = false;
   const o = state.overrides[w.id] ?? {};
   $('#w-text').value = o.text ?? w.text;
   setSeg('#w-level', w.level);
+  setSeg('#pv-level', w.level);
+  $('#pv-quick-word').textContent = o.text ?? w.text;
   const pct = Math.round((o.scale ?? 1) * 100);
   void pct;
   wordStyle.show(o, toHex(w.colour));
@@ -655,6 +658,8 @@ function drawWords() {
     for (const w of phrase.words) {
       const chip = document.createElement('button');
       chip.className = `wchip lv-${w.level}`;
+      chip.dataset.id = w.id;
+      chip.title = 'Double-click: main text ↔ highlight';
       chip.textContent = w.text;
       chip.title = `${w.level} · ${w.start.toFixed(2)}s`;
       chip.classList.toggle('is-sel', w.id === state.selected);
@@ -1230,7 +1235,29 @@ $('#w-text').onchange = () => {
   const text = $('#w-text').value.trim();
   overrideSelected({ text: text && text !== selectedWord()?.text ? text : undefined });
 };
-for (const b of $$('#w-level button')) b.onclick = () => overrideSelected({ level: b.dataset.v });
+for (const b of $$('#w-level button, #pv-level button')) b.onclick = () => overrideSelected({ level: b.dataset.v });
+
+// Quick level changes without leaving the picture: double-click a word to
+// swap main text and highlight; 1, 2, 3 set main, highlight, hero.
+$('#pv').addEventListener('dblclick', (e) => {
+  const w = wordAtPoint(e.clientX, e.clientY) ?? selectedWord();
+  if (!w) return;
+  if (w.id !== state.selected) select(w.id);
+  overrideSelected({ level: w.level === 'normal' ? 'emphasis' : 'normal' });
+});
+$('#words').addEventListener('dblclick', (e) => {
+  const chip = e.target.closest('[data-id]');
+  const w = chip && allWords().find((x) => x.id === chip.dataset.id);
+  if (!w) return;
+  select(w.id);
+  overrideSelected({ level: w.level === 'normal' ? 'emphasis' : 'normal' });
+});
+window.addEventListener('keydown', (e) => {
+  if (!state.selected || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable]')) return;
+  const level = { 1: 'normal', 2: 'emphasis', 3: 'hero' }[e.key];
+  if (level) { e.preventDefault(); overrideSelected({ level }); }
+});
 $('#w-hide').onclick = () => {
   const id = state.selected;
   overrideSelected({ hidden: true });

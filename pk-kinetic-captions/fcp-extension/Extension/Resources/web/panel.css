@@ -155,3 +155,7 @@ body.panel { height: auto; min-height: 100vh; overflow: visible; background: var
 .lic-row { display: flex; gap: 6px; }
 .lic-row input { flex: 1; min-width: 0; }
 .linkish { background: none; border: 0; padding: 6px 0 0; color: var(--muted); font: inherit; font-size: 11px; text-decoration: underline; cursor: pointer; }
+
+/* Quick level bar under the preview */
+.pv-quick { gap: 10px; align-items: center; justify-content: flex-start; }
+.pv-quick .hint b { color: var(--text, #fff); font-weight: 600; }

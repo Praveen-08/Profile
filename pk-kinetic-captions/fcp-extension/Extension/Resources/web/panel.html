@@ -58,7 +58,13 @@
     </div>
     <button id="pv-reset" class="pv-btn">Reset positions</button>
   </div>
-  <p class="hint">Click a word to style it. Drag to move · <b>⌘-drag</b> to resize (up or right grows).</p>
+  <div class="pv-row pv-quick" id="pv-quick" hidden>
+    <span class="hint">“<b id="pv-quick-word"></b>” is</span>
+    <div class="seg" id="pv-level">
+      <button data-v="normal">Main text</button><button data-v="emphasis">Highlight</button><button data-v="hero">Hero</button>
+    </div>
+  </div>
+  <p class="hint">Click a word to style it. <b>Double-click</b> switches it between main text and highlight (or press <b>1</b> / <b>2</b> / <b>3</b>). Drag to move · <b>⌘-drag</b> to resize.</p>
 </section>
 
 <section class="pstep" id="step-word" hidden>
@@ -70,7 +76,7 @@
 
   <h2 class="mt">Level</h2>
   <div class="seg wide" id="w-level">
-    <button data-v="normal">Normal</button><button data-v="emphasis">Emphasis</button><button data-v="hero">Hero</button>
+    <button data-v="normal">Main text</button><button data-v="emphasis">Highlight</button><button data-v="hero">Hero</button>
   </div>
 
   <h2 class="mt">Style <span class="hint">· this word only; blank follows its group</span></h2>
