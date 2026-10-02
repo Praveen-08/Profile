@@ -47,7 +47,7 @@ export const TEMPLATE_VERSION = 1;
  * Styling that applies to a whole group of words — the same fields a single
  * word can override.
  * @typedef {Pick<import('../core/types.js').WordOverride,
- *   "fontFamily"|"fontWeight"|"italic"|"casing"|"scale"|"colour"|"opacity"|"look"|"inAnimation"|"outAnimation"|"tune"|"gradient"|"glow"|"shine"|"activeColour">} GroupStyle
+ *   "fontFamily"|"fontWeight"|"italic"|"casing"|"scale"|"colour"|"opacity"|"look"|"inAnimation"|"outAnimation"|"tune"|"gradient"|"glow"|"shine"|"activeColour"|"depth">} GroupStyle
  */
 
 /**

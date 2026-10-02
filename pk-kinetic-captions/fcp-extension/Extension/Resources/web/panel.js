@@ -13,7 +13,7 @@
 
 import { compose } from './engine/compose.js';
 import { exportFCPXML } from './export/fcpxml.js';
-import { ingest } from './transcript/ingest.js';
+import { ingest, distributeLine } from './transcript/ingest.js';
 import { merge } from './templates/schema.js';
 import { BUILTIN_TEMPLATES } from './templates/builtin/index.js';
 import { parseColour, toHex } from './core/colour.js';
@@ -192,6 +192,8 @@ function useTimelineXML(xml, how) {
     if (!transcript.words.length) {
       return noteSource('That timeline has no captions on it. Transcribe the clip in Final Cut first.', true);
     }
+    state.rawTranscript = transcript;
+    state.textEdits = [];
     state.transcript = transcript;
     state.segments = videoSegments(xml);
     state.phraseNudges = {};
@@ -240,6 +242,7 @@ function currentTemplate() {
 
 function regenerate() {
   if (!state.transcript) return;
+  if (state.rawTranscript) state.transcript = editedTranscript();
   try {
     const template = merge(merge(currentTemplate(), state.patch), customPatch(currentTemplate()));
     state.plan = compose({
@@ -518,6 +521,7 @@ function showWord() {
   setSeg('#w-level', w.level);
   setSeg('#pv-level', w.level);
   setSeg('#w-break', o.breakBefore ?? 'auto');
+  setSeg('#w-with', o.withPrevious ? 'with' : 'own');
   setSeg('#pv-break', o.breakBefore ?? 'auto');
   $('#pv-quick-word').textContent = o.text ?? w.text;
   const pct = Math.round((o.scale ?? 1) * 100);
@@ -869,6 +873,27 @@ function drawWords() {
     const group = document.createElement('div');
     group.className = 'wgroup';
     host.append(group);
+    // Caption tools: edit its text; words one by one, or all at once.
+    const tools = document.createElement('span');
+    tools.className = 'wtools';
+    const edit = Object.assign(document.createElement('button'), { className: 'wtool', textContent: '✎', title: 'Edit this caption’s text' });
+    edit.onclick = (e) => { e.stopPropagation(); startCaptionEdit(group, phrase); };
+    const allAtOnce = phrase.words.length > 1 && phrase.words.slice(1).every((w) => state.overrides[w.id]?.withPrevious);
+    const reveal = Object.assign(document.createElement('button'), {
+      className: `wtool${allAtOnce ? ' is-on' : ''}`, textContent: allAtOnce ? 'Together' : 'Word by word',
+      title: 'Click to switch: words appear one by one as they are said, or the whole caption at once',
+    });
+    reveal.onclick = (e) => {
+      e.stopPropagation();
+      for (const w of phrase.words.slice(1)) {
+        const { withPrevious: _, ...rest } = state.overrides[w.id] ?? {};
+        const next = allAtOnce ? rest : { ...rest, withPrevious: true };
+        if (Object.keys(next).length) state.overrides[w.id] = next; else delete state.overrides[w.id];
+      }
+      regenerate();
+      replayCurrentPhrase();
+    };
+    tools.append(edit, reveal);
     for (const w of phrase.words) {
       if (state.overrides[w.id]?.breakBefore === 'line' && w !== phrase.words[0]) {
         const nl = document.createElement('span');
@@ -886,8 +911,10 @@ function drawWords() {
       chip.classList.toggle('is-sel', w.id === state.selected);
       chip.classList.toggle('is-custom', Boolean(state.overrides[w.id] || state.wordNudges[w.id]));
       chip.onclick = () => select(w.id, { seek: true });
+      if (state.overrides[w.id]?.withPrevious) chip.classList.add('is-with');
       group.append(chip);
     }
+    group.append(tools);
   }
   const hidden = Object.entries(state.overrides).filter(([, o]) => o.hidden);
   if (hidden.length) {
@@ -1482,6 +1509,7 @@ $('#w-text').onchange = () => {
   overrideSelected({ text: text && text !== selectedWord()?.text ? text : undefined });
 };
 for (const b of $$('#w-level button, #pv-level button')) b.onclick = () => overrideSelected({ level: b.dataset.v });
+for (const b of $$('#w-with button')) b.onclick = () => { overrideSelected({ withPrevious: b.dataset.v === 'with' ? true : undefined }); replayCurrentPhrase(); };
 // Where captions split: before the selected word.
 for (const b of $$('#w-break button, #pv-break button')) {
   b.onclick = () => overrideSelected({ breakBefore: b.dataset.v === 'auto' ? undefined : b.dataset.v });
@@ -1687,6 +1715,7 @@ function projectKey(xml, transcript) {
 const editable = () => ({
   templateId: state.templateId, patch: state.patch, custom: state.custom,
   overrides: state.overrides, wordNudges: state.wordNudges, phraseNudges: state.phraseNudges,
+  textEdits: state.textEdits ?? [],
 });
 
 const history = (() => {
@@ -1725,6 +1754,7 @@ const history = (() => {
       Object.assign(state, {
         templateId: s.templateId, patch: s.patch, custom: s.custom,
         overrides: s.overrides, wordNudges: s.wordNudges, phraseNudges: s.phraseNudges,
+        textEdits: s.textEdits ?? [],
       });
       current = json;
       lastAt = 0;
@@ -1756,7 +1786,11 @@ function saveEditsSoon() {
     // edit only comes back onto the same word.
     const ids = new Set([...Object.keys(state.overrides), ...Object.keys(state.wordNudges), ...Object.keys(state.phraseNudges)]);
     const words = Object.fromEntries((state.transcript?.words ?? []).filter((w) => ids.has(w.id)).map((w) => [w.id, w.text]));
-    const json = JSON.stringify({ version: 1, saved: new Date().toISOString(), words, overrides: state.overrides, wordNudges: state.wordNudges, phraseNudges: state.phraseNudges });
+    // Text edits name the original words they replace, with their text, so
+    // they too only come back onto the same words.
+    const raw = new Map((state.rawTranscript?.words ?? []).map((w) => [w.id, w.text]));
+    const textEdits = (state.textEdits ?? []).map((e) => ({ ...e, was: e.ids.map((id) => raw.get(id)) }));
+    const json = JSON.stringify({ version: 1, saved: new Date().toISOString(), words, overrides: state.overrides, wordNudges: state.wordNudges, phraseNudges: state.phraseNudges, textEdits });
     callNative('saveEdits', { key: state.editsKey, json }).catch(() => {});
   }, 500);
 }
@@ -1771,8 +1805,18 @@ async function restoreEdits(key, transcript) {
   const text = new Map(transcript.words.map((w) => [w.id, w.text]));
   const same = (id) => saved.words?.[id] !== undefined && text.get(id) === saved.words[id];
   const keep = (rec) => Object.fromEntries(Object.entries(rec ?? {}).filter(([id]) => same(id)));
-  const overrides = keep(saved.overrides), wordNudges = keep(saved.wordNudges), phraseNudges = keep(saved.phraseNudges);
-  const count = new Set([...Object.keys(overrides), ...Object.keys(wordNudges), ...Object.keys(phraseNudges)]).size;
+  const raw = new Map((state.rawTranscript?.words ?? []).map((w) => [w.id, w.text]));
+  const textEdits = (saved.textEdits ?? []).filter((e) => e.ids?.length && e.ids.every((id, k) => raw.get(id) === e.was?.[k]))
+    .map(({ ids, text }) => ({ ids, text }));
+  // Word edits are checked against the words as edited, so restore the text first.
+  state.textEdits = textEdits;
+  const edited = editedTranscript();
+  const textNow = new Map(edited.words.map((w) => [w.id, w.text]));
+  const sameNow = (id) => saved.words?.[id] !== undefined && textNow.get(id) === saved.words[id];
+  const keepNow = (rec) => Object.fromEntries(Object.entries(rec ?? {}).filter(([id]) => sameNow(id)));
+  const overrides = keepNow(saved.overrides), wordNudges = keepNow(saved.wordNudges), phraseNudges = keepNow(saved.phraseNudges);
+  void keep;
+  const count = new Set([...Object.keys(overrides), ...Object.keys(wordNudges), ...Object.keys(phraseNudges)]).size + textEdits.length;
   if (!count) return;
   Object.assign(state, { overrides, wordNudges, phraseNudges });
   history.reset();
@@ -1856,4 +1900,97 @@ for (const edge of ['top', 'bottom', 'left', 'right']) {
   };
 }
 $('#zone-reset').onclick = () => { delete place().zones[platformKey()]; showPlace(); changed(); };
+
+/* ------------------------------------------------------------------ *
+ * Editing the caption text
+ * ------------------------------------------------------------------ */
+
+/**
+ * The transcript with the editor's text edits applied. Each edit replaces a
+ * run of the original words with new text: the same number of words keeps
+ * every word's timing; a different number spreads the run's time across the
+ * new words by syllable. New words get ids derived from the run's first word.
+ */
+function editedTranscript() {
+  const raw = state.rawTranscript;
+  if (!raw) return state.transcript;
+  const edits = state.textEdits ?? [];
+  if (!edits.length) return raw;
+  const byFirst = new Map(edits.map((e) => [e.ids[0], e]));
+  const covered = new Set(edits.flatMap((e) => e.ids));
+  const out = [];
+  for (const w of raw.words) {
+    const e = byFirst.get(w.id);
+    if (e) {
+      const run = e.ids.map((id) => raw.words.find((x) => x.id === id)).filter(Boolean);
+      const tokens = e.text.split(/\s+/).filter(Boolean);
+      if (tokens.length === run.length) {
+        run.forEach((r, k) => out.push({ ...r, text: tokens[k], spoken: tokens[k] }));
+      } else {
+        const spread = distributeLine(tokens.join(' '), run[0].start, run[run.length - 1].end);
+        spread.forEach((n, k) => out.push({ ...n, id: k === 0 ? run[0].id : `${run[0].id}.${k}`, index: 0 }));
+      }
+      continue;
+    }
+    if (!covered.has(w.id)) out.push(w);
+  }
+  return { ...raw, words: out.map((w, i) => ({ ...w, index: i })) };
+}
+
+/** The original words a current word stands for. */
+function rawIdsOf(id) {
+  const e = (state.textEdits ?? []).find((x) => x.ids.includes(id) || id.startsWith(`${x.ids[0]}.`));
+  return e ? e.ids : [id];
+}
+
+/** Replace a caption's text. */
+function editCaptionText(phrase, text) {
+  const rawIds = [...new Set(phrase.words.flatMap((w) => rawIdsOf(w.id)))];
+  const order = new Map((state.rawTranscript?.words ?? []).map((w, i) => [w.id, i]));
+  rawIds.sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
+  const clean = text.replace(/\s+/g, ' ').trim();
+  // Edits that overlap this caption are replaced by this one.
+  const others = (state.textEdits ?? []).filter((e) => !e.ids.some((id) => rawIds.includes(id)));
+  const original = rawIds.map((id) => state.rawTranscript.words.find((w) => w.id === id)?.text).join(' ');
+  state.textEdits = clean && clean !== original ? [...others, { ids: rawIds, text: clean }] : others;
+  // Per-word text overrides on these words would fight the new text.
+  for (const w of phrase.words) {
+    if (state.overrides[w.id]?.text !== undefined) {
+      const { text: _, ...rest } = state.overrides[w.id];
+      if (Object.keys(rest).length) state.overrides[w.id] = rest; else delete state.overrides[w.id];
+    }
+  }
+  // What was typed stays one caption: a break before its first word, its
+  // other words joined to it, and a break before the word that follows.
+  const tokens = clean.split(' ').filter(Boolean);
+  const ids = !clean ? [] : tokens.length === rawIds.length ? rawIds : tokens.map((_, k) => (k ? `${rawIds[0]}.${k}` : rawIds[0]));
+  const setBreak = (id, b) => { state.overrides[id] = { ...(state.overrides[id] ?? {}), breakBefore: b }; };
+  ids.forEach((id, k) => setBreak(id, k ? 'join' : 'caption'));
+  const raw = state.rawTranscript.words;
+  const after = raw[raw.findIndex((w) => w.id === rawIds[rawIds.length - 1]) + 1];
+  if (after && !state.overrides[after.id]?.breakBefore) setBreak(after.id, 'caption');
+  regenerate();
+}
+
+/** Turn a caption group in the words list into a text field. */
+function startCaptionEdit(group, phrase) {
+  const words = new Map((state.transcript?.words ?? []).map((w) => [w.id, w]));
+  const current = phrase.words.map((w) => state.overrides[w.id]?.text ?? words.get(w.id)?.text ?? w.text).join(' ');
+  const input = Object.assign(document.createElement('input'), { type: 'text', className: 'wedit', value: current, spellcheck: true });
+  group.replaceChildren(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const finish = (save) => {
+    if (done) return;
+    done = true;
+    if (save && input.value.trim() !== current) editCaptionText(phrase, input.value);
+    else drawWords();
+  };
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  };
+  input.onblur = () => finish(true);
+}
 

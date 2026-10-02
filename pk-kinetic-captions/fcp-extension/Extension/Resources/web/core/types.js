@@ -296,6 +296,7 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * @property {{enabled:boolean, colour?:string, intensity?:number, radius?:number}} [glow]  Glow, over the style's.
  * @property {boolean} [shine]     A light sweep across the word as it lands.
  * @property {string} [activeColour]  Hex. The colour while the word is being spoken; it settles to its usual colour after.
+ * @property {boolean} [withPrevious]  Appears at the same moment as the word before it, instead of when it is said.
  * @property {'caption'|'line'|'join'} [breakBefore]  Before this word: start a new caption, start a new line, or stay with the caption before.
  * @property {boolean} [hidden]
  */

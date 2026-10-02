@@ -221,6 +221,16 @@ export function compose(opts) {
     const ceiling = nextPhrase ? nextPhrase.start + maxOverlap : Infinity;
     const phraseEnd = Math.min(phrase.end + template.motion.hold, Math.max(phrase.end + 0.02, ceiling));
 
+    // When each word appears. Word by word it is when it is said; a word set
+    // to appear with the one before takes that word's moment (so a run of
+    // them lands together), and a whole-phrase reveal starts every word at once.
+    /** @type {number[]} */
+    const appears = [];
+    phrase.words.forEach((w, i) => {
+      const together = i > 0 && (styles[i].o.withPrevious ?? styles[i].e.withPrevious);
+      appears.push(template.motion.reveal === 'phrase' ? phrase.start : together ? appears[i - 1] : w.start);
+    });
+
     for (let i = 0; i < phrase.words.length; i++) {
       const w = phrase.words[i];
       const { level, o, e, pattern: fromPattern, colourSource } = styles[i];
@@ -228,11 +238,11 @@ export function compose(opts) {
       if (!laid) continue;
 
       const item = items[i];
-      const start = snapToFrame(template.motion.reveal === 'phrase' ? phrase.start : w.start, frame.fps);
+      const start = snapToFrame(appears[i], frame.fps);
       const end = snapToFrame(phraseEnd, frame.fps);
       const life = atLeastOneFrame(Math.max(end - start, 2 / frame.fps), frame.fps);
 
-      const resolved = resolveInteraction(level, template, { depthOverride: o.depth });
+      const resolved = resolveInteraction(level, template, { depthOverride: e.depth });
       // A word can carry its own look — one word in Difference in a clean line.
       const interaction = e.look && INTERACTIONS[e.look] ? { ...resolved, blend: INTERACTIONS[e.look].blend } : resolved;
       let colour = colourSource ? parseColour(colourSource) : (fromPattern ?? palette[level]);
