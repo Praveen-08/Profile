@@ -69,6 +69,12 @@
       <button data-v="normal">Main text</button><button data-v="emphasis">Highlight</button><button data-v="hero">Hero</button>
     </div>
   </div>
+  <div class="pv-row pv-quick" id="pv-quick-break" hidden>
+    <span class="hint">and starts</span>
+    <div class="seg" id="pv-break">
+      <button data-v="auto" title="Let the style decide">Auto</button><button data-v="caption" title="Start a new caption at this word">New caption</button><button data-v="line" title="Start a new line at this word">New line</button><button data-v="join" title="Keep this word with the caption before">Join previous</button>
+    </div>
+  </div>
   <p class="hint pv-tip">Click a word to style it · double-click or <b>1 2 3</b> to change its level · drag to move · <b>⌘-drag</b> to resize</p>
 </section>
 
@@ -140,6 +146,8 @@
         <option value="editorial">Editorial</option><option value="cinematic">Cinematic</option><option value="luxury">Luxury</option>
         <option value="punchy">Punchy</option><option value="energetic">Energetic</option>
       </select>
+      <label>Entrance &amp; exit</label>
+      <div class="seg" id="a-dissolve"><button data-v="off" class="is-on">Style's own</button><button data-v="on">Cross dissolve</button></div>
       <label>Words appear</label>
       <div class="seg" id="a-reveal"><button data-v="spoken">As spoken</button><button data-v="phrase">Whole phrase</button></div>
     </div>
@@ -176,6 +184,11 @@
   <h2 class="mt">Level</h2>
   <div class="seg wide" id="w-level">
     <button data-v="normal">Main text</button><button data-v="emphasis">Highlight</button><button data-v="hero">Hero</button>
+  </div>
+
+  <h2 class="mt">This word starts</h2>
+  <div class="seg wide" id="w-break">
+    <button data-v="auto" class="is-on">Automatic</button><button data-v="caption">A new caption</button><button data-v="line">A new line</button><button data-v="join">With the caption before</button>
   </div>
 
   <h2 class="mt">Edit</h2>

@@ -64,7 +64,9 @@ const TRAIL_OK = new Set(['been', 'be', 'got', 'get', 'it', 'me', 'you', 'us', '
 /**
  * @param {Word[]} words
  * @param {Template} template
- * @param {{scores?: WordScore[], maxWidthEm?: number}} [ctx]
+ * @param {{scores?: WordScore[], maxWidthEm?: number, breaks?: Map<number, 'caption'|'join'>}} [ctx]
+ *   `breaks`: the editor's forced breaks, by word index — 'caption' starts a
+ *   new phrase at that word, 'join' keeps it with the phrase before.
  * @returns {Phrase[]}
  */
 export function groupPhrases(words, template, ctx = {}) {
@@ -88,6 +90,16 @@ export function groupPhrases(words, template, ctx = {}) {
   // Allowing two extra words at a steep price lets it choose the phrase
   // instead, which is always the better caption.
   const hardMax = maxWords + 2;
+  const breaks = ctx.breaks ?? new Map();
+  // A joined word may make a phrase longer than any the optimiser would pick.
+  const longest = breaks.size ? Math.max(hardMax, 24) : hardMax;
+  /** May words[start..end) be one phrase, given the editor's breaks? */
+  const allowed = (start, end) => {
+    if (start > 0 && breaks.get(start) === 'join') return false;          // must stay with the phrase before
+    for (let k = start + 1; k < end; k++) if (breaks.get(k) === 'caption') return false;
+    if (end < n && breaks.get(end) === 'join') return false;              // the next word must join this phrase
+    return true;
+  };
 
   const n = words.length;
   /** @type {number[]} */ const best = new Array(n + 1).fill(Infinity);
@@ -95,9 +107,10 @@ export function groupPhrases(words, template, ctx = {}) {
   best[0] = 0;
 
   for (let end = 1; end <= n; end++) {
-    for (let len = 1; len <= hardMax && end - len >= 0; len++) {
+    for (let len = 1; len <= longest && end - len >= 0; len++) {
       const start = end - len;
       if (best[start] === Infinity) continue;
+      if (breaks.size && !allowed(start, end)) continue;
       const overflow = len > maxWords ? (len - maxWords) ** 2 * 6 : 0;
       const cost = best[start] + phraseCost(words, start, end, shape, template, widthBudget, scoreOf)
         + overflow + boundaryCost(words, end, n, shape);

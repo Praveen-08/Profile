@@ -113,7 +113,10 @@ export function compose(opts) {
   const scores = scoreWords(words, template);
 
   /* 3 — phrase ----------------------------------------------------- */
-  const phrases = groupPhrases(words, template, { scores });
+  // The editor's own caption breaks: start a new caption at a word, or keep
+  // it with the caption before.
+  const breaks = new Map(words.map((w, i) => [i, overrides[w.id]?.breakBefore]).filter(([, b]) => b === 'caption' || b === 'join'));
+  const phrases = groupPhrases(words, template, { scores, breaks });
 
   /* 4 — levels ----------------------------------------------------- */
   const levels = assignLevels(phrases, scores, template, overrides);
@@ -192,7 +195,7 @@ export function compose(opts) {
         // without a face falls back to the weight-derived name.
         ...(e.fontFace ? { face: e.fontFace } : {}),
       };
-      return { id: w.id, text: w.text, level, font, size: type.sizes[level] * (e.scale ?? 1) };
+      return { id: w.id, text: w.text, level, font, size: type.sizes[level] * (e.scale ?? 1), lineBreak: i > 0 && overrides[w.id]?.breakBefore === 'line' };
     });
 
     const raw = layoutBlock(items, zone, template, frame);

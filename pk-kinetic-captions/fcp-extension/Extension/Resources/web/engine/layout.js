@@ -259,7 +259,10 @@ export function layoutBlock(items, zone, template, frame, opts = {}) {
   let lineWidth = 0;
   for (const it of sized) {
     const gapPx = lines[lines.length - 1].length ? template.spacing.wordGap * it.size : 0;
-    if (lineWidth + gapPx + it.width > maxWidthPx && lines[lines.length - 1].length && lines.length < template.hierarchy.maxLines) {
+    // The editor asked for a new line here: honoured whatever the width or line count.
+    if (it.lineBreak && lines[lines.length - 1].length) {
+      lines.push([]); lineWidth = 0;
+    } else if (lineWidth + gapPx + it.width > maxWidthPx && lines[lines.length - 1].length && lines.length < template.hierarchy.maxLines) {
       lines.push([]); lineWidth = 0;
     }
     const g = lines[lines.length - 1].length ? template.spacing.wordGap * it.size : 0;
@@ -272,7 +275,7 @@ export function layoutBlock(items, zone, template, frame, opts = {}) {
   // the word it belongs to — but only when the line below has room.
   for (let li = 0; li < lines.length - 1; li++) {
     const line = lines[li], next = lines[li + 1];
-    if (line.length < 2) continue;
+    if (line.length < 2 || next[0]?.lineBreak) continue;    // never undo the editor's own break
     const tail = line[line.length - 1];
     if (!isFunctionWord(tail.text)) continue;
     const nextWidth = next.reduce((a, it, k) => a + it.width + (k ? template.spacing.wordGap * it.size : 0), 0);

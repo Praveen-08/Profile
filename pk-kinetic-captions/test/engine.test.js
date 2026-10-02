@@ -529,3 +529,45 @@ test('groups style together: main, highlights, hook and pattern, with the word o
     .phrases.flatMap((p) => p.words).filter((w) => w.level !== 'normal' && w.start >= 1.5);
   for (const w of patterned) assert.equal(rgb(w.colour), '18,52,86');
 });
+
+test('the editor can start a new caption, join the caption before, or break a line', () => {
+  const transcript = ingest('This beautiful home has four bedrooms and a stunning view of the harbour at sunset', { format: 'text' });
+  const template = builtinById('pk-modern');
+  const frame = { width: 1080, height: 1920, fps: 30 };
+  const base = compose({ transcript, template, frame });
+  const firstOf = (plan) => plan.phrases.map((p) => p.words[0].text.toLowerCase());
+  const phraseOf = (plan, text) => plan.phrases.findIndex((p) => p.words.some((w) => w.text.toLowerCase() === text));
+
+  // A new caption at "four".
+  const four = transcript.words.find((w) => w.text === 'four');
+  const split = compose({ transcript, template, frame, overrides: { [four.id]: { breakBefore: 'caption' } } });
+  assert.ok(firstOf(split).includes('four'), 'a caption starts at "four"');
+
+  // Join the first word of the second caption onto the first.
+  const second = base.phrases[1].words[0];
+  const joined = compose({ transcript, template, frame, overrides: { [second.id]: { breakBefore: 'join' } } });
+  assert.equal(phraseOf(joined, second.text.toLowerCase()), 0, `"${second.text}" stays with the first caption`);
+
+  // A new line inside a caption, without a new caption.
+  const w = base.phrases[0].words[1];
+  const lined = compose({ transcript, template, frame, overrides: { [w.id]: { breakBefore: 'line' } } });
+  const p0 = lined.phrases[0].words;
+  const a = p0.find((x) => x.id === base.phrases[0].words[0].id), b = p0.find((x) => x.id === w.id);
+  assert.ok(a.position.y > b.position.y + 0.005, 'the word moved onto a line below');
+  assert.equal(lined.phrases.length, base.phrases.length);
+});
+
+test('a cross dissolve is opacity only, on a gentle curve, in and out', () => {
+  const t = merge(builtinById('pk-editorial'), { motion: { in: { normal: 'dissolve', emphasis: 'dissolve', hero: 'dissolve' }, out: { normal: 'dissolve', emphasis: 'dissolve', hero: 'dissolve' } } });
+  const plan = compose({ transcript: ingest('A calm and quiet home by the water', { format: 'text' }), template: t, frame: { width: 1080, height: 1920, fps: 30 } });
+  const first = plan.phrases[0].words[0];
+  assert.ok(first.motion.inDuration >= 0.3, 'a word with room to breathe gets a real dissolve');
+  for (const w of plan.phrases.flatMap((p) => p.words)) {
+    assert.deepEqual(w.motion.offsetX, []);
+    assert.deepEqual(w.motion.offsetY, []);
+    assert.deepEqual(w.motion.scale, []);
+    assert.ok(w.motion.blur.every((k) => k.v === 0));
+    assert.equal(w.motion.opacity[0].v, 0);
+    assert.equal(w.motion.opacity.at(-1).v, 0);
+  }
+});

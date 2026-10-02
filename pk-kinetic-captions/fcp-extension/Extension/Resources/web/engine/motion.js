@@ -27,6 +27,8 @@ export const EASING = {
   outSoft: [0.25, 0.46, 0.45, 0.94],
   outSlow: [0.16, 1, 0.3, 1],
   inOut: [0.65, 0, 0.35, 1],
+  // Sine in-out: the gentle S of a cross dissolve, no snap at either end.
+  dissolve: [0.37, 0, 0.63, 1],
   in: [0.64, 0, 0.78, 0],
   back: [0.34, 1.4, 0.64, 1],         // restrained overshoot
   backHard: [0.34, 1.7, 0.5, 1],
@@ -115,9 +117,12 @@ export function buildMotion({ level, template, life, capFraction, inOverride, ou
   // 30% is spent fully on screen.
   const budget = Math.max(0.05, life * 0.35);
   // A typewriter is paced by its letters (~28 a second) unless the editor set a time.
-  const natural = inAnimation === 'typewriter' ? Math.max(0.12, letters * 0.036) : style.inDur * levelDur / speed;
+  // A cross dissolve wants time to read as a dissolve rather than a blink.
+  const DISSOLVE = 0.4 / speed;
+  const natural = inAnimation === 'typewriter' ? Math.max(0.12, letters * 0.036)
+    : inAnimation === 'dissolve' ? DISSOLVE : style.inDur * levelDur / speed;
   const inDuration = Math.min(tune.inDuration ?? natural, budget);
-  const outDuration = Math.min(tune.outDuration ?? style.outDur * levelDur / speed, budget);
+  const outDuration = Math.min(tune.outDuration ?? (outAnimation === 'dissolve' ? DISSOLVE : style.outDur * levelDur / speed), budget);
   const outStart = Math.max(inDuration + Math.min(0.04, life * 0.05), life - outDuration);
 
   // Movement distance scales with the word's own size, so a hero word travels
@@ -220,6 +225,11 @@ function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level, fro
       ch.scale.push({ t: 0, v: scaleFrom * 0.9 }, { t: inDuration, v: 1, ease: ein });
       travel(DIRECTIONS.up, 0.5);
       break;
+    case 'dissolve':
+      // A cross dissolve: opacity only, on a gentle S-curve. No movement,
+      // no scale, no blur — the word simply appears.
+      ch.opacity.push({ t: 0, v: 0 }, { t: inDuration, v: 1, ease: EASING.dissolve });
+      break;
     case 'rotate':
       // Swings in about its centre while it grows into place — the turn and
       // the scale share one curve so the word lands as a single movement.
@@ -246,7 +256,7 @@ function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level, fro
     default: fadeIn();
   }
 
-  if (style.blur > 0 && kind !== 'blur' && level !== 'normal') {
+  if (style.blur > 0 && kind !== 'blur' && kind !== 'dissolve' && level !== 'normal') {
     ch.blur.push({ t: 0, v: style.blur }, { t: inDuration, v: 0, ease: safe });
   }
 }
@@ -257,6 +267,9 @@ function applyOut(kind, ch, { outStart, life, outDuration, dist, style, eout, fr
 
   switch (kind) {
     case 'fade': fadeOut(); break;
+    case 'dissolve':
+      ch.opacity.push({ t: outStart, v: 1, ease: EASING.linear }, { t: life, v: 0, ease: EASING.dissolve });
+      break;
     case 'scale':
       fadeOut();
       ch.scale.push({ t: outStart, v: 1, ease: EASING.linear }, { t: life, v: 1.04, ease: eout });

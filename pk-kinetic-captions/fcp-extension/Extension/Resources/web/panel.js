@@ -497,6 +497,7 @@ function showWord() {
   const host = $('#step-word');
   const w = selectedWord();
   $('#pv-quick').hidden = !w;
+  $('#pv-quick-break').hidden = !w;
   $('#word-empty').hidden = Boolean(w);
   if (!w) { host.hidden = true; return; }
   host.hidden = false;
@@ -504,6 +505,8 @@ function showWord() {
   $('#w-text').value = o.text ?? w.text;
   setSeg('#w-level', w.level);
   setSeg('#pv-level', w.level);
+  setSeg('#w-break', o.breakBefore ?? 'auto');
+  setSeg('#pv-break', o.breakBefore ?? 'auto');
   $('#pv-quick-word').textContent = o.text ?? w.text;
   const pct = Math.round((o.scale ?? 1) * 100);
   void pct;
@@ -746,7 +749,11 @@ function customPatch(base) {
   const pct = c[sizeKey()] / 100;
   const a = c.anim ?? {};
   const g = a.groups ?? {};
-  const motionIn = {}, motionOut = {};
+  // "Cross dissolve everything": the default for every word, which a type's
+  // or a word's own animation can still override.
+  const dz = a.dissolve ? 'dissolve' : undefined;
+  const motionIn = dz ? { normal: dz, emphasis: dz, hero: dz } : {};
+  const motionOut = dz ? { normal: dz, emphasis: dz, hero: dz } : {};
   if (g.normal?.in) motionIn.normal = g.normal.in;
   if (g.high?.in) { motionIn.emphasis = g.high.in; motionIn.hero = g.high.in; }
   if (g.normal?.out) motionOut.normal = g.normal.out;
@@ -756,7 +763,7 @@ function customPatch(base) {
       ...(a.feel ? { style: a.feel } : {}),
       ...(a.reveal ? { reveal: a.reveal } : {}),
       in: motionIn, out: motionOut,
-      patternIn: g.pattern?.in || undefined, patternOut: g.pattern?.out || undefined,
+      patternIn: g.pattern?.in || dz, patternOut: g.pattern?.out || dz,
       tune: { normal: g.normal?.tune ?? {}, emphasis: g.high?.tune ?? {}, hero: g.high?.tune ?? {}, pattern: g.pattern?.tune ?? {} },
     },
     scale: { base: base.scale.base * pct },
@@ -800,6 +807,7 @@ function showCustom() {
   drawPattern();
   $('#a-feel').value = c.anim?.feel ?? '';
   setSeg('#a-reveal', c.anim?.reveal || 'spoken');
+  setSeg('#a-dissolve', c.anim?.dissolve ? 'on' : 'off');
   showTypeCards();
 }
 
@@ -845,7 +853,18 @@ function drawWords() {
   const host = $('#words');
   host.replaceChildren();
   for (const phrase of state.plan.phrases) {
+    // Each caption is its own group, so its grouping can be read and changed.
+    const group = document.createElement('div');
+    group.className = 'wgroup';
+    host.append(group);
     for (const w of phrase.words) {
+      if (state.overrides[w.id]?.breakBefore === 'line' && w !== phrase.words[0]) {
+        const nl = document.createElement('span');
+        nl.className = 'wnl';
+        nl.textContent = '↵';
+        nl.title = 'New line';
+        group.append(nl);
+      }
       const chip = document.createElement('button');
       chip.className = `wchip lv-${w.level}`;
       chip.dataset.id = w.id;
@@ -855,11 +874,8 @@ function drawWords() {
       chip.classList.toggle('is-sel', w.id === state.selected);
       chip.classList.toggle('is-custom', Boolean(state.overrides[w.id] || state.wordNudges[w.id]));
       chip.onclick = () => select(w.id, { seek: true });
-      host.append(chip);
+      group.append(chip);
     }
-    const br = document.createElement('span');
-    br.className = 'wbreak';
-    host.append(br);
   }
   const hidden = Object.entries(state.overrides).filter(([, o]) => o.hidden);
   if (hidden.length) {
@@ -1029,8 +1045,8 @@ window.addEventListener('resize', () => drawPreview());
  * Text style editor — one block, used for each group and for a word
  * ------------------------------------------------------------------ */
 
-const IN_ANIMS = [['fade', 'Fade'], ['rise', 'Rise'], ['slide', 'Slide'], ['scale', 'Scale up'], ['pop', 'Pop'], ['stretch', 'Stretch'], ['rotate', 'Rotate in'], ['typewriter', 'Typewriter'], ['reveal', 'Reveal']];
-const OUT_ANIMS = [['fade', 'Fade'], ['scale', 'Grow'], ['shrink', 'Shrink'], ['slide', 'Slide away'], ['maskExit', 'Cut']];
+const IN_ANIMS = [['dissolve', 'Cross dissolve'], ['fade', 'Fade'], ['rise', 'Rise'], ['slide', 'Slide'], ['scale', 'Scale up'], ['pop', 'Pop'], ['stretch', 'Stretch'], ['rotate', 'Rotate in'], ['typewriter', 'Typewriter'], ['reveal', 'Reveal']];
+const OUT_ANIMS = [['dissolve', 'Cross dissolve'], ['fade', 'Fade'], ['scale', 'Grow'], ['shrink', 'Shrink'], ['slide', 'Slide away'], ['maskExit', 'Cut']];
 const IN_EASES = [['out', 'Smooth'], ['outSoft', 'Soft'], ['outSlow', 'Slow settle'], ['inOut', 'Even'], ['back', 'Bouncy'], ['backHard', 'Springy'], ['linear', 'Linear']];
 const OUT_EASES = [['inOut', 'Smooth'], ['in', 'Accelerate'], ['linear', 'Linear']];
 /** Caption fonts that read well and pair well — the research shortlist. */
@@ -1434,6 +1450,9 @@ function animEditor(host, blank, onChange) {
 }
 
 $('#a-feel').onchange = () => { state.custom.anim.feel = $('#a-feel').value; changed(); replayCurrentPhrase(); };
+for (const b of $$('#a-dissolve button')) {
+  b.onclick = () => { state.custom.anim.dissolve = b.dataset.v === 'on'; setSeg('#a-dissolve', b.dataset.v); changed(); replayCurrentPhrase(); };
+}
 for (const b of $$('#a-reveal button')) {
   b.onclick = () => { state.custom.anim.reveal = b.dataset.v; setSeg('#a-reveal', b.dataset.v); changed(); replayCurrentPhrase(); };
 }
@@ -1451,6 +1470,10 @@ $('#w-text').onchange = () => {
   overrideSelected({ text: text && text !== selectedWord()?.text ? text : undefined });
 };
 for (const b of $$('#w-level button, #pv-level button')) b.onclick = () => overrideSelected({ level: b.dataset.v });
+// Where captions split: before the selected word.
+for (const b of $$('#w-break button, #pv-break button')) {
+  b.onclick = () => overrideSelected({ breakBefore: b.dataset.v === 'auto' ? undefined : b.dataset.v });
+}
 
 // Quick level changes without leaving the picture: double-click a word to
 // swap main text and highlight; 1, 2, 3 set main, highlight, hero.

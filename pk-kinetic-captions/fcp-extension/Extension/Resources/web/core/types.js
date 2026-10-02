@@ -152,8 +152,8 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * ------------------------------------------------------------------ */
 
 /**
- * @typedef {"fade"|"rise"|"slide"|"scale"|"pop"|"blur"|"stretch"|"rotate"|"typewriter"|"type"|"reveal"|"maskReveal"} InAnimation
- * @typedef {"fade"|"scale"|"slide"|"blur"|"shrink"|"maskExit"} OutAnimation
+ * @typedef {"fade"|"rise"|"slide"|"scale"|"pop"|"blur"|"stretch"|"rotate"|"typewriter"|"dissolve"|"type"|"reveal"|"maskReveal"} InAnimation
+ * @typedef {"fade"|"dissolve"|"scale"|"slide"|"blur"|"shrink"|"maskExit"} OutAnimation
  * @typedef {"minimal"|"smooth"|"editorial"|"cinematic"|"luxury"|"punchy"|"energetic"} AnimationStyle
  */
 
@@ -296,6 +296,7 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * @property {{enabled:boolean, colour?:string, intensity?:number, radius?:number}} [glow]  Glow, over the style's.
  * @property {boolean} [shine]     A light sweep across the word as it lands.
  * @property {string} [activeColour]  Hex. The colour while the word is being spoken; it settles to its usual colour after.
+ * @property {'caption'|'line'|'join'} [breakBefore]  Before this word: start a new caption, start a new line, or stay with the caption before.
  * @property {boolean} [hidden]
  */
 

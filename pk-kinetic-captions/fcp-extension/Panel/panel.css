@@ -250,3 +250,7 @@ body.panel {
 .zone-edit span { font-size: 11px; text-align: right; }
 .zone-edit button { grid-column: 1 / -1; justify-self: start; }
 .zone-edit[hidden] { display: none; }
+
+/* Words grouped by caption */
+.wgroup { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 6px; margin-bottom: 6px; border: 1px solid var(--line); border-radius: 6px; }
+.wnl { flex-basis: 100%; height: 0; overflow: hidden; }
