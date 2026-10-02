@@ -183,6 +183,7 @@ function useTimelineXML(xml, how) {
     state.time = 0;
     adoptFrameFrom(xml);
     noteSource(`${transcript.words.length} words ${how}.`);
+    $('#step-source').classList.add('is-loaded');
     state.editsKey = projectKey(xml, transcript);
     // Nothing is saved for this project until its saved edits have been
     // read back, or the empty state of a fresh drop would overwrite them.
@@ -285,7 +286,10 @@ function drawPreview() {
   const pv = $('#pv');
   pv.style.aspectRatio = `${state.frame.width} / ${state.frame.height}`;
   // Fit inside the panel: the width the column allows, or the height cap.
-  const maxH = window.innerHeight * 0.42;
+  // Side by side, the preview has the column's height to fill; stacked, it
+  // keeps to a third of the window so the settings below stay usable.
+  const wide = window.innerWidth >= 760;
+  const maxH = wide ? Math.max(200, window.innerHeight - 390) : window.innerHeight * 0.34;
   pv.style.width = `${Math.min(pv.parentElement.clientWidth, maxH * state.frame.width / state.frame.height)}px`;
 
   const dur = planDuration();
@@ -344,6 +348,7 @@ function showWord() {
   const host = $('#step-word');
   const w = selectedWord();
   $('#pv-quick').hidden = !w;
+  $('#word-empty').hidden = Boolean(w);
   if (!w) { host.hidden = true; return; }
   host.hidden = false;
   const o = state.overrides[w.id] ?? {};
@@ -916,19 +921,27 @@ function styleEditor(host, { blank }, onChange) {
   const activeColour = el('input', { type: 'color' });
   const reset = el('button', { className: 'pv-btn reset', textContent: 'Reset style' });
   const row = (label, control) => [el('label', { textContent: label }), control];
-  host.replaceChildren(
+  // Two parts, shown one at a time by whoever hosts the editor: the text
+  // itself, and the effects layered on it.
+  const textPart = el('div', { className: 'anim-ed ed-part' }, [
     ...row('Font', family), ...row('Style', face), ...row('Size', size.wrap), ...row('Capitals', casing),
     ...row('Colour', el('div', { className: 'rng' }, [colour, colourAuto])), ...row('Opacity', opacity.wrap),
-    ...row('Look', look), lookHint,
-    el('div', { className: 'ed-sub span2', textContent: 'Effects' }),
+    ...row('Blend', look), lookHint,
+  ]);
+  const fxPart = el('div', { className: 'anim-ed ed-part' }, [
+    el('div', { className: 'ed-sub span2', textContent: 'Gradient' }),
     ...row('Gradient', gradOn), ...row('', gradPresets),
     ...row('Colours', el('div', { className: 'rng' }, [gradFrom, el('span', { textContent: '→' }), gradTo])),
     ...row('Angle', gradAngle.wrap), ...row('Spread', gradSpan),
+    el('div', { className: 'ed-sub span2', textContent: 'Glow & shine' }),
     ...row('Glow', glowOn), ...row('Glow colour', glowColour), ...row('Strength', glowStrength.wrap), ...row('Glow size', glowSize.wrap),
     ...row('Shine', shineOn),
-    ...row('While spoken', activeOn), ...row('Spoken colour', activeColour),
-    reset,
-  );
+    el('div', { className: 'ed-sub span2', textContent: 'While the word is spoken' }),
+    ...row('Spoken colour', activeOn), ...row('Colour', activeColour),
+  ]);
+  textPart.dataset.part = 'text';
+  fxPart.dataset.part = 'fx';
+  host.replaceChildren(textPart, fxPart, reset);
   const gradRows = [gradPresets, gradFrom.parentElement, gradAngle.wrap, gradSpan];
   const glowRows = [glowColour, glowStrength.wrap, glowSize.wrap];
 
@@ -1028,7 +1041,7 @@ function styleEditor(host, { blank }, onChange) {
         : value.look === 'invert' ? 'Difference inverts what is behind the text; the colour mixes with the picture.' : '';
   }
   show({});
-  return { show };
+  return { show, parts: { text: textPart, fx: fxPart } };
 }
 
 /** Gradient presets: the pairs seen in the reference reels, plus the brand's gold. */
@@ -1070,16 +1083,16 @@ const typeCards = {};
       extra.push(el('div', { className: 'anim-ed' }, [el('label', { textContent: 'Hook' }), on, el('label', { textContent: 'Opening' }), el('div', { className: 'rng' }, [sec, secVal])]));
       typeCards.hookControls = { on, sec, secVal };
     }
-    const card = el('details', { className: 'type-card' }, [
-      el('summary', {}, [el('b', { textContent: t.title }), summaryLine, el('span', { className: 'chev', textContent: '›' })]),
-      el('div', { className: 'card-body' }, [
-        el('p', { className: 'hint', textContent: t.hint }), ...extra,
-        el('div', { className: 'ed-sub', textContent: 'Look' }), lookHost,
-        el('div', { className: 'ed-sub', textContent: 'Animation' }), animHost,
-      ]),
-    ]);
-    if (t.key === 'normal') card.open = true;
+    // One type at a time (picked above), with its look or its animation.
+    lookHost.dataset.mode = 'look';
+    animHost.dataset.mode = 'anim';
+    const card = el('div', { className: 'type-card', hidden: true }, [...extra, lookHost, animHost]);
+    card.dataset.type = t.key;
     host.append(card);
+    const pick = el('button', {}, [el('b', { textContent: t.title }), summaryLine]);
+    pick.dataset.v = t.key;
+    pick.onclick = () => showType(t.key);
+    $('#type-pick').append(pick);
     const look = styleEditor(lookHost, { blank: 'Style default' }, (v) => {
       state.custom.groups = { ...state.custom.groups, [t.key]: v };
       changed();
@@ -1095,7 +1108,24 @@ const typeCards = {};
   }
 }
 
-/** The one-line summary on a closed card: font, colour, animation. */
+/** Show one type's editor, in the chosen mode (look / animation). */
+let shownType = 'normal';
+let typeMode = 'text';
+function showType(key = shownType) {
+  shownType = key;
+  for (const b of $$('#type-pick button')) b.classList.toggle('is-on', b.dataset.v === key);
+  for (const c of $$('#type-cards .type-card')) {
+    c.hidden = c.dataset.type !== key;
+    for (const host of c.querySelectorAll('[data-mode]')) host.hidden = (host.dataset.mode === 'anim') !== (typeMode === 'anim');
+    for (const part of c.querySelectorAll('[data-part]')) part.hidden = part.dataset.part !== typeMode;
+  }
+  for (const b of $$('#type-mode button')) b.classList.toggle('is-on', b.dataset.v === typeMode);
+  $('#type-hint').textContent = TYPES.find((t) => t.key === key)?.hint ?? '';
+}
+for (const b of $$('#type-mode button')) b.onclick = () => { typeMode = b.dataset.v; showType(); };
+showType();
+
+/** The one-line summary under each type's name: font, colour, animation. */
 function summarise(t) {
   const g = state.custom.groups?.[t.key] ?? {};
   const a = state.custom.anim.groups?.[t.anim] ?? {};
@@ -1546,4 +1576,38 @@ window.addEventListener('keydown', (e) => {
   e.preventDefault();
   if (e.shiftKey) history.redo(); else history.undo();
 });
+
+/* ------------------------------------------------------------------ *
+ * Tabs
+ * ------------------------------------------------------------------ */
+
+/** Show one tab. Remembered for next time, where the browser allows. */
+function showTab(name) {
+  for (const b of $$('#tabs button')) b.classList.toggle('is-on', b.dataset.tab === name);
+  for (const p of $$('.tab-pane')) p.hidden = p.dataset.tab !== name;
+  try { localStorage.setItem('pkkc.tab', name); } catch { /* private storage */ }
+}
+for (const b of $$('#tabs button')) b.onclick = () => { showTab(b.dataset.tab); $(`.tab-pane[data-tab="${b.dataset.tab}"]`).scrollTop = 0; };
+try { const t = localStorage.getItem('pkkc.tab'); if (t) showTab(t); } catch { /* none */ }
+
+// Choosing a word takes the editor to the Words tab, where its controls are.
+{
+  const plain = select;
+  // eslint-disable-next-line no-func-assign
+  select = (id, opts) => { plain(id, opts); if (id) showTab('words'); };
+}
+
+// The word inspector: look or animation, one at a time.
+for (const b of $$('#word-mode button')) {
+  b.onclick = () => {
+    for (const x of $$('#word-mode button')) x.classList.toggle('is-on', x === b);
+    const mode = b.dataset.v;
+    $('#style-word').hidden = mode === 'anim';
+    for (const part of $$('#style-word [data-part]')) part.hidden = part.dataset.part !== mode;
+    $('#anim-word').hidden = mode !== 'anim';
+    $('#w-replay').hidden = b.dataset.v !== 'anim';
+  };
+}
+// Start the word inspector on its Text part.
+for (const part of $$('#style-word [data-part]')) part.hidden = part.dataset.part !== 'text';
 

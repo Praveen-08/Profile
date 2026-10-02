@@ -53,13 +53,14 @@
     <span id="pv-time" class="mono">0.0s</span>
   </div>
   <div class="pv-row">
+    <span class="hint">Move</span>
     <div class="seg" id="drag-scope">
-      <button data-v="word" class="is-on">Drag a word</button><button data-v="phrase">Phrase</button><button data-v="all">All captions</button>
+      <button data-v="word" class="is-on">Word</button><button data-v="phrase">Phrase</button><button data-v="all">All</button>
     </div>
     <span class="spacer"></span>
     <button id="pv-undo" class="pv-btn" title="Undo (⌘Z)" disabled>↶ Undo</button>
     <button id="pv-redo" class="pv-btn" title="Redo (⇧⌘Z)" disabled>↷ Redo</button>
-    <button id="pv-reset" class="pv-btn">Reset positions</button>
+    <button id="pv-reset" class="pv-btn" title="Put every word and phrase back where the style places it">Reset</button>
   </div>
   <div class="pv-row pv-quick" id="pv-quick" hidden>
     <span class="hint">“<b id="pv-quick-word"></b>” is</span>
@@ -67,10 +68,76 @@
       <button data-v="normal">Main text</button><button data-v="emphasis">Highlight</button><button data-v="hero">Hero</button>
     </div>
   </div>
-  <p class="hint">Click a word to style it. <b>Double-click</b> switches it between main text and highlight (or press <b>1</b> / <b>2</b> / <b>3</b>). Drag to move · <b>⌘-drag</b> to resize.</p>
+  <p class="hint pv-tip">Click a word to style it · double-click or <b>1 2 3</b> to change its level · drag to move · <b>⌘-drag</b> to resize</p>
 </section>
 
-<section class="pstep" id="step-word" hidden>
+<nav class="ptabs" id="tabs">
+  <button data-tab="style" class="is-on">Style</button><button data-tab="types">Customise</button><button data-tab="words">Words</button>
+</nav>
+
+<div class="tab-pane" data-tab="style">
+  <section class="pstep">
+    <h2>Look</h2>
+    <div id="styles" class="pstyles"></div>
+  </section>
+  <section class="pstep">
+    <h2>Overall size <span id="size-orient" class="hint"></span></h2>
+    <div class="size-row">
+      <input type="range" id="size" min="50" max="200" step="5" value="100">
+      <span id="size-val" class="mono">100%</span>
+    </div>
+    <p class="hint">Remembered separately for vertical and horizontal video.</p>
+
+    <div class="two-col mt">
+      <div>
+        <h2>Highlights</h2>
+        <div class="seg wide" id="emphasis">
+          <button data-v="subtle">Fewer</button><button data-v="balanced" class="is-on">Balanced</button><button data-v="strong">More</button>
+        </div>
+      </div>
+      <div>
+        <h2>Words on screen</h2>
+        <div class="seg wide" id="density">
+          <button data-v="low">Fewer</button><button data-v="medium" class="is-on">Medium</button><button data-v="high">More</button>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="mt">Motion</h2>
+    <div class="anim-grid">
+      <label>Feel</label>
+      <select id="a-feel">
+        <option value="">Style default</option><option value="minimal">Minimal</option><option value="smooth">Smooth</option>
+        <option value="editorial">Editorial</option><option value="cinematic">Cinematic</option><option value="luxury">Luxury</option>
+        <option value="punchy">Punchy</option><option value="energetic">Energetic</option>
+      </select>
+      <label>Words appear</label>
+      <div class="seg" id="a-reveal"><button data-v="spoken">As spoken</button><button data-v="phrase">Whole phrase</button></div>
+    </div>
+
+    <h2 class="mt">Colour pattern</h2>
+    <div class="seg wide" id="pattern-scope">
+      <button data-v="off" class="is-on">Off</button><button data-v="highlights">Highlights</button><button data-v="all">Every word</button><button data-v="phrases">Phrases</button>
+    </div>
+    <div id="pattern" class="pattern-row mt-s"></div>
+  </section>
+</div>
+
+<div class="tab-pane" data-tab="types" hidden>
+  <section class="pstep">
+    <div class="seg wide" id="type-pick"></div>
+    <p id="type-hint" class="hint mt-s"></p>
+    <div class="seg wide mt-s" id="type-mode">
+      <button data-v="text" class="is-on">Text</button><button data-v="fx">Effects</button><button data-v="anim">Animation</button>
+    </div>
+    <div id="type-cards" class="type-cards mt-s"></div>
+  </section>
+</div>
+
+<div class="tab-pane" data-tab="words" hidden>
+  <section class="pstep">
+    <p id="word-empty" class="hint">Click a word in the picture or the list below to style it on its own.</p>
+    <div id="step-word" hidden>
   <div class="w-head">
     <button id="w-prev" class="pv-btn" title="Previous word">◀</button>
     <input type="text" id="w-text" class="w-text" spellcheck="false" title="Edit the word">
@@ -82,67 +149,26 @@
     <button data-v="normal">Main text</button><button data-v="emphasis">Highlight</button><button data-v="hero">Hero</button>
   </div>
 
-  <h2 class="mt">Style <span class="hint">· this word only; blank follows its group</span></h2>
+  <h2 class="mt">Edit</h2>
+  <div class="seg wide" id="word-mode">
+    <button data-v="text" class="is-on">Text</button><button data-v="fx">Effects</button><button data-v="anim">Animation</button>
+  </div>
+  <p class="hint mt-s">This word only — anything left blank follows its type.</p>
   <div id="style-word" class="anim-ed"></div>
-
-  <h2 class="mt">Animation <span class="hint">· this word only; blank follows its group</span></h2>
-  <div id="anim-word" class="anim-ed"></div>
-  <button id="w-replay" class="pv-btn mt-s">▶ Replay this phrase</button>
+  <div id="anim-word" class="anim-ed" hidden></div>
+  <button id="w-replay" class="pv-btn mt-s" hidden>▶ Replay this phrase</button>
 
   <div class="pv-row mt">
     <button id="w-hide" class="pv-btn">Hide word</button>
     <button id="w-reset" class="pv-btn">Reset this word</button>
   </div>
-</section>
-
-<section class="pstep">
-  <h2>Style</h2>
-  <div id="styles" class="pstyles"></div>
-</section>
-
-<section class="pstep">
-  <h2>Overall size <span id="size-orient" class="hint"></span></h2>
-  <div class="size-row">
-    <input type="range" id="size" min="50" max="200" step="5" value="100">
-    <span id="size-val" class="mono">100%</span>
-  </div>
-  <p class="hint">Remembered separately for vertical and horizontal video.</p>
-
-  <h2 class="mt">Customise each type</h2>
-  <div id="type-cards" class="type-cards"></div>
-
-  <h2 class="mt">Colour pattern</h2>
-  <div class="seg wide" id="pattern-scope">
-    <button data-v="off" class="is-on">Off</button><button data-v="highlights">Highlights</button><button data-v="all">Every word</button><button data-v="phrases">Phrases</button>
-  </div>
-  <div id="pattern" class="pattern-row mt-s"></div>
-
-  <h2 class="mt">Motion overall</h2>
-  <div class="anim-grid">
-    <label>Feel</label>
-    <select id="a-feel">
-      <option value="">Style default</option><option value="minimal">Minimal</option><option value="smooth">Smooth</option>
-      <option value="editorial">Editorial</option><option value="cinematic">Cinematic</option><option value="luxury">Luxury</option>
-      <option value="punchy">Punchy</option><option value="energetic">Energetic</option>
-    </select>
-    <label>Words appear</label>
-    <div class="seg" id="a-reveal"><button data-v="spoken">As spoken</button><button data-v="phrase">Whole phrase</button></div>
-  </div>
-  <h2 class="mt">Emphasis</h2>
-  <div class="seg wide" id="emphasis">
-    <button data-v="subtle">Subtle</button><button data-v="balanced" class="is-on">Balanced</button><button data-v="strong">Strong</button>
-  </div>
-
-  <h2 class="mt">Density</h2>
-  <div class="seg wide" id="density">
-    <button data-v="low">Low</button><button data-v="medium" class="is-on">Medium</button><button data-v="high">High</button>
-  </div>
-</section>
-
-<section class="pstep">
-  <h2>Words <span id="wstats" class="hint"></span></h2>
-  <div id="words" class="words"></div>
-</section>
+</div>
+  </section>
+  <section class="pstep">
+    <h2>All words <span id="wstats" class="hint"></span></h2>
+    <div id="words" class="words"></div>
+  </section>
+</div>
 
 <footer class="pfoot">
   <div id="dragout" class="dragchip is-off" title="Drag onto your Final Cut timeline, above the clip">

@@ -62,7 +62,7 @@ body.panel { height: auto; min-height: 100vh; overflow: visible; background: var
    will write drawn over it. Blend modes composite against the real picture. */
 .pv {
   position: relative; margin: 0 auto; background: #000; overflow: hidden; border-radius: 6px;
-  max-height: 58vh; max-width: 100%; cursor: move; touch-action: none;
+  max-height: 34vh; max-width: 100%; cursor: move; touch-action: none;
 }
 .pv img, .pv #pv-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .pv img { object-fit: contain; }
@@ -83,8 +83,8 @@ body.panel { height: auto; min-height: 100vh; overflow: visible; background: var
 
 /* The preview stays on screen while the controls scroll under it, so a word
    can be styled while looking at it. */
-#step-preview { position: sticky; top: 37px; z-index: 1; background: var(--panel); }
-#step-preview .pv { max-height: 42vh; }
+
+#step-preview .pv { max-height: 34vh; }
 
 .anim-grid { display: grid; grid-template-columns: 92px 1fr 1fr; gap: 6px 6px; align-items: center; }
 .anim-grid label { font-size: 11px; color: var(--muted); }
@@ -162,3 +162,78 @@ body.panel { height: auto; min-height: 100vh; overflow: visible; background: var
 
 .pv-row .spacer { flex: 1; }
 .pv-btn:disabled { opacity: .35; cursor: default; }
+
+/* ---------- Tabs ---------- */
+
+.pv-tip { margin: 6px 0 0; font-size: 10px; }
+.ptabs { display: flex; border-bottom: 1px solid var(--line); background: var(--panel); }
+.ptabs button {
+  flex: 1; font: inherit; font-size: 12px; font-weight: 500; letter-spacing: .02em; color: var(--muted);
+  background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 0 9px; cursor: pointer;
+}
+.ptabs button:hover { color: inherit; }
+.ptabs button.is-on { color: inherit; border-bottom-color: var(--gold); }
+.tab-pane[hidden] { display: none; }
+
+/* The drop zone shrinks to a slim bar once a clip is in. */
+#step-source.is-loaded { padding: 6px 12px; }
+#step-source.is-loaded .pdrop { padding: 6px 10px; flex-direction: row; gap: 8px; justify-content: center; min-height: 0; }
+#step-source.is-loaded .pdrop strong { font-size: 11px; }
+#step-source.is-loaded .pdrop strong::before { content: 'Replace — '; color: var(--muted); font-weight: 400; }
+#step-source.is-loaded .pdrop span { display: none; }
+#step-source.is-loaded #source-note { margin: 4px 0 0; font-size: 10px; }
+
+/* Two controls side by side */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.two-col .seg button { padding-left: 4px; padding-right: 4px; }
+
+/* Customise: pick a type, then look or animation */
+#type-pick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+#type-pick button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 7px 8px; min-width: 0; }
+#type-pick button b { font-size: 12px; font-weight: 600; }
+#type-pick button i { font-size: 9.5px; font-style: normal; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+#type-pick button.is-on { border-color: var(--gold); }
+.type-card { border: 0; padding: 0; background: none; }
+.type-card [hidden] { display: none !important; }
+
+
+#word-empty { margin: 0; }
+
+/* ---------- Layout: nothing but the settings scrolls ----------
+   The preview, the tabs and "Drag to timeline" stay put; only the open tab
+   scrolls. Wide panels (Final Cut's is usually ~1100px) put the preview
+   beside the settings instead of above them. */
+body.panel {
+  height: 100vh; min-height: 0; overflow: hidden; display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto;
+  grid-template-areas: "bar" "lic" "src" "pv" "tabs" "pane" "foot";
+}
+.pbar { grid-area: bar; position: static; }
+#licence { grid-area: lic; }
+#step-source { grid-area: src; }
+#step-preview { grid-area: pv; }
+#tabs { grid-area: tabs; }
+.tab-pane { grid-area: pane; overflow-y: auto; min-height: 0; }
+.pfoot { grid-area: foot; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 8px 12px; }
+.pfoot .dragchip { padding: 8px 12px; }
+.pfoot #apply { width: auto; }
+.pfoot #status { grid-column: 1 / -1; margin: 0; font-size: 10px; }
+
+@media (min-width: 760px) {
+  body.panel {
+    grid-template-columns: minmax(300px, 40%) 1fr;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "bar bar" "lic lic" "src tabs" "pv pane" "foot foot";
+  }
+  #step-preview { overflow-y: auto; border-right: 1px solid var(--line); }
+  #step-source { border-right: 1px solid var(--line); }
+  #step-preview .pv { max-height: none; }
+  #tabs { align-self: end; }
+}
+
+.anim-ed .ed-part { grid-column: 1 / -1; }
+.ed-part[hidden] { display: none !important; }
+
+
+.anim-ed .ed-part { border: 0; padding: 0; margin: 0; background: none; }
