@@ -1137,8 +1137,8 @@ window.addEventListener('resize', () => drawPreview());
  * Text style editor — one block, used for each group and for a word
  * ------------------------------------------------------------------ */
 
-const IN_ANIMS = [['dissolve', 'Cross dissolve'], ['fade', 'Fade'], ['rise', 'Rise'], ['slide', 'Slide'], ['scale', 'Scale up'], ['pop', 'Pop'], ['stretch', 'Stretch'], ['rotate', 'Rotate in'], ['typewriter', 'Typewriter'], ['reveal', 'Reveal']];
-const OUT_ANIMS = [['dissolve', 'Cross dissolve'], ['fade', 'Fade'], ['scale', 'Grow'], ['shrink', 'Shrink'], ['slide', 'Slide away'], ['maskExit', 'Cut']];
+const IN_ANIMS = [['dissolve', 'Cross dissolve'], ['blink', 'Blink'], ['fade', 'Fade'], ['rise', 'Rise'], ['slide', 'Slide'], ['scale', 'Scale up'], ['pop', 'Pop'], ['stretch', 'Stretch'], ['rotate', 'Rotate in'], ['typewriter', 'Typewriter'], ['reveal', 'Reveal']];
+const OUT_ANIMS = [['dissolve', 'Cross dissolve'], ['blink', 'Blink'], ['fade', 'Fade'], ['scale', 'Grow'], ['shrink', 'Shrink'], ['slide', 'Slide away'], ['maskExit', 'Cut']];
 const IN_EASES = [['out', 'Smooth'], ['outSoft', 'Soft'], ['outSlow', 'Slow settle'], ['inOut', 'Even'], ['back', 'Bouncy'], ['backHard', 'Springy'], ['linear', 'Linear']];
 const OUT_EASES = [['inOut', 'Smooth'], ['in', 'Accelerate'], ['linear', 'Linear']];
 /** Caption fonts that read well and pair well — the research shortlist. */

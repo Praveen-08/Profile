@@ -481,3 +481,15 @@ test('a captioned copy of the project: captions at its first frame, the original
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a blink exports as one keyframe per frame, alternating, never two on one frame', () => {
+  const t = merge(builtinById('pk-minimal'), { motion: { in: { normal: 'blink', emphasis: 'blink', hero: 'blink' } } });
+  const plan = make(t, { width: 1080, height: 1920, fps: 29.97 });
+  const { xml } = exportFCPXML(plan);
+  const title = xml.slice(xml.indexOf('<title '), xml.indexOf('</title>'));
+  const blend = title.slice(title.indexOf('<adjust-blend'));
+  const keys = [...blend.matchAll(/<keyframe time="([^"]+)" value="([^"]+)"/g)].map((m) => [m[1], Number(m[2])]);
+  const times = keys.map(([time]) => time);
+  assert.equal(new Set(times).size, times.length, 'one keyframe per time');
+  assert.deepEqual(keys.slice(0, 8).map(([, v]) => v), [1, 0, 1, 0, 1, 0, 1, 0]);
+});

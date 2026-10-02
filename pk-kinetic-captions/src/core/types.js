@@ -152,8 +152,8 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * ------------------------------------------------------------------ */
 
 /**
- * @typedef {"fade"|"rise"|"slide"|"scale"|"pop"|"blur"|"stretch"|"rotate"|"typewriter"|"dissolve"|"type"|"reveal"|"maskReveal"} InAnimation
- * @typedef {"fade"|"dissolve"|"scale"|"slide"|"blur"|"shrink"|"maskExit"} OutAnimation
+ * @typedef {"fade"|"rise"|"slide"|"scale"|"pop"|"blur"|"stretch"|"rotate"|"typewriter"|"dissolve"|"blink"|"type"|"reveal"|"maskReveal"} InAnimation
+ * @typedef {"fade"|"dissolve"|"blink"|"scale"|"slide"|"blur"|"shrink"|"maskExit"} OutAnimation
  * @typedef {"minimal"|"smooth"|"editorial"|"cinematic"|"luxury"|"punchy"|"energetic"} AnimationStyle
  */
 

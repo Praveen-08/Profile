@@ -283,7 +283,7 @@ function renderTransform(w, plan, baseX, baseY, life, fps, samples) {
     return `                <adjust-transform position="${fcpPosition(baseX, baseY, plan)}" scale="${num(s, 5)} ${num(s, 5)}" anchor="0 0"/>`;
   }
 
-  const times = keyTimes([...w.motion.offsetX, ...w.motion.offsetY, ...w.motion.scale], life, samples);
+  const times = keyTimes([...w.motion.offsetX, ...w.motion.offsetY, ...w.motion.scale], life, samples, fps);
   const lines = ['                <adjust-transform anchor="0 0">'];
 
   if (hasMove) {
@@ -302,7 +302,7 @@ function renderTransform(w, plan, baseX, baseY, life, fps, samples) {
   if (rotation.some((k) => Math.abs(k.v) > 1e-3)) {
     // Final Cut's rotation is in degrees, + anticlockwise — the engine's sense.
     lines.push('                  <param name="rotation">', '                    <keyframeAnimation>');
-    for (const t of keyTimes(rotation, life, samples)) {
+    for (const t of keyTimes(rotation, life, samples, fps)) {
       lines.push(`                      <keyframe time="${toFCPTime(t, fps)}" value="${num(sample(rotation, t, 0), 3)}" curve="linear"/>`);
     }
     lines.push('                    </keyframeAnimation>', '                  </param>');
@@ -339,7 +339,7 @@ function renderReveal(w, plan, life, fps, samples) {
   // placed position cut words off the left half of the frame entirely.)
   const left = -wordW / 2 - w.size * 0.05;
   const span = wordW + w.size * 0.1;
-  const frames = keyTimes(reveal, life, samples).map((t) => {
+  const frames = keyTimes(reveal, life, samples, fps).map((t) => {
     const edge = left + span * clamp01(sample(reveal, t, 1));
     const right = Math.max(0, halfFrame - edge) / H * 100;
     return `                        <keyframe time="${toFCPTime(t, fps)}" value="${num(right, 3)}" curve="linear"/>`;
@@ -360,7 +360,7 @@ ${frames}
 function renderBlend(w, life, fps, samples) {
   const mode = BLEND_NAMES[w.blend] ?? '';
   const modeAttr = mode ? ` mode="${esc(mode)}"` : '';
-  const times = keyTimes(w.motion.opacity, life, samples);
+  const times = keyTimes(w.motion.opacity, life, samples, fps);
 
   if (times.length <= 1) {
     const v = w.motion.opacity.length ? w.motion.opacity[0].v : 1;
@@ -483,7 +483,7 @@ function standardFormatName(frame, fps) {
  * @param {number} samples
  * @returns {number[]}
  */
-function keyTimes(frames, life, samples) {
+function keyTimes(frames, life, samples, fps) {
   if (!frames.length) return [];
   const anchors = [...new Set(frames.map((k) => Math.min(life, Math.max(0, k.t))))].sort((a, b) => a - b);
   if (anchors.length === 1) return anchors;
@@ -505,7 +505,12 @@ function keyTimes(frames, life, samples) {
     }
   }
   out.push(anchors[anchors.length - 1]);
-  return [...new Set(out.map((t) => Number(t.toFixed(5))))].sort((a, b) => a - b);
+  // Final Cut keyframes sit on frames. Snap every time to its frame and keep
+  // one per frame: two samples inside one frame would land on the same time
+  // with different values, and a one-frame strobe (blink) needs each frame's
+  // own value, not one interpolated across it.
+  const snapped = fps ? out.map((t) => snapToFrame(t, fps)) : out;
+  return [...new Set(snapped.map((t) => Number(t.toFixed(6))))].sort((a, b) => a - b);
 }
 
 /**

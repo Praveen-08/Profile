@@ -98,7 +98,10 @@ export function renderFrame(plan, opts) {
  * @returns {string}
  */
 function drawWord(w, t, plan, idPrefix = '') {
-  const local = t - w.start;
+  // Final Cut shows whole frames; so does the preview, or a one-frame blink
+  // would read as a fade.
+  const fps = plan.frame.fps || 30;
+  const local = Math.floor((t - w.start) * fps + 1e-6) / fps;
   const opacity = clamp01(sample(w.motion.opacity, local, 1));
   if (opacity <= 0.001) return '';
 

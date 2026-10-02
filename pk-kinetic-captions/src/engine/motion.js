@@ -93,9 +93,10 @@ export const STYLES = {
  * @param {{blur?: boolean, perCharacter?: boolean, maskReveal?: boolean}} [args.capabilities]
  * @param {MotionTune} [args.tune]    Editor's adjustments; anything unset keeps the style's value.
  * @param {number} [args.letters]    Characters in the word, which paces the typewriter.
+ * @param {number} [args.fps]        Frame rate: a blink switches on whole frames.
  * @returns {WordMotion}
  */
-export function buildMotion({ level, template, life, capFraction, inOverride, outOverride, capabilities, tune = {}, letters = 6 }) {
+export function buildMotion({ level, template, life, capFraction, inOverride, outOverride, capabilities, tune = {}, letters = 6, fps = 30 }) {
   const caps = { blur: true, perCharacter: true, maskReveal: true, ...(capabilities ?? {}) };
   const style = STYLES[template.motion.style] ?? STYLES.smooth;
   const speed = template.motion.speed || 1;
@@ -119,10 +120,12 @@ export function buildMotion({ level, template, life, capFraction, inOverride, ou
   // A typewriter is paced by its letters (~28 a second) unless the editor set a time.
   // A cross dissolve wants time to read as a dissolve rather than a blink.
   const DISSOLVE = 0.4 / speed;
+  // A blink is counted in frames: eight by default (on, off, on, off …).
+  const BLINK = 8 / fps;
   const natural = inAnimation === 'typewriter' ? Math.max(0.12, letters * 0.036)
-    : inAnimation === 'dissolve' ? DISSOLVE : style.inDur * levelDur / speed;
+    : inAnimation === 'dissolve' ? DISSOLVE : inAnimation === 'blink' ? BLINK : style.inDur * levelDur / speed;
   const inDuration = Math.min(tune.inDuration ?? natural, budget);
-  const outDuration = Math.min(tune.outDuration ?? (outAnimation === 'dissolve' ? DISSOLVE : style.outDur * levelDur / speed), budget);
+  const outDuration = Math.min(tune.outDuration ?? (outAnimation === 'dissolve' ? DISSOLVE : outAnimation === 'blink' ? BLINK : style.outDur * levelDur / speed), budget);
   const outStart = Math.max(inDuration + Math.min(0.04, life * 0.05), life - outDuration);
 
   // Movement distance scales with the word's own size, so a hero word travels
@@ -149,7 +152,7 @@ export function buildMotion({ level, template, life, capFraction, inOverride, ou
   const effectiveStyle = caps.blur ? style : { ...style, blur: 0 };
 
   // --- in ---
-  applyIn(inAnimation, { opacity, scale, offsetX, offsetY, blur, rotation, reveal }, { inDuration, dist, scaleFrom, style: effectiveStyle, ein, level, from, rotateFrom: tune.rotateFrom });
+  applyIn(inAnimation, { opacity, scale, offsetX, offsetY, blur, rotation, reveal }, { inDuration, dist, scaleFrom, style: effectiveStyle, ein, level, from, rotateFrom: tune.rotateFrom, fps });
 
   // Overshoot is additive and tiny, and only exists in the two styles that
   // declare it — this is the "no cheap animation" rule made structural.
@@ -158,7 +161,7 @@ export function buildMotion({ level, template, life, capFraction, inOverride, ou
   }
 
   // --- out ---
-  applyOut(outAnimation, { opacity, scale, offsetX, offsetY, blur }, { outStart, life, outDuration, dist, style: effectiveStyle, eout, from });
+  applyOut(outAnimation, { opacity, scale, offsetX, offsetY, blur }, { outStart, life, outDuration, dist, style: effectiveStyle, eout, from, fps });
 
   return {
     opacity: dedupe(opacity), scale: dedupe(scale), offsetX: dedupe(offsetX),
@@ -186,7 +189,7 @@ const DIRECTIONS = {
   right: { x: -1.6, y: 0 },   // starts left, moves right
 };
 
-function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level, from, rotateFrom }) {
+function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level, from, rotateFrom, fps = 30 }) {
   const safe = settled(ein);
   const fadeIn = () => { ch.opacity.push({ t: 0, v: 0 }, { t: inDuration, v: 1, ease: safe }); };
   /** Travel in from `dir` (or the animation's own default) by `amount` of dist. */
@@ -225,6 +228,15 @@ function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level, fro
       ch.scale.push({ t: 0, v: scaleFrom * 0.9 }, { t: inDuration, v: 1, ease: ein });
       travel(DIRECTIONS.up, 0.5);
       break;
+    case 'blink': {
+      // A strobe: visible one frame, gone the next, a few times, then it
+      // stays. Keyframes sit on frame boundaries, so every rendered frame is
+      // fully on or fully off — never a fade between.
+      const n = Math.max(4, Math.round(inDuration * fps));
+      for (let k = 0; k < n; k++) ch.opacity.push({ t: k / fps, v: k % 2 === 0 ? 1 : 0, ease: EASING.linear });
+      ch.opacity.push({ t: n / fps, v: 1, ease: EASING.linear });
+      break;
+    }
     case 'dissolve':
       // A cross dissolve: opacity only, on a gentle S-curve. No movement,
       // no scale, no blur — the word simply appears.
@@ -261,7 +273,7 @@ function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level, fro
   }
 }
 
-function applyOut(kind, ch, { outStart, life, outDuration, dist, style, eout, from }) {
+function applyOut(kind, ch, { outStart, life, outDuration, dist, style, eout, from, fps = 30 }) {
   const safe = settled(eout);
   const fadeOut = () => { ch.opacity.push({ t: outStart, v: 1, ease: EASING.linear }, { t: life, v: 0, ease: safe }); };
 
@@ -270,6 +282,14 @@ function applyOut(kind, ch, { outStart, life, outDuration, dist, style, eout, fr
     case 'dissolve':
       ch.opacity.push({ t: outStart, v: 1, ease: EASING.linear }, { t: life, v: 0, ease: EASING.dissolve });
       break;
+    case 'blink': {
+      // The same strobe on the way out, ending gone.
+      const n = Math.max(4, Math.round((life - outStart) * fps));
+      const from0 = life - n / fps;
+      for (let k = 0; k < n; k++) ch.opacity.push({ t: from0 + k / fps, v: k % 2 === 0 ? 1 : 0, ease: EASING.linear });
+      ch.opacity.push({ t: life, v: 0, ease: EASING.linear });
+      break;
+    }
     case 'scale':
       fadeOut();
       ch.scale.push({ t: outStart, v: 1, ease: EASING.linear }, { t: life, v: 1.04, ease: eout });

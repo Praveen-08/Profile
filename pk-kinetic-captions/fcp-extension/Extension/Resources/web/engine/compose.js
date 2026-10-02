@@ -286,6 +286,7 @@ export function compose(opts) {
           outOverride: e.outAnimation ?? (fromPattern ? template.motion.patternOut : undefined),
           tune: e.tune,
           letters: [...w.text].length,
+          fps: frame.fps,
         }), e.opacity),
         depth: interaction.depth,
         blend: interaction.blend,

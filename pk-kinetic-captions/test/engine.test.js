@@ -580,3 +580,15 @@ test('a cross dissolve is opacity only, on a gentle curve, in and out', () => {
     assert.equal(w.motion.opacity.at(-1).v, 0);
   }
 });
+
+test('a blink is whole frames on and off, then stays on', () => {
+  const t = merge(builtinById('pk-minimal'), { motion: { in: { normal: 'blink', emphasis: 'blink', hero: 'blink' } } });
+  const fps = 25;
+  const plan = compose({ transcript: ingest('Simply stunning views across the whole harbour', { format: 'text' }), template: t, frame: { width: 1080, height: 1920, fps } });
+  const w = plan.phrases[0].words[0];
+  const at = (k) => sample(w.motion.opacity, k / fps, 1);
+  const seq = Array.from({ length: 10 }, (_, k) => at(k));
+  assert.deepEqual(seq.slice(0, 8), [1, 0, 1, 0, 1, 0, 1, 0], 'on, off, on, off … one frame each');
+  assert.equal(seq[8], 1, 'then it stays');
+  assert.ok(seq.every((v) => v === 0 || v === 1), 'never a fade between');
+});
