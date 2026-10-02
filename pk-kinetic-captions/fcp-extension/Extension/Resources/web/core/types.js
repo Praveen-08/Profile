@@ -217,6 +217,7 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * @property {Decoration} decoration
  * @property {Point} position     Anchor point of the word, normalized.
  * @property {Rect} box           Measured bounding box, normalized.
+ * @property {Rect} [layoutBox]   The box before the word's own resize.
  * @property {WordMotion} motion
  * @property {{colour: RGBA, until: number}} [active]  Colour while spoken; `until` is seconds from the word's start.
  * @property {Depth} depth

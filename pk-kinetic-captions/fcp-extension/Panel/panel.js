@@ -367,11 +367,14 @@ function fixPositions(plan) {
   for (const phrase of plan.phrases) {
     const ws = phrase.words;
     if (!ws.length) continue;
-    const pad = (w) => w.box.h * 0.45;    // room for ascenders and descenders around the cap height
-    const t = Math.max(...ws.map((w) => w.box.y + w.box.h / 2 + pad(w)));
-    const b = Math.min(...ws.map((w) => w.box.y - w.box.h / 2 - pad(w)));
-    const l = Math.min(...ws.map((w) => w.box.x - w.box.w / 2));
-    const r = Math.max(...ws.map((w) => w.box.x + w.box.w / 2));
+    // Measured on the layout before any word's own resize, so making one
+    // word bigger does not move the phrase.
+    const bx = (w) => w.layoutBox ?? w.box;
+    const pad = (w) => bx(w).h * 0.45;    // room for ascenders and descenders around the cap height
+    const t = Math.max(...ws.map((w) => bx(w).y + bx(w).h / 2 + pad(w)));
+    const b = Math.min(...ws.map((w) => bx(w).y - bx(w).h / 2 - pad(w)));
+    const l = Math.min(...ws.map((w) => bx(w).x - bx(w).w / 2));
+    const r = Math.max(...ws.map((w) => bx(w).x + bx(w).w / 2));
     let dy = lineY - (t + b) / 2;
     let dx = midX - (l + r) / 2;
     if (t + dy > top) dy = top - t;
@@ -383,6 +386,7 @@ function fixPositions(plan) {
       const ox = dx + mine.x, oy = dy + mine.y;
       w.position = { x: w.position.x + ox, y: w.position.y + oy };
       w.box = { ...w.box, x: w.box.x + ox, y: w.box.y + oy };
+      if (w.layoutBox) w.layoutBox = { ...w.layoutBox, x: w.layoutBox.x + ox, y: w.layoutBox.y + oy };
     }
   }
 }
@@ -984,8 +988,9 @@ function styleThumb(t) {
 }
 
 function buildStyles() {
+  buildSetups();
   const host = $('#styles');
-  host.replaceChildren(...[...BUILTIN_TEMPLATES, ...state.userTemplates].map((t) => {
+  host.replaceChildren(...[...BUILTIN_TEMPLATES, ...state.userTemplates.filter((t) => t.kind !== 'setup')].map((t) => {
     const el = document.createElement('button');
     el.className = `pstyle${t.id === state.templateId ? ' is-on' : ''}`;
     el.innerHTML = '<span class="thumb"></span><b></b><i></i>';
@@ -1820,7 +1825,11 @@ function saveEditsSoon() {
     // they too only come back onto the same words.
     const raw = new Map((state.rawTranscript?.words ?? []).map((w) => [w.id, w.text]));
     const textEdits = (state.textEdits ?? []).map((e) => ({ ...e, was: e.ids.map((id) => raw.get(id)) }));
-    const json = JSON.stringify({ version: 1, saved: new Date().toISOString(), words, overrides: state.overrides, wordNudges: state.wordNudges, phraseNudges: state.phraseNudges, textEdits });
+    const json = JSON.stringify({
+      version: 1, saved: new Date().toISOString(), words, overrides: state.overrides, wordNudges: state.wordNudges, phraseNudges: state.phraseNudges, textEdits,
+      // The whole setup this project was styled with, so each home keeps its own.
+      setup: currentSetup(),
+    });
     callNative('saveEdits', { key: state.editsKey, json }).catch(() => {});
   }, 500);
 }
@@ -1832,6 +1841,11 @@ async function restoreEdits(key, transcript) {
   if (state.editsKey !== key) return;          // another project was dropped meanwhile
   state.editsReady = true;
   if (!saved) return;
+  // This home's own setup comes back with it.
+  if (saved.setup) {
+    applySetup(saved.setup, { quiet: true });
+    noteSource(`${transcript.words.length} words · this project's setup is back.`);
+  }
   const text = new Map(transcript.words.map((w) => [w.id, w.text]));
   const same = (id) => saved.words?.[id] !== undefined && text.get(id) === saved.words[id];
   const keep = (rec) => Object.fromEntries(Object.entries(rec ?? {}).filter(([id]) => same(id)));
@@ -2023,4 +2037,79 @@ function startCaptionEdit(group, phrase) {
   };
   input.onblur = () => finish(true);
 }
+
+/* ------------------------------------------------------------------ *
+ * Setups: the whole look of a project, kept per project and by name
+ * ------------------------------------------------------------------ */
+
+/** Everything that makes a project look the way it does (not its words). */
+function currentSetup() {
+  return JSON.parse(JSON.stringify({ templateId: state.templateId, patch: state.patch ?? {}, custom: state.custom }));
+}
+
+/** Put a setup in place: style, sizes, types, motion, position and safe zone. */
+function applySetup(setup, { quiet = false } = {}) {
+  if (!setup?.custom) return;
+  const known = [...BUILTIN_TEMPLATES, ...state.userTemplates].some((t) => t.id === setup.templateId);
+  state.templateId = known ? setup.templateId : state.templateId;
+  state.patch = JSON.parse(JSON.stringify(setup.patch ?? {}));
+  state.custom = { ...state.custom, ...JSON.parse(JSON.stringify(setup.custom)) };
+  refreshAll();
+  if (!quiet) setStatus('Setup applied.');
+  callNative('savePrefs', { json: JSON.stringify(state.custom) }).catch(() => {});
+}
+
+/** The setup rendered as a template, for its thumbnail. */
+function setupTemplate(setup) {
+  const base = [...BUILTIN_TEMPLATES, ...state.userTemplates].find((t) => t.id === setup.templateId) ?? BUILTIN_TEMPLATES[0];
+  const saved = state.custom;
+  try {
+    state.custom = { ...saved, ...setup.custom };
+    return merge(merge(base, setup.patch ?? {}), customPatch(base));
+  } finally {
+    state.custom = saved;
+  }
+}
+
+function buildSetups() {
+  const host = $('#setups');
+  if (!host) return;
+  const setups = state.userTemplates.filter((t) => t.kind === 'setup');
+  $('#setups-empty').hidden = setups.length > 0;
+  host.replaceChildren(...setups.map((t) => {
+    const el = document.createElement('div');
+    el.className = 'pstyle setup';
+    el.innerHTML = '<span class="thumb"></span><b></b><i></i><button class="setup-del" title="Delete this setup">×</button>';
+    el.querySelector('.thumb').innerHTML = styleThumb({ ...setupTemplate(t.setup), id: `setup-thumb-${t.id}-${t.updated ?? ''}` });
+    el.querySelector('b').textContent = t.name;
+    el.querySelector('i').textContent = 'Click to use on this project';
+    el.onclick = () => applySetup(t.setup);
+    el.querySelector('.setup-del').onclick = (e) => {
+      e.stopPropagation();
+      callNative('deleteTemplate', { id: t.id }).catch(() => {});
+      state.userTemplates = state.userTemplates.filter((x) => x.id !== t.id);
+      buildSetups();
+    };
+    return el;
+  }));
+}
+
+$('#setup-save').onclick = async () => {
+  const name = $('#setup-name').value.trim();
+  if (!name) return $('#setup-name').focus();
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'setup';
+  const id = `setup-${slug}`;
+  const setup = currentSetup();
+  const record = { ...setupTemplate(setup), id, name, kind: 'setup', setup, updated: Date.now() };
+  try {
+    await callNative('saveTemplate', { id, json: JSON.stringify(record) });
+  } catch (err) {
+    return setStatus(`Could not save the setup: ${err.message}`, true);
+  }
+  state.userTemplates = [...state.userTemplates.filter((t) => t.id !== id), record];
+  $('#setup-name').value = '';
+  buildSetups();
+  setStatus(`Saved “${name}”. Use it on any home from Style ▸ Your setups.`);
+};
+$('#setup-name').onkeydown = (e) => { if (e.key === 'Enter') $('#setup-save').click(); };
 

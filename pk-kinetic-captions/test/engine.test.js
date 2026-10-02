@@ -414,6 +414,15 @@ test('one word can be styled on its own: look, colour, size, text', async () => 
   const long = words.find((x) => x.text === 'BEAUTIFUL');
   const capped = run({ [long.id]: { scale: 3 } }).find((x) => x.id === long.id);
   assert.ok(capped.box.w <= 0.87, `box width ${capped.box.w}`);
+
+  // Resizing one word leaves every other word exactly where it was.
+  const resized = run({ [small.id]: { scale: 1.8 } });
+  for (const x of resized.filter((x) => x.id !== small.id)) {
+    const before = words.find((y) => y.id === x.id);
+    assert.deepEqual(x.position, before.position, `${x.text} moved`);
+    assert.equal(x.size, before.size);
+  }
+  assert.deepEqual(resized.find((x) => x.id === small.id).position, small.position, 'the word grows about its own centre');
 });
 
 test('main text, highlights and colour-pattern words can each animate their own way', async () => {

@@ -30,7 +30,7 @@ import { normalize } from '../transcript/normalize.js';
 import { scoreWords, assignLevels } from './emphasis.js';
 import { groupPhrases } from './phrasing.js';
 import { resolveTypography, capHeightOf, applyCasing } from './typography.js';
-import { layoutBlock, avoidFace, chooseZone } from './layout.js';
+import { layoutBlock, avoidFace, chooseZone, liveArea } from './layout.js';
 import { buildMotion } from './motion.js';
 import { resolveInteraction, adaptColourForBlend, assignLanes, INTERACTIONS } from './composite.js';
 import { parseColour, generatePalette, ensureContrast, toHex } from '../core/colour.js';
@@ -178,12 +178,16 @@ export function compose(opts) {
       e.tune = Object.assign({}, template.motion.tune?.[level] ?? {}, ...(pattern ? [template.motion.tune?.pattern ?? {}] : []), ...layers.map((l) => l.tune ?? {}));
       // Colour: the word's, the hook's, the pattern's, then its group's.
       const colourSource = o.colour ?? (inHook ? g.hook?.colour : undefined) ?? (pattern ? null : base.colour);
-      return { level, o, e, pattern, inHook, colourSource };
+      // A word's own size is applied around the word, after layout: resizing
+      // one word must not reflow the others. Group sizes still lay out.
+      const layoutScale = Object.assign({}, ...layers.slice(0, -1)).scale ?? 1;
+      const ownScale = (e.scale ?? 1) / layoutScale;
+      return { level, o, e, pattern, inHook, colourSource, layoutScale, ownScale };
     });
 
     // Build layout items, applying per-word scale and font overrides.
     const items = phrase.words.map((w, i) => {
-      const { level, e } = styles[i];
+      const { level, e, layoutScale } = styles[i];
       /** @type {import('../core/types.js').FontSpec} */
       const font = {
         ...type.fonts[level],
@@ -195,7 +199,7 @@ export function compose(opts) {
         // without a face falls back to the weight-derived name.
         ...(e.fontFace ? { face: e.fontFace } : {}),
       };
-      return { id: w.id, text: w.text, level, font, size: type.sizes[level] * (e.scale ?? 1), lineBreak: i > 0 && overrides[w.id]?.breakBefore === 'line' };
+      return { id: w.id, text: w.text, level, font, size: type.sizes[level] * layoutScale, lineBreak: i > 0 && overrides[w.id]?.breakBefore === 'line' };
     });
 
     const raw = layoutBlock(items, zone, template, frame);
@@ -233,9 +237,16 @@ export function compose(opts) {
 
     for (let i = 0; i < phrase.words.length; i++) {
       const w = phrase.words[i];
-      const { level, o, e, pattern: fromPattern, colourSource } = styles[i];
-      const laid = byId.get(w.id);
-      if (!laid) continue;
+      const { level, o, e, pattern: fromPattern, colourSource, ownScale } = styles[i];
+      const laidOut = byId.get(w.id);
+      if (!laidOut) continue;
+      // The word's own size, grown or shrunk about its centre — never wider
+      // than the style lets a line be.
+      const k = Math.min(ownScale, Math.min(template.hierarchy.maxWidth, liveArea(frame, template).w) / Math.max(laidOut.box.w, 1e-6));
+      const laid = k === 1 ? laidOut : {
+        ...laidOut, size: laidOut.size * k,
+        box: { ...laidOut.box, w: laidOut.box.w * k, h: laidOut.box.h * k },
+      };
 
       const item = items[i];
       const start = snapToFrame(appears[i], frame.fps);
@@ -266,6 +277,9 @@ export function compose(opts) {
         decoration: resolveDecoration(template, colour, laid.size, type.sizes.normal, e),
         position: o.position ?? laid.position,
         box: o.position ? { ...laid.box, x: o.position.x, y: o.position.y } : laid.box,
+        // Where the word sat before its own resize: what placing the phrase as
+        // a whole goes by, so one bigger word does not move the rest.
+        layoutBox: laidOut.box,
         motion: withOpacity(buildMotion({
           level, template, life, capFraction, capabilities: caps,
           inOverride: e.inAnimation ?? (fromPattern ? template.motion.patternIn : undefined),
