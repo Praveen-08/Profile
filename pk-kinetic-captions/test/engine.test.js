@@ -643,3 +643,40 @@ test('a word or type can set its own drop shadow', () => {
   assert.equal(w.decoration.shadow.angle, 270);
   assert.equal(Math.round(w.decoration.shadow.colour.r * 255), 255);
 });
+
+test('changing one word’s level changes only that word', () => {
+  const transcript = ingest('Welcome to this beautiful family home with stunning harbour views and a double garage near the beach', { format: 'text' });
+  const template = builtinById('pk-modern');
+  const frame = { width: 1080, height: 1920, fps: 30 };
+  const base = compose({ transcript, template, frame });
+  const words = base.phrases.flatMap((p) => p.words);
+  const target = words.find((w) => w.level === 'normal' && w.text.length > 3);
+  const plan = compose({ transcript, template, frame, overrides: { [target.id]: { level: 'emphasis' } } });
+  const after = plan.phrases.flatMap((p) => p.words);
+  // No other word changes level or size anywhere.
+  for (const w of after) {
+    if (w.id === target.id) continue;
+    const b = words.find((x) => x.id === w.id);
+    assert.equal(w.level, b.level, `${w.text} kept its level`);
+    assert.equal(w.size, b.size, `${w.text} kept its size`);
+  }
+  // Other captions do not move, and the changed caption keeps its lines.
+  const pi = base.phrases.findIndex((p) => p.words.some((w) => w.id === target.id));
+  plan.phrases.forEach((p, i) => {
+    if (i === pi) return;
+    p.words.forEach((w, k) => assert.deepEqual(w.position, base.phrases[i].words[k].position, `${w.text} moved`));
+  });
+  // Lines before the changed word's keep their words; a later wrap happens
+  // only when the grown line could not fit the frame at all.
+  const tLine = base.phrases[pi].words.find((w) => w.id === target.id).line;
+  plan.phrases[pi].words.forEach((w, k) => {
+    const b = base.phrases[pi].words[k];
+    if (b.line < tLine) assert.equal(w.line, b.line, `${w.text} kept its line`);
+  });
+  // And where it fits, nothing wraps: the same change on a short word.
+  const short = words.find((w) => w.level === 'normal' && w.text.length <= 3 && w.id !== target.id);
+  const plan2 = compose({ transcript, template, frame, overrides: { [short.id]: { level: 'emphasis' } } });
+  const pj = base.phrases.findIndex((p) => p.words.some((w) => w.id === short.id));
+  const fits = plan2.phrases[pj].words.reduce((m, w) => Math.max(m, w.line), 0) === base.phrases[pj].words.reduce((m, w) => Math.max(m, w.line), 0);
+  if (fits) assert.deepEqual(plan2.phrases[pj].words.map((w) => w.line), base.phrases[pj].words.map((w) => w.line));
+});

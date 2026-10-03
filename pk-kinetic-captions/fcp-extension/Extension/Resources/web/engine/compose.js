@@ -27,7 +27,7 @@
  */
 
 import { normalize } from '../transcript/normalize.js';
-import { scoreWords, assignLevels } from './emphasis.js';
+import { scoreWords, assignLevels, assignAutoLevels } from './emphasis.js';
 import { groupPhrases } from './phrasing.js';
 import { resolveTypography, capHeightOf, applyCasing } from './typography.js';
 import { layoutBlock, avoidFace, chooseZone, liveArea } from './layout.js';
@@ -122,6 +122,7 @@ export function compose(opts) {
 
   /* 4 — levels ----------------------------------------------------- */
   const levels = assignLevels(phrases, scores, template, overrides);
+  const autoLevels = assignAutoLevels(phrases, scores, template);
 
   /* 5 — type ------------------------------------------------------- */
   const type = resolveTypography(template, frame, opts.installedFonts ?? null);
@@ -204,7 +205,23 @@ export function compose(opts) {
       return { id: w.id, text: w.text, level, font, size: type.sizes[level] * layoutScale, lineBreak: i > 0 && overrides[w.id]?.breakBefore === 'line' };
     });
 
-    const raw = layoutBlock(items, zone, template, frame);
+    // A word set to another level by hand keeps the caption's lines as they
+    // were: the lines are worked out with every word at its automatic level,
+    // and only then is the changed word drawn at its new one. Its own line
+    // makes room for it; the caption's other lines do not move.
+    const changedLevel = phrase.words.some((w) => overrides[w.id]?.level && overrides[w.id].level !== autoLevels.get(w.id)?.level);
+    if (changedLevel) {
+      const autoItems = items.map((it, i) => {
+        const al = autoLevels.get(it.id)?.level ?? 'normal';
+        return al === it.level ? it : { ...it, level: al, font: { ...type.fonts[al] }, size: type.sizes[al] * styles[i].layoutScale };
+      });
+      const lineOf = new Map(layoutBlock(autoItems, zone, template, frame).words.map((w) => [w.id, w.line]));
+      items.forEach((it, i) => {
+        if (i > 0 && (lineOf.get(it.id) ?? 0) > (lineOf.get(items[i - 1].id) ?? 0)) it.lineBreak = true;
+      });
+    }
+
+    const raw = layoutBlock(items, zone, template, frame, { keepLines: changedLevel });
     const adjusted = template.position.faceAvoidance && !(hasHero && template.position.heroMayOverlap)
       ? avoidFace(raw, shot?.face, template, frame)
       : { ...raw, nudged: false };

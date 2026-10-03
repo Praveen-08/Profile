@@ -143,6 +143,21 @@ const DENSITY = {
  * @returns {Map<string, {level: Level, score: number, reasons: string[], source: "auto"|"override"|"off"}>}
  */
 export function assignLevels(phrases, scores, template, overrides = {}) {
+  // Automatic levels are chosen as if nothing had been set by hand, and the
+  // editor's choices are laid over them. Making one word a highlight must not
+  // spend the highlight budget and quietly demote words elsewhere.
+  const auto = assignAutoLevels(phrases, scores, template);
+  const byId = new Map(scores.map((s) => [s.id, s]));
+  for (const w of phrases.flatMap((p) => p.words)) {
+    const o = overrides[w.id];
+    if (o?.level) auto.set(w.id, { level: o.level, score: byId.get(w.id)?.score ?? 0, reasons: ['manual override'], source: 'override' });
+  }
+  return auto;
+}
+
+/** The levels the engine would pick on its own. */
+export function assignAutoLevels(phrases, scores, template) {
+  const overrides = {};
   /** @type {Map<string, {level: Level, score: number, reasons: string[], source: "auto"|"override"|"off"}>} */
   const result = new Map();
   const byId = new Map(scores.map((s) => [s.id, s]));

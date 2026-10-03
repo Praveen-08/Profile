@@ -253,6 +253,10 @@ export function layoutBlock(items, zone, template, frame, opts = {}) {
     return { ...it, size: fit.size, width: measureWidth(applyCasing(it.text, it.font.casing), it.font, fit.size) };
   });
 
+  // Keeping lines (after a word's level changed): wrap only when a line
+  // would leave the frame's live area, not at the style's narrower width.
+  const wrapAt = opts.keepLines ? live.w * frame.width : maxWidthPx;
+
   // Greedy break, respecting maxLines.
   /** @type {Array<Array<typeof sized[number]>>} */
   const lines = [[]];
@@ -262,7 +266,7 @@ export function layoutBlock(items, zone, template, frame, opts = {}) {
     // The editor asked for a new line here: honoured whatever the width or line count.
     if (it.lineBreak && lines[lines.length - 1].length) {
       lines.push([]); lineWidth = 0;
-    } else if (lineWidth + gapPx + it.width > maxWidthPx && lines[lines.length - 1].length && lines.length < template.hierarchy.maxLines) {
+    } else if (lineWidth + gapPx + it.width > wrapAt && lines[lines.length - 1].length && (opts.keepLines || lines.length < template.hierarchy.maxLines)) {
       lines.push([]); lineWidth = 0;
     }
     const g = lines[lines.length - 1].length ? template.spacing.wordGap * it.size : 0;
