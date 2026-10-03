@@ -390,9 +390,14 @@ function resolveDecoration(t, colour, size, baseSize, e = {}) {
   const ref = (v) => (v === 'text' ? colour : parseColour(v));
   return {
     outline: { enabled: d.outline.enabled, width: d.outline.width * k, colour: ref(d.outline.colour) },
+    // A shadow set on the word or its type wins over the style's.
     shadow: {
-      enabled: d.shadow.enabled, opacity: d.shadow.opacity, blur: d.shadow.blur * k,
-      distance: d.shadow.distance * k, angle: d.shadow.angle, colour: parseColour(d.shadow.colour),
+      enabled: e.shadow?.enabled ?? d.shadow.enabled,
+      opacity: e.shadow?.opacity ?? d.shadow.opacity,
+      blur: (e.shadow?.blur ?? d.shadow.blur) * k,
+      distance: (e.shadow?.distance ?? d.shadow.distance) * k,
+      angle: e.shadow?.angle ?? d.shadow.angle,
+      colour: parseColour(e.shadow?.colour ?? d.shadow.colour),
     },
     glow: {
       enabled: e.glow?.enabled ?? d.glow.enabled,

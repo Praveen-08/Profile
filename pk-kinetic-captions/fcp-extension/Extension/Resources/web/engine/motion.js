@@ -312,7 +312,9 @@ function applyOut(kind, ch, { outStart, life, outDuration, dist, style, eout, fr
       ch.blur.push({ t: outStart, v: 0, ease: EASING.linear }, { t: life, v: Math.max(style.blur, 8), ease: safe });
       break;
     case 'maskExit':
-      ch.opacity.push({ t: Math.max(outStart, life - 0.02), v: 1, ease: EASING.linear }, { t: life, v: 0, ease: EASING.linear });
+      // A cut: no keyframes at all — the word is on until its clip ends. So a
+      // title lengthened in Final Cut stays on for the new length instead of
+      // vanishing at a baked-in time.
       break;
     default: fadeOut();
   }

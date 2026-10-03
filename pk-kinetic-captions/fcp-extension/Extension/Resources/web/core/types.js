@@ -297,6 +297,7 @@ export const ZONES = ['top', 'upperLeft', 'upperRight', 'center', 'lowerLeft', '
  * @property {GradientFill} [gradient]  A two-colour fill instead of the flat colour.
  * @property {{enabled:boolean, colour?:string, intensity?:number, radius?:number}} [glow]  Glow, over the style's.
  * @property {boolean} [shine]     A light sweep across the word as it lands.
+ * @property {{enabled:boolean, colour?:string, opacity?:number, blur?:number, distance?:number, angle?:number}} [shadow]  Drop shadow, over the style's.
  * @property {string} [activeColour]  Hex. The colour while the word is being spoken; it settles to its usual colour after.
  * @property {number} [startAt]   Seconds: when the word appears, set on the timeline.
  * @property {number} [endAt]     Seconds: when the word leaves, set on the timeline.

@@ -805,18 +805,20 @@ function customPatch(base) {
   // "Cross dissolve everything": the default for every word, which a type's
   // or a word's own animation can still override.
   const dz = a.dissolve ? 'dissolve' : undefined;
+  // "Exits: Cut": no exit keyframes, so titles lengthened in Final Cut stay on.
+  const outAll = a.exitCut ? 'maskExit' : dz;
   const motionIn = dz ? { normal: dz, emphasis: dz, hero: dz } : {};
-  const motionOut = dz ? { normal: dz, emphasis: dz, hero: dz } : {};
+  const motionOut = outAll ? { normal: outAll, emphasis: outAll, hero: outAll } : {};
   if (g.normal?.in) motionIn.normal = g.normal.in;
   if (g.high?.in) { motionIn.emphasis = g.high.in; motionIn.hero = g.high.in; }
-  if (g.normal?.out) motionOut.normal = g.normal.out;
-  if (g.high?.out) { motionOut.emphasis = g.high.out; motionOut.hero = g.high.out; }
+  if (g.normal?.out && !a.exitCut) motionOut.normal = g.normal.out;
+  if (g.high?.out && !a.exitCut) { motionOut.emphasis = g.high.out; motionOut.hero = g.high.out; }
   return {
     motion: {
       ...(a.feel ? { style: a.feel } : {}),
       ...(a.reveal ? { reveal: a.reveal } : {}),
       in: motionIn, out: motionOut,
-      patternIn: g.pattern?.in || dz, patternOut: g.pattern?.out || dz,
+      patternIn: g.pattern?.in || dz, patternOut: a.exitCut ? 'maskExit' : (g.pattern?.out || dz),
       tune: { normal: g.normal?.tune ?? {}, emphasis: g.high?.tune ?? {}, hero: g.high?.tune ?? {}, pattern: g.pattern?.tune ?? {} },
     },
     scale: { base: base.scale.base * pct },
@@ -861,6 +863,7 @@ function showCustom() {
   $('#a-feel').value = c.anim?.feel ?? '';
   setSeg('#a-reveal', c.anim?.reveal || 'spoken');
   setSeg('#a-dissolve', c.anim?.dissolve ? 'on' : 'off');
+  setSeg('#a-exits', c.anim?.exitCut ? 'cut' : 'anim');
   showTypeCards();
 }
 
@@ -1386,6 +1389,12 @@ function styleEditor(host, { blank }, onChange) {
   const glowStrength = range(0.1, 1, 0.05);
   const glowSize = range(4, 60, 1);
   const shineOn = segOf([['', 'Off'], ['on', 'On']]);
+  const shadowOn = segOf([['', 'Style'], ['off', 'Off'], ['on', 'On']]);
+  const shadowColour = el('input', { type: 'color' });
+  const shadowStrength = range(0.05, 1, 0.05);
+  const shadowSoft = range(0, 60, 1);
+  const shadowDist = range(0, 40, 1);
+  const shadowAngle = range(0, 360, 15);
   const activeOn = segOf([['', 'Off'], ['on', 'On']]);
   const activeColour = el('input', { type: 'color' });
   const reset = el('button', { className: 'pv-btn reset', textContent: 'Reset style' });
@@ -1406,6 +1415,9 @@ function styleEditor(host, { blank }, onChange) {
     el('div', { className: 'ed-sub span2', textContent: 'Glow & shine' }),
     ...row('Glow', glowOn), ...row('Glow colour', glowColour), ...row('Strength', glowStrength.wrap), ...row('Glow size', glowSize.wrap),
     ...row('Shine', shineOn),
+    el('div', { className: 'ed-sub span2', textContent: 'Drop shadow' }),
+    ...row('Shadow', shadowOn), ...row('Shadow colour', shadowColour), ...row('Strength', shadowStrength.wrap),
+    ...row('Softness', shadowSoft.wrap), ...row('Distance', shadowDist.wrap), ...row('Angle', shadowAngle.wrap),
     el('div', { className: 'ed-sub span2', textContent: 'While the word is spoken' }),
     ...row('Spoken colour', activeOn), ...row('Colour', activeColour),
   ]);
@@ -1414,6 +1426,7 @@ function styleEditor(host, { blank }, onChange) {
   host.replaceChildren(textPart, fxPart, reset);
   const gradRows = [gradPresets, gradFrom.parentElement, gradAngle.wrap, gradSpan];
   const glowRows = [glowColour, glowStrength.wrap, glowSize.wrap];
+  const shadowRows = [shadowColour, shadowStrength.wrap, shadowSoft.wrap, shadowDist.wrap, shadowAngle.wrap];
 
   function fillFamilies() {
     const current = value.fontFamily ?? '';
@@ -1464,6 +1477,15 @@ function styleEditor(host, { blank }, onChange) {
   glowStrength.input.oninput = () => glow({ intensity: Number(glowStrength.input.value) });
   glowSize.input.oninput = () => glow({ radius: Number(glowSize.input.value) });
   for (const b of shineOn.children) b.onclick = () => set({ shine: b.dataset.v ? true : undefined });
+  const shadow = (patch) => set({ shadow: { enabled: true, colour: '#000000', opacity: 0.5, blur: 14, distance: 6, angle: 315, ...value.shadow, ...patch } });
+  for (const b of shadowOn.children) {
+    b.onclick = () => (b.dataset.v === 'on' ? shadow({ enabled: true }) : b.dataset.v === 'off' ? set({ shadow: { enabled: false } }) : set({ shadow: undefined }));
+  }
+  shadowColour.oninput = () => shadow({ colour: shadowColour.value });
+  shadowStrength.input.oninput = () => shadow({ opacity: Number(shadowStrength.input.value) });
+  shadowSoft.input.oninput = () => shadow({ blur: Number(shadowSoft.input.value) });
+  shadowDist.input.oninput = () => shadow({ distance: Number(shadowDist.input.value) });
+  shadowAngle.input.oninput = () => shadow({ angle: Number(shadowAngle.input.value) });
   for (const b of gradSpan.children) b.onclick = () => grad({ span: b.dataset.v || undefined });
   for (const b of activeOn.children) b.onclick = () => set({ activeColour: b.dataset.v ? (value.activeColour ?? '#34D399') : undefined });
   activeColour.oninput = () => set({ activeColour: activeColour.value });
@@ -1502,6 +1524,15 @@ function styleEditor(host, { blank }, onChange) {
     glowSize.out.textContent = `${gl?.radius ?? 18}px`;
     for (const r of glowRows) r.classList.toggle('is-off', !gl);
     for (const b of shineOn.children) b.classList.toggle('is-on', !!b.dataset.v === !!value.shine);
+    const sh = value.shadow;
+    const shState = sh === undefined ? '' : sh.enabled ? 'on' : 'off';
+    for (const b of shadowOn.children) b.classList.toggle('is-on', (b.dataset.v || '') === shState);
+    shadowColour.value = sh?.colour ?? '#000000';
+    shadowStrength.input.value = String(sh?.opacity ?? 0.5); shadowStrength.out.textContent = `${Math.round((sh?.opacity ?? 0.5) * 100)}%`;
+    shadowSoft.input.value = String(sh?.blur ?? 14); shadowSoft.out.textContent = `${sh?.blur ?? 14}px`;
+    shadowDist.input.value = String(sh?.distance ?? 6); shadowDist.out.textContent = `${sh?.distance ?? 6}px`;
+    shadowAngle.input.value = String(sh?.angle ?? 315); shadowAngle.out.textContent = `${sh?.angle ?? 315}°`;
+    for (const r of shadowRows) r.classList.toggle('is-off', !sh?.enabled);
     for (const b of gradSpan.children) b.classList.toggle('is-on', (b.dataset.v || '') === (g?.span ?? ''));
     for (const b of activeOn.children) b.classList.toggle('is-on', !!b.dataset.v === !!value.activeColour);
     activeColour.value = value.activeColour ?? '#34d399';
@@ -1607,7 +1638,7 @@ function summarise(t) {
   if (g.scale) parts.push(`${Math.round(g.scale * 100)}%`);
   if (g.colour) parts.push(g.colour);
   if (g.look) parts.push(LOOKS.find(([v]) => v === g.look)?.[1] ?? g.look);
-  const fx = [g.gradient?.enabled && (g.gradient.span === 'line' ? 'line gradient' : 'gradient'), g.glow?.enabled && 'glow', g.shine && 'shine', g.activeColour && 'spoken colour'].filter(Boolean);
+  const fx = [g.gradient?.enabled && (g.gradient.span === 'line' ? 'line gradient' : 'gradient'), g.glow?.enabled && 'glow', g.shine && 'shine', g.shadow?.enabled && 'shadow', g.activeColour && 'spoken colour'].filter(Boolean);
   if (fx.length) parts.push(fx.join(' + '));
   parts.push(a.in ? `in: ${IN_ANIMS.find(([v]) => v === a.in)?.[1] ?? a.in}` : 'style animation');
   typeCards[t.key].summaryLine.textContent = parts.join(' · ');
@@ -1737,6 +1768,9 @@ function animEditor(host, blank, onChange) {
 }
 
 $('#a-feel').onchange = () => { state.custom.anim.feel = $('#a-feel').value; changed(); replayCurrentPhrase(); };
+for (const b of $$('#a-exits button')) {
+  b.onclick = () => { state.custom.anim.exitCut = b.dataset.v === 'cut'; setSeg('#a-exits', b.dataset.v); changed(); };
+}
 for (const b of $$('#a-dissolve button')) {
   b.onclick = () => { state.custom.anim.dissolve = b.dataset.v === 'on'; setSeg('#a-dissolve', b.dataset.v); changed(); replayCurrentPhrase(); };
 }
@@ -2568,14 +2602,14 @@ $('#tl-scroll').addEventListener('pointerdown', (e) => {
   if (capEnd) {
     const p = state.plan.phrases[Number(capEnd.dataset.phrase)];
     TL.drag = { kind: 'capEnd', ids: p.words.map((w) => w.id), minEnd: Math.max(...p.words.map((w) => w.start)) + 2 / fps };
-  } else if (handle && bar) {
-    const w = allWords().find((x) => x.id === bar.dataset.id);
-    TL.drag = { kind: handle.dataset.edge, ids: [w.id], start: w.start, end: w.end };
-    select(w.id);
   } else if (bar) {
+    // Near an end: change that end. In the middle: move the whole word.
     const w = allWords().find((x) => x.id === bar.dataset.id);
-    select(w.id, { seek: true });
-    return;
+    const r = bar.getBoundingClientRect();
+    const zone = Math.min(10, r.width / 3);
+    const kind = handle?.dataset.edge ?? (e.clientX - r.left < zone ? 'start' : r.right - e.clientX < zone ? 'end' : 'move');
+    TL.drag = { kind, ids: [w.id], start: w.start, end: w.end, x: e.clientX, moved: false };
+    select(w.id);
   } else {
     seek(timeAt(e.clientX));                                 // click the ruler or space: move the playhead
     return;
@@ -2588,13 +2622,28 @@ $('#tl-scroll').addEventListener('pointermove', (e) => {
   const d = TL.drag;
   if (!d) return;
   const fps = state.frame.fps || 30;
+  if (d.kind === 'move') {
+    if (!d.moved && Math.abs(e.clientX - d.x) < 4) return;
+    d.moved = true;
+    const shift = Math.round(((e.clientX - d.x) / TL.px) * fps) / fps;
+    const start = Math.max(0, d.start + shift);
+    setTimes(d.ids, { startAt: start, endAt: start + (d.end - d.start) });
+    setStatus(`On ${start.toFixed(2)}–${(start + d.end - d.start).toFixed(2)}s`);
+    return;
+  }
   const t = timeAt(e.clientX, new Set(d.ids));
   if (d.kind === 'end') setTimes(d.ids, { endAt: Math.max(t, d.start + 2 / fps) });
   else if (d.kind === 'start') setTimes(d.ids, { startAt: Math.min(t, d.end - 2 / fps) });
   else if (d.kind === 'capEnd') setTimes(d.ids, { endAt: Math.max(t, d.minEnd) });
   setStatus(`${d.kind === 'start' ? 'Appears' : 'Leaves'} at ${t.toFixed(2)}s`);
 });
-const endTl = () => { if (TL.drag) { TL.drag = null; $('#tl').classList.remove('is-dragging'); } };
+const endTl = () => {
+  if (!TL.drag) return;
+  // A click on a word's middle (no drag): select it and show it.
+  if (TL.drag.kind === 'move' && !TL.drag.moved) select(TL.drag.ids[0], { seek: true });
+  TL.drag = null;
+  $('#tl').classList.remove('is-dragging');
+};
 $('#tl-scroll').addEventListener('pointerup', endTl);
 $('#tl-scroll').addEventListener('pointercancel', endTl);
 
@@ -2614,7 +2663,7 @@ for (const b of $$('#cap-view button')) {
     $('#tl').hidden = !tl;
     $('#words').hidden = tl;
     $('#cap-hint').textContent = tl
-      ? 'Drag the end of a word to keep it on longer — into the next caption if you like; drag its start to change when it appears. Drag a caption’s gold edge to move when it all leaves. Double-click a word for its automatic timing.'
+      ? 'Drag a word’s right end to keep it on longer (into the next caption if you like), its left end to change when it appears, or its middle to move it. Drag a caption’s gold edge to move when it all leaves. Double-click a word for its automatic timing.'
       : 'Drag a word into the caption before or after it. Click between two words for a new line; click the ↵ again to split the caption there. Click a word to style it below.';
     drawTimeline();
   };

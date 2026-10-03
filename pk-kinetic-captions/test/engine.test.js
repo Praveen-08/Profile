@@ -621,3 +621,25 @@ test('a word appears and leaves when the timeline says', () => {
   assert.ok(Math.abs(x.end - 4.5) < 1 / 30 + 1e-6);
   assert.ok(x.motion.opacity.length > 0, 'it still animates in and out');
 });
+
+test('a Cut exit has no keyframes, so a title lengthened in Final Cut stays on', () => {
+  const t = merge(builtinById('pk-modern'), { motion: { out: { normal: 'maskExit', emphasis: 'maskExit', hero: 'maskExit' } } });
+  const plan = compose({ transcript: ingest('A calm and quiet home by the water', { format: 'text' }), template: t, frame: { width: 1080, height: 1920, fps: 30 } });
+  for (const w of plan.phrases.flatMap((p) => p.words)) {
+    const last = w.motion.opacity.at(-1);
+    assert.ok(!last || last.v === 1, `${w.text} ends fully on, not faded`);
+    assert.ok(w.motion.opacity.every((k) => k.t <= w.motion.inDuration + 1e-6), 'only entrance keyframes');
+  }
+});
+
+test('a word or type can set its own drop shadow', () => {
+  const transcript = ingest('This beautiful home has four bedrooms', { format: 'text' });
+  const w0 = transcript.words[0];
+  const plan = compose({ transcript, template: builtinById('pk-minimal'), frame: { width: 1080, height: 1920, fps: 30 },
+    overrides: { [w0.id]: { shadow: { enabled: true, colour: '#ff0000', opacity: 0.8, blur: 20, distance: 10, angle: 270 } } } });
+  const w = plan.phrases[0].words.find((x) => x.id === w0.id);
+  assert.equal(w.decoration.shadow.enabled, true);
+  assert.equal(w.decoration.shadow.opacity, 0.8);
+  assert.equal(w.decoration.shadow.angle, 270);
+  assert.equal(Math.round(w.decoration.shadow.colour.r * 255), 255);
+});
