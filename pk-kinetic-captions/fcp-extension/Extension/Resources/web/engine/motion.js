@@ -111,7 +111,7 @@ export function buildMotion({ level, template, life, capFraction, inOverride, ou
   if (!caps.blur && inAnimation === 'blur') inAnimation = 'scale';
   if (!caps.blur && outAnimation === 'blur') outAnimation = 'fade';
   if (!caps.maskReveal && (inAnimation === 'reveal' || inAnimation === 'maskReveal')) inAnimation = 'rise';
-  if (!caps.maskReveal && outAnimation === 'maskExit') outAnimation = 'fade';
+  // 'maskExit' (Cut) needs no mask: it is no keyframes at all.
 
   // Entry and exit must fit inside the word's life and still leave a real
   // hold in the middle — a word that is always either arriving or leaving is
