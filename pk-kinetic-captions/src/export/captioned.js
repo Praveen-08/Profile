@@ -30,7 +30,10 @@ const TIMED = new Set(['asset-clip', 'clip', 'video', 'sync-clip', 'ref-clip', '
  *   from `lane` up, instead of one compound clip.
  *   exportFCPXML(plan, { as: 'clip' }) — or several, each on its own lane
  *   (the words behind the agent below a gap for the masked shot, the rest above)
- * @param {{name?: string, lane?: number, projectName?: string}} [opts]
+ * @param {{name?: string, lane?: number, projectName?: string, maskCopies?: {ranges: [number, number][], lane: number}}} [opts]
+ *   `maskCopies`: for words behind the agent — a silent copy of every shot
+ *   on screen during these project times, on `lane` (between the caption
+ *   layers), ready for a Magnetic Mask on the agent.
  * @returns {string}
  */
 export function captionedProject(projectXml, clips, opts = {}) {
@@ -93,6 +96,11 @@ export function captionedProject(projectXml, clips, opts = {}) {
       a = a.replace(/\blane="(-?\d+)"/, (l, v) => `lane="${lane + Math.max(0, Number(v) - 1)}"`);
       return `<title${a}>`;
     });
+  }
+
+  // Copies of the shots behind which words are hidden, for the mask.
+  if (opts.maskCopies?.ranges?.length && !first.selfClosing) {
+    anchorXml += maskCopies(src, first, tcStart, opts.maskCopies);
   }
 
   let out = src;
@@ -176,4 +184,126 @@ function ratAdd([a, b], [c, d]) {
   return [n / g, m / g];
 }
 const ratString = ([n, d]) => (n === 0 ? '0s' : d === 1 ? `${n}s` : `${n}/${d}s`);
+
+/** Video clips connected to the first storyline item. */
+const SHOTS = new Set(['clip', 'asset-clip', 'ref-clip', 'sync-clip', 'mc-clip']);
+
+/**
+ * Silent copies of the shots on screen while words sit behind the agent.
+ * Each copy is the shot exactly as edited — effects, colour, reframing — on
+ * the mask lane, without its own connected items or audio, so the editor
+ * only has to add a Magnetic Mask to the agent on it.
+ */
+function maskCopies(src, first, tcStart, { ranges, lane }) {
+  const itemAt = seconds(first.attrs.offset) - tcStart;         // project seconds at the item's local `start`
+  const localStart = seconds(first.attrs.start);
+  const out = [];
+  for (const child of directChildren(src, first)) {
+    if (!SHOTS.has(child.name)) continue;
+    if (!(Number(child.attrs.lane) >= 1)) continue;              // above the storyline: the picture
+    if (!showsPicture(src, child)) continue;                     // not a titles-only compound or an audio clip
+    const at = itemAt + (seconds(child.attrs.offset) - localStart);
+    const end = at + seconds(child.attrs.duration);
+    if (!ranges.some(([a, b]) => a < end && b > at)) continue;
+    let copy = src.slice(child.start, child.end);
+    copy = copy.replace(/^<([\w-]+)\b([^>]*)>/, (m, name, attrs) => {
+      let a = attrs.replace(/\blane="[^"]*"/, `lane="${lane}"`);
+      a = a.replace(/\bname="([^"]*)"/, (n, v) => `name="${v} — add Magnetic Mask on the agent"`);
+      return `<${name}${a}>`;
+    });
+    out.push(silence(copy));
+  }
+  return out.join('');
+}
+
+/**
+ * Whether a clip shows camera footage: an asset with video, or a compound
+ * whose media holds some. A compound of titles (an earlier captions clip)
+ * or a music clip is not a shot to mask.
+ */
+function showsPicture(src, child) {
+  const assetHasVideo = (id) => new RegExp(`<asset\\b[^>]*\\bid="${id}"[^>]*\\bhasVideo="1"`).test(src);
+  if (child.name === 'asset-clip') return assetHasVideo(child.attrs.ref);
+  if (child.name === 'ref-clip') {
+    const media = new RegExp(`<media\\b[^>]*\\bid="${child.attrs.ref}"[\\s\\S]*?</media>`).exec(src)?.[0] ?? '';
+    const refs = [...media.matchAll(/<(?:asset-clip|video)\b[^>]*\bref="([^"]+)"/g)].map((m) => m[1]);
+    return refs.some(assetHasVideo);
+  }
+  const body = src.slice(child.start, child.end);
+  const refs = [...body.matchAll(/<(?:asset-clip|video)\b[^>]*\bref="([^"]+)"/g)].map((m) => m[1]);
+  return refs.length === 0 || refs.some(assetHasVideo);
+}
+
+/** Children that come before a clip's audio settings, in DTD order. */
+const BEFORE_VOLUME = new Set(['note', 'conform-rate', 'timeMap', 'object-tracker', 'adjust-crop', 'adjust-corners',
+  'adjust-conform', 'adjust-transform', 'adjust-blend', 'adjust-stabilization', 'adjust-rollingShutter',
+  'adjust-360-transform', 'adjust-reorient', 'adjust-orientation', 'adjust-cinematic', 'adjust-colorConform', 'adjust-stereo-3D']);
+
+/**
+ * Make a copied shot silent: drop its connected items (titles, music on
+ * other lanes), its audio pieces and audio effects, and set its own volume
+ * to -96 dB in the place the DTD gives it.
+ */
+function silence(xml) {
+  const open = /^<([\w-]+)\b[^>]*?(\/?)>/.exec(xml);
+  if (!open) return xml;
+  const name = open[1];
+  if (open[2] === '/') {
+    return `${open[0].replace(/\s*\/>$/, '>')}<adjust-volume amount="-96dB"/></${name}>`;
+  }
+  const body = xml.slice(open[0].length, xml.lastIndexOf(`</${name}>`));
+  const kids = scanChildren(body).filter((k) => !(
+    k.name === 'audio' || k.name === 'audio-channel-source' || k.name === 'audio-role-source'
+    || k.name === 'filter-audio' || k.name === 'adjust-volume' || k.name === 'adjust-panner'
+    || (k.attrs.lane !== undefined && Number(k.attrs.lane) !== 0)));
+  let i = 0;
+  while (i < kids.length && BEFORE_VOLUME.has(kids[i].name)) i++;
+  const part = (k) => body.slice(k.start, k.end);
+  const inner = [...kids.slice(0, i).map(part), '<adjust-volume amount="-96dB"/>', ...kids.slice(i).map(part)].join('');
+  return `${open[0]}${inner}</${name}>`;
+}
+
+/** The direct children of an open element in `src`, with their extents. */
+function directChildren(src, el) {
+  const close = src.indexOf(`</${el.name}>`, el.end);
+  const inner = src.slice(el.end, findClose(src, el));
+  return scanChildren(inner).map((k) => ({ ...k, start: k.start + el.end, end: k.end + el.end }));
+  void close;
+}
+
+function findClose(src, el) {
+  const re = /<(\/?)([A-Za-z][\w-]*)((?:\s+[\w:-]+\s*=\s*"[^"]*")*)\s*(\/?)>/g;
+  re.lastIndex = el.end;
+  let depth = 0;
+  let m;
+  while ((m = re.exec(src))) {
+    if (m[1]) { if (depth === 0) return m.index; depth--; } else if (!m[4]) depth++;
+  }
+  return src.length;
+}
+
+/** Top-level elements of an XML fragment. */
+function scanChildren(xml) {
+  const re = /<(\/?)([A-Za-z][\w-]*)((?:\s+[\w:-]+\s*=\s*"[^"]*")*)\s*(\/?)>/g;
+  const out = [];
+  let depth = 0;
+  let cur = null;
+  let m;
+  while ((m = re.exec(xml))) {
+    const [full, closing, name, attrs, self] = m;
+    if (closing) {
+      depth--;
+      if (depth === 0 && cur) { cur.end = m.index + full.length; out.push(cur); cur = null; }
+      continue;
+    }
+    if (depth === 0) {
+      const a = {};
+      for (const x of attrs.matchAll(/([\w:-]+)\s*=\s*"([^"]*)"/g)) a[x[1]] = x[2];
+      cur = { name, attrs: a, start: m.index, end: m.index + full.length };
+      if (self) { out.push(cur); cur = null; continue; }
+    }
+    if (!self) depth++;
+  }
+  return out;
+}
 

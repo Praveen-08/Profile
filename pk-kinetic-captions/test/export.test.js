@@ -515,3 +515,17 @@ test('inlined captions: every word its own title on the project timeline, on its
   assert.ok(Math.abs(n / (d || 1) - (86400314 / 24000 + first)) < 1e-6);
   assert.ok(/<title ref="pk0r\d+" lane="2\d"/.test(out), 'lifted onto the caption lanes');
 });
+
+test('shine exports as white Screen copies with a band sweeping across the word', () => {
+  const t = merge(builtinById('pk-reel-gold'), {});
+  const plan = make(t);
+  const shining = plan.phrases.flatMap((p) => p.words).filter((w) => w.decoration.shine);
+  assert.ok(shining.length > 0, 'Gold Luxe highlights shine');
+  const { xml } = exportFCPXML(plan, { profile: 'pk' });
+  assertWellFormed(xml);
+  const copies = [...xml.matchAll(/<title [^>]*>[\s\S]*?<\/title>/g)].map((m) => m[0]).filter((x) => x.includes('mode="10 (Screen)"') && x.includes('<param name="left">'));
+  assert.equal(copies.length, shining.length * 2, 'a core and a soft band for each shining word');
+  // The band's left edge moves: more than one distinct value.
+  const lefts = new Set([...copies[0].matchAll(/<param name="left">[\s\S]*?<\/param>/g)][0][0].match(/value="([\d.]+)"/g));
+  assert.ok(lefts.size > 3);
+});

@@ -477,6 +477,7 @@ function drawPreview() {
   $('#pv-cut').hidden = !behind || state.playing || !$('#pv-cut').getAttribute('src');
   $('#dragout-back').hidden = !behind;
   $('#dragout b').textContent = behind ? 'Or drag: in front' : 'Or drag onto a timeline';
+  $('#dragout').title = 'Drag onto your Final Cut timeline at the project’s start, then press ⇧⌘G (Clip ▸ Break Apart Clip Items): every word becomes its own title, in place, to select, mask or change.';
   const isProject = Boolean(state.droppedXml && /<project\b/.test(state.droppedXml));
   $('#send-sub').textContent = isProject
     ? `a copy of “${state.projectName}” with the captions in sync${behind ? ', ready for the masked shot' : ''}`
@@ -1284,9 +1285,12 @@ $('#apply').onclick = async () => {
       const clips = behind
         ? [layer('background', 'Captions — behind the agent', 20), layer('foreground', 'Captions — in front', 60)]
         : [layer(null, 'Captions', 20)];
-      xml = captionedProject(state.droppedXml, clips);
+      // Behind the agent: a silent copy of each shot those words fall in,
+      // on the lane between the two caption layers, ready for the mask.
+      const ranges = behind ? state.plan.phrases.flatMap((p) => p.words).filter((w) => w.depth === 'background').map((w) => [w.start, w.end]) : [];
+      xml = captionedProject(state.droppedXml, clips, behind ? { maskCopies: { ranges, lane: 40 } } : {});
       message = behind
-        ? `Sent “${state.projectName} — captions”: every word is its own title, in sync. Open it, Option-drag your clip up above the “PK Captions Behind” titles (below the rest) and add a Magnetic Mask to the agent.`
+        ? `Sent “${state.projectName} — captions”: every word is its own title, in sync, and the shots behind those words are copied above them, named “add Magnetic Mask on the agent”. Select each copy, add Magnetic Mask (Effects ▸ Masks), click the agent and Analyze.`
         : `Sent “${state.projectName} — captions”: every word is its own title on the timeline, in sync — select any to adjust it. Your original project is unchanged.`;
     } else {
       const out = exportFCPXML(state.plan, exportOptions({}));

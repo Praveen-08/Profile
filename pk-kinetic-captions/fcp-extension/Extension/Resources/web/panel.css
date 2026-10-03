@@ -348,4 +348,4 @@ body.panel {
 .pfoot .send b { font-size: 13px; }
 .pfoot .dragrow { grid-column: 2; flex-direction: column; gap: 4px; }
 .pfoot .dragchip { padding: 4px 8px; }
-.pfoot .dragchip span { display: none; }
+.pfoot .dragchip span { display: block; font-size: 9px; }

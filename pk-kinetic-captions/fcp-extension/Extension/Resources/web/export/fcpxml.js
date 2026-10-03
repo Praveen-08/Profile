@@ -140,9 +140,6 @@ export function exportFCPXML(plan, opts = {}) {
   if (profile === 'native' && words.some((w) => w.active)) {
     warnings.push('The active-word colour needs the PK Kinetic Caption title; with Basic Title those words keep one colour.');
   }
-  if (words.some((w) => w.decoration.shine)) {
-    warnings.push('Shine is drawn in the preview only for now; Final Cut shows these words without the sweep.');
-  }
   if (words.some((w) => w.depth === 'background')) {
     warnings.push('This plan places type behind the subject. The exported project builds the layer stack; isolate the subject on the top copy of the shot using Final Cut\'s own masking, then the type sits behind them.');
   }
@@ -162,7 +159,13 @@ export function exportFCPXML(plan, opts = {}) {
   // Words behind the agent get a role of their own, so they can be shown,
   // hidden or soloed together in Final Cut's timeline index.
   const rolePlan = { ...plan, role: opts.role ?? (opts.only === 'background' ? 'PK Captions Behind' : 'PK Captions') };
-  const titles = words.map((w, i) => renderTitle(w, i, laneMap.get(w.id) ?? 1, rolePlan, samples, profile)).join('\n');
+  // Shine copies sit on lanes above every word, so they draw on top.
+  const topLane = Math.max(0, ...laneMap.values());
+  const shines = words.filter((w) => w.decoration.shine).flatMap((w) => shineCopies(w, fps));
+  const titles = [
+    ...words.map((w, i) => renderTitle(w, i, laneMap.get(w.id) ?? 1, rolePlan, samples, profile)),
+    ...shines.map((w, k) => renderTitle(w, words.length + k, topLane + 1 + k, rolePlan, samples, profile)),
+  ].join('\n');
   void effectName;
 
   const name = opts.projectName ?? `${plan.templateName} Captions`;
@@ -332,6 +335,7 @@ function renderTransform(w, plan, baseX, baseY, life, fps, samples) {
  * @returns {string} the element and a newline, or '' when the word has no reveal
  */
 function renderReveal(w, plan, life, fps, samples) {
+  if (w.band) return renderBand(w, plan, life, fps);
   const reveal = w.motion.reveal ?? [];
   if (!reveal.some((k) => k.v < 0.999)) return '';
   const H = plan.frame.height;
@@ -358,6 +362,70 @@ ${frames}
                   </trim-rect>
                 </adjust-crop>
 `;
+}
+
+/**
+ * The shine's moving band: a trim crop whose left and right edges travel
+ * together across the word, so only a slice of the white copy shows — a
+ * glint sweeping from left to right. Measured from the frame centre, as the
+ * crop applies before the transform.
+ */
+function renderBand(w, plan, life, fps) {
+  const H = plan.frame.height;
+  const halfFrame = plan.frame.width / 2;
+  const wordW = w.box.w * plan.frame.width;
+  const n = Math.max(2, Math.round(life * fps));
+  const left = [], right = [];
+  for (let k = 0; k <= n; k++) {
+    const t = Math.min(life, k / fps);
+    const c = -0.3 + 1.6 * (t / life);                   // the band's centre, in word widths
+    const x0 = -wordW / 2 + wordW * (c - w.band.half);
+    const x1 = -wordW / 2 + wordW * (c + w.band.half);
+    const time = toFCPTime(t, fps);
+    left.push(`                        <keyframe time="${time}" value="${num(Math.max(0, halfFrame + x0) / H * 100, 3)}" curve="linear"/>`);
+    right.push(`                        <keyframe time="${time}" value="${num(Math.max(0, halfFrame - x1) / H * 100, 3)}" curve="linear"/>`);
+  }
+  const param = (name, keys) => `                    <param name="${name}">
+                      <keyframeAnimation>
+${[...new Map(keys.map((k) => [/time="([^"]+)"/.exec(k)[1], k])).values()].join('\n')}
+                      </keyframeAnimation>
+                    </param>`;
+  return `                <adjust-crop mode="trim">
+                  <trim-rect>
+${param('left', left)}
+${param('right', right)}
+                  </trim-rect>
+                </adjust-crop>
+`;
+}
+
+/**
+ * Shine, as Final Cut layers: for each shining word, two white copies of it
+ * blended with Screen, each showing only a band that sweeps across the word
+ * once just after it lands — a narrow bright core and a wide soft edge.
+ * @param {PlacedWord} w
+ * @returns {PlacedWord[]}
+ */
+function shineCopies(w, fps) {
+  const start = w.start + 0.12;
+  const len = Math.min(0.6, Math.max(0.2, w.end - start - 0.05));
+  if (len <= 0.1) return [];
+  const white = { r: 1, g: 1, b: 1, a: 1 };
+  const off = { enabled: false };
+  const base = {
+    ...w, start: snapToFrame(start, fps), end: snapToFrame(start + len, fps),
+    colour: white, blend: 'screen', active: undefined, depth: w.depth,
+    decoration: {
+      ...w.decoration,
+      outline: { ...w.decoration.outline, ...off }, shadow: { ...w.decoration.shadow, ...off },
+      glow: { ...w.decoration.glow, ...off }, gradient: { ...(w.decoration.gradient ?? {}), enabled: false }, shine: false,
+    },
+  };
+  const still = (opacity) => ({ ...w.motion, opacity: [{ t: 0, v: opacity }], scale: [], offsetX: [], offsetY: [], blur: [], rotation: [], reveal: [] });
+  return [
+    { ...base, id: `${w.id}-shine-soft`, text: w.text, band: { half: 0.2 }, motion: still(0.35) },
+    { ...base, id: `${w.id}-shine`, text: w.text, band: { half: 0.07 }, motion: still(0.85) },
+  ];
 }
 
 /** Opacity and the compositing mode. */
