@@ -911,6 +911,18 @@ function drawWords() {
     const num = Object.assign(document.createElement('span'), { className: 'wnum', textContent: String(pi + 1) });
     group.append(num);
 
+    // Words from earlier captions still on screen during this one.
+    for (let back = 1; back <= 3 && pi - back >= 0; back++) {
+      for (const cw of state.plan.phrases[pi - back].words) {
+        if ((stayOf(cw.id) ?? 0) < back) continue;
+        const ghost = Object.assign(document.createElement('button'), {
+          className: 'wchip wcarry', textContent: `${cw.text} →`, title: `Still on from caption ${pi - back + 1} — click to change`,
+        });
+        ghost.onclick = (e) => { e.stopPropagation(); select(cw.id); };
+        group.append(ghost);
+      }
+    }
+
     phrase.words.forEach((w, wi) => {
       if (wi > 0) {
         // Between two words: shows and cycles the break before the second.
@@ -946,10 +958,18 @@ function drawWords() {
       // Click selects; clicking the selected word again edits it in place.
       chip.onclick = (e) => {
         if (wordDrag.moved) return;
-        if (e.target.closest('.wx')) return;
+        if (e.target.closest('.wx, .wext')) return;
         if (state.selected === w.id) return editWordInline(chip, w);
         select(w.id, { seek: true });
       };
+      // Drag this into a later caption to keep the word on through it; click to cycle.
+      const ext = Object.assign(document.createElement('span'), {
+        className: `wext${stayOf(w.id) ? ' is-on' : ''}`, textContent: stayOf(w.id) ? `→${stayOf(w.id)}` : '→',
+        title: 'Keep this word on into the next caption: drag onto it (or the one after), or click',
+      });
+      ext.dataset.id = w.id;
+      ext.dataset.phrase = String(pi);
+      chip.append(ext);
       const x = Object.assign(document.createElement('span'), { className: 'wx', textContent: '×', title: 'Delete this word' });
       x.setAttribute('role', 'button');
       x.onclick = (e) => { e.stopPropagation(); deleteWords([w.id]); };
@@ -1086,8 +1106,14 @@ function cycleBreak(pi, wi) {
    drop, which Final Cut's web view can take for a clip being dropped. */
 const wordDrag = { id: '', pi: -1, wi: -1, x: 0, y: 0, moved: false, ghost: /** @type {HTMLElement|null} */ (null), over: /** @type {HTMLElement|null} */ (null) };
 $('#words').addEventListener('pointerdown', (e) => {
+  const ext = e.target.closest('.wext');
+  if (ext && e.button === 0) {
+    e.stopPropagation();
+    Object.assign(extendDrag, { id: ext.dataset.id, pi: Number(ext.dataset.phrase), x: e.clientX, y: e.clientY, moved: false, pointer: e.pointerId });
+    return;
+  }
   const chip = e.target.closest('.wchip');
-  if (!chip || e.button !== 0 || e.target.closest('.wx, input')) return;
+  if (!chip || chip.classList.contains('wcarry') || e.button !== 0 || e.target.closest('.wx, input')) return;
   Object.assign(wordDrag, { id: chip.dataset.id, pi: Number(chip.dataset.phrase), wi: Number(chip.dataset.index), x: e.clientX, y: e.clientY, moved: false, pointer: e.pointerId });
 });
 $('#words').addEventListener('pointermove', (e) => {
@@ -2435,4 +2461,56 @@ window.addEventListener('keydown', (e) => {
     if (chip && w) { e.preventDefault(); showTab('words'); editWordInline(chip, w); }
   }
 });
+
+/* ------------------------------------------------------------------ *
+ * Keeping a word on into later captions, from the captions list
+ * ------------------------------------------------------------------ */
+
+/** How many captions after its own a word stays on through. */
+function stayOf(id) { return state.overrides[id]?.tune?.stayThrough ?? 0; }
+
+function setStay(id, n) {
+  const o = state.overrides[id] ?? {};
+  const tune = { ...(o.tune ?? {}) };
+  if (n > 0) tune.stayThrough = n; else delete tune.stayThrough;
+  const next = { ...o, tune };
+  if (!Object.keys(tune).length) delete next.tune;
+  if (Object.keys(next).length) state.overrides[id] = next; else delete state.overrides[id];
+  regenerate();
+  if (state.selected === id) showWord();
+  setStatus(n ? `Stays on through ${n === 1 ? 'the next caption' : `${n} captions`}. Drag it or the next caption apart in the picture if they overlap.` : 'Leaves with its own caption.');
+}
+
+const extendDrag = { id: '', pi: -1, x: 0, y: 0, moved: false, pointer: 0, over: /** @type {HTMLElement|null} */ (null) };
+$('#words').addEventListener('pointermove', (e) => {
+  if (!extendDrag.id) return;
+  if (!extendDrag.moved && Math.hypot(e.clientX - extendDrag.x, e.clientY - extendDrag.y) < 5) return;
+  if (!extendDrag.moved) {
+    extendDrag.moved = true;
+    try { $('#words').setPointerCapture(extendDrag.pointer); } catch { /* released */ }
+    $('#words').classList.add('is-extending');
+  }
+  const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('.wgroup');
+  if (extendDrag.over && extendDrag.over !== target) extendDrag.over.classList.remove('is-target', 'is-bad');
+  extendDrag.over = target ?? null;
+  if (target) {
+    const n = Number(target.dataset.phrase) - extendDrag.pi;
+    target.classList.add(n >= 0 && n <= 3 ? 'is-target' : 'is-bad');
+  }
+});
+const endExtend = (e) => {
+  if (!extendDrag.id) return;
+  const { id, pi, moved, over } = extendDrag;
+  over?.classList.remove('is-target', 'is-bad');
+  $('#words').classList.remove('is-extending');
+  extendDrag.id = '';
+  if (e.type === 'pointercancel') return;
+  if (!moved) return setStay(id, (stayOf(id) + 1) % 3);          // a click: 0 → 1 → 2 → 0
+  if (!over) return;
+  const n = Number(over.dataset.phrase) - pi;
+  if (n >= 0 && n <= 3) setStay(id, n);
+  else setStatus('Drag onto one of the next three captions — or back onto its own to stop.', true);
+};
+$('#words').addEventListener('pointerup', endExtend);
+$('#words').addEventListener('pointercancel', endExtend);
 

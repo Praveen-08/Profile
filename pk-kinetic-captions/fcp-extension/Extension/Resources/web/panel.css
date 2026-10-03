@@ -307,4 +307,11 @@ body.panel {
 .wx:hover { background: var(--danger, #e5484d); }
 .wedit-word { font: inherit; font-size: 12px; color: inherit; background: var(--panel-2); border: 1px solid var(--gold); border-radius: 4px; padding: 3px 6px; min-width: 4ch; }
 
-.wchip.is-stays::before { content: '→'; color: var(--gold); margin-right: 3px; font-size: 10px; }
+
+/* Keeping a word on into later captions */
+.wext { margin-left: 4px; font-size: 10px; color: var(--muted); cursor: ew-resize; opacity: 0; padding: 0 2px; border-radius: 3px; }
+.wchip:hover .wext, .wchip.is-sel .wext, .wext.is-on { opacity: 1; }
+.wext.is-on { color: var(--gold); }
+.wext:hover { background: rgba(201,168,76,.2); color: var(--gold); }
+.wchip.wcarry { opacity: .5; font-style: italic; border-style: dashed; cursor: pointer; }
+#words.is-extending { cursor: ew-resize; }
