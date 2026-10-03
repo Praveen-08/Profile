@@ -190,7 +190,7 @@
 </div>
 
 <div class="tab-pane" data-tab="words" hidden>
-  <section class="pstep">
+  <section class="pstep cap-list">
     <h2>Captions <span id="wstats" class="hint"></span></h2>
     <div class="seg wide" id="cap-view"><button data-v="text" class="is-on">Text</button><button data-v="timeline">Timeline</button></div>
     <p id="cap-hint" class="hint mt-s">Drag a word into the caption before or after it. Click between two words for a new line; click the ↵ again to split the caption there. Click a word to style it below.</p>
@@ -200,7 +200,7 @@
       <div id="tl-scroll" class="tl-scroll"><div id="tl-inner" class="tl-inner"></div></div>
     </div>
   </section>
-  <section class="pstep">
+  <section class="pstep word-editor">
     <p id="word-empty" class="hint">Click a word in the picture or the captions above to style it on its own.</p>
     <div id="step-word" hidden>
   <div class="w-head">
@@ -208,6 +208,15 @@
     <input type="text" id="w-text" class="w-text" spellcheck="false" title="Edit the word">
     <button id="w-next" class="pv-btn" title="Next word">▶</button>
   </div>
+
+  <h2 class="mt-s">Style this word</h2>
+  <div class="seg wide" id="word-mode">
+    <button data-v="text" class="is-on">Text</button><button data-v="fx">Effects</button><button data-v="anim">Animation</button>
+  </div>
+  <p class="hint mt-s">This word only — anything left blank follows its type.</p>
+  <div id="style-word" class="anim-ed"></div>
+  <div id="anim-word" class="anim-ed" hidden></div>
+  <button id="w-replay" class="pv-btn mt-s" hidden>▶ Replay this phrase</button>
 
   <h2 class="mt">Level</h2>
   <div class="seg wide" id="w-level">
@@ -223,15 +232,6 @@
   <div class="seg wide" id="w-with">
     <button data-v="own" class="is-on">When it is said</button><button data-v="with">With the word before</button>
   </div>
-
-  <h2 class="mt">Edit</h2>
-  <div class="seg wide" id="word-mode">
-    <button data-v="text" class="is-on">Text</button><button data-v="fx">Effects</button><button data-v="anim">Animation</button>
-  </div>
-  <p class="hint mt-s">This word only — anything left blank follows its type.</p>
-  <div id="style-word" class="anim-ed"></div>
-  <div id="anim-word" class="anim-ed" hidden></div>
-  <button id="w-replay" class="pv-btn mt-s" hidden>▶ Replay this phrase</button>
 
   <div class="pv-row mt">
     <button id="w-hide" class="pv-btn">Delete word</button>

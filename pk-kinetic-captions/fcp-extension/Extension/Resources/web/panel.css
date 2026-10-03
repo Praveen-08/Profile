@@ -333,3 +333,19 @@ body.panel {
 .wchip.is-behind { background: repeating-linear-gradient(135deg, rgba(120,140,255,.18) 0 4px, transparent 4px 8px); border-color: rgba(140,160,255,.6); }
 .wchip.is-behind::before { content: '◐'; font-size: 9px; color: #9fb0ff; margin-right: 3px; }
 .tl-word.is-behind { background: repeating-linear-gradient(135deg, #3b4a8a 0 4px, #2c3666 4px 8px); }
+
+/* Captions tab: the list and the selected word's editor, both in view */
+.tab-pane[data-tab="words"]:not([hidden]) { display: flex; flex-direction: column; overflow: hidden; }
+.tab-pane[data-tab="words"] .cap-list { flex: 0 1 auto; max-height: 52%; overflow-y: auto; border-bottom: 1px solid var(--line-strong, rgba(255,255,255,.18)); }
+.tab-pane[data-tab="words"] .word-editor { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.word-editor #word-empty { padding: 4px 0; }
+/* Nothing selected: the list has the whole tab. */
+.tab-pane[data-tab="words"]:has(#step-word[hidden]) .cap-list { max-height: none; flex: 1 1 auto; }
+.tab-pane[data-tab="words"]:has(#step-word[hidden]) .word-editor { flex: 0 0 auto; }
+/* Footer on one row: Send beside the drag chips */
+.pfoot { grid-template-columns: 3fr 2fr; }
+.pfoot .send { grid-column: 1; padding: 8px 10px; }
+.pfoot .send b { font-size: 13px; }
+.pfoot .dragrow { grid-column: 2; flex-direction: column; gap: 4px; }
+.pfoot .dragchip { padding: 4px 8px; }
+.pfoot .dragchip span { display: none; }

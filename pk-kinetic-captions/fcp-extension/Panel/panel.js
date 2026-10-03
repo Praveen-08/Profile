@@ -2107,7 +2107,15 @@ try { const t = localStorage.getItem('pkkc.tab'); if (t) showTab(t); } catch { /
 {
   const plain = select;
   // eslint-disable-next-line no-func-assign
-  select = (id, opts) => { plain(id, opts); if (id) showTab('words'); };
+  select = (id, opts) => {
+    plain(id, opts);
+    if (!id) return;
+    showTab('words');
+    // The editor opens at its top, and the word stays in view in the list.
+    const ed = document.querySelector('.word-editor');
+    if (ed) ed.scrollTop = 0;
+    document.querySelector(`#words .wchip[data-id="${id}"]`)?.scrollIntoView({ block: 'nearest' });
+  };
 }
 
 // The word inspector: look or animation, one at a time.
