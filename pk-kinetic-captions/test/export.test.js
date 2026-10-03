@@ -529,3 +529,16 @@ test('shine exports as white Screen copies with a band sweeping across the word'
   const lefts = new Set([...copies[0].matchAll(/<param name="left">[\s\S]*?<\/param>/g)][0][0].match(/value="([\d.]+)"/g));
   assert.ok(lefts.size > 3);
 });
+
+test('words behind the agent get a silent copy of their shot, between the caption layers', async () => {
+  const { captionedProject } = await import('../src/export/captioned.js');
+  const plan = make(builtinById('pk-reel-bold'), { width: 1080, height: 1920, fps: 23.976 });
+  const clip = exportFCPXML(plan, { as: 'clip' }).xml;
+  const out = captionedProject(PROJECT, [{ xml: clip, lane: 20, name: 'Captions', inline: true }], { maskCopies: { ranges: [[2, 3]], lane: 40 } });
+  const copy = /<asset-clip ref="r2" lane="40"[^>]*name="shot — add Magnetic Mask on the agent"[^>]*>[\s\S]*?<\/asset-clip>/.exec(out);
+  assert.ok(copy, 'the shot is copied onto the mask lane');
+  assert.ok(copy[0].includes('<adjust-volume amount="-96dB"/>'), 'and silenced');
+  // Nothing on screen then, nothing copied.
+  const none = captionedProject(PROJECT, [{ xml: clip, lane: 20, name: 'Captions', inline: true }], { maskCopies: { ranges: [[100, 101]], lane: 40 } });
+  assert.ok(!/lane="40"/.test(none));
+});
