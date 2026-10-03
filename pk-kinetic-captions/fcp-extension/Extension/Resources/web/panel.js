@@ -265,6 +265,7 @@ function regenerate() {
     const s = state.plan.stats;
     $('#wstats').textContent = `${s.words} words · ${s.byLevel.normal}/${s.byLevel.emphasis}/${s.byLevel.hero}`;
     drawWords();
+    drawTimeline();
     $('#apply').disabled = s.words === 0;
     $('#dragout').classList.toggle('is-off', s.words === 0);
     setStatus(`${state.frame.width}×${state.frame.height} · ${state.frame.fps}fps · ${s.phrases} phrases`);
@@ -483,6 +484,7 @@ function drawPreview() {
   $('#pv-empty').hidden = state.segments.length > 0;
   drawGuides();
   drawSelection();
+  movePlayhead();
   requestFrame(state.time);
 }
 
@@ -911,18 +913,6 @@ function drawWords() {
     const num = Object.assign(document.createElement('span'), { className: 'wnum', textContent: String(pi + 1) });
     group.append(num);
 
-    // Words from earlier captions still on screen during this one.
-    for (let back = 1; back <= 3 && pi - back >= 0; back++) {
-      for (const cw of state.plan.phrases[pi - back].words) {
-        if ((stayOf(cw.id) ?? 0) < back) continue;
-        const ghost = Object.assign(document.createElement('button'), {
-          className: 'wchip wcarry', textContent: `${cw.text} →`, title: `Still on from caption ${pi - back + 1} — click to change`,
-        });
-        ghost.onclick = (e) => { e.stopPropagation(); select(cw.id); };
-        group.append(ghost);
-      }
-    }
-
     phrase.words.forEach((w, wi) => {
       if (wi > 0) {
         // Between two words: shows and cycles the break before the second.
@@ -962,14 +952,6 @@ function drawWords() {
         if (state.selected === w.id) return editWordInline(chip, w);
         select(w.id, { seek: true });
       };
-      // Drag this into a later caption to keep the word on through it; click to cycle.
-      const ext = Object.assign(document.createElement('span'), {
-        className: `wext${stayOf(w.id) ? ' is-on' : ''}`, textContent: stayOf(w.id) ? `→${stayOf(w.id)}` : '→',
-        title: 'Keep this word on into the next caption: drag onto it (or the one after), or click',
-      });
-      ext.dataset.id = w.id;
-      ext.dataset.phrase = String(pi);
-      chip.append(ext);
       const x = Object.assign(document.createElement('span'), { className: 'wx', textContent: '×', title: 'Delete this word' });
       x.setAttribute('role', 'button');
       x.onclick = (e) => { e.stopPropagation(); deleteWords([w.id]); };
@@ -1106,12 +1088,6 @@ function cycleBreak(pi, wi) {
    drop, which Final Cut's web view can take for a clip being dropped. */
 const wordDrag = { id: '', pi: -1, wi: -1, x: 0, y: 0, moved: false, ghost: /** @type {HTMLElement|null} */ (null), over: /** @type {HTMLElement|null} */ (null) };
 $('#words').addEventListener('pointerdown', (e) => {
-  const ext = e.target.closest('.wext');
-  if (ext && e.button === 0) {
-    e.stopPropagation();
-    Object.assign(extendDrag, { id: ext.dataset.id, pi: Number(ext.dataset.phrase), x: e.clientX, y: e.clientY, moved: false, pointer: e.pointerId });
-    return;
-  }
   const chip = e.target.closest('.wchip');
   if (!chip || chip.classList.contains('wcarry') || e.button !== 0 || e.target.closest('.wx, input')) return;
   Object.assign(wordDrag, { id: chip.dataset.id, pi: Number(chip.dataset.phrase), wi: Number(chip.dataset.index), x: e.clientX, y: e.clientY, moved: false, pointer: e.pointerId });
@@ -2481,36 +2457,148 @@ function setStay(id, n) {
   setStatus(n ? `Stays on through ${n === 1 ? 'the next caption' : `${n} captions`}. Drag it or the next caption apart in the picture if they overlap.` : 'Leaves with its own caption.');
 }
 
-const extendDrag = { id: '', pi: -1, x: 0, y: 0, moved: false, pointer: 0, over: /** @type {HTMLElement|null} */ (null) };
-$('#words').addEventListener('pointermove', (e) => {
-  if (!extendDrag.id) return;
-  if (!extendDrag.moved && Math.hypot(e.clientX - extendDrag.x, e.clientY - extendDrag.y) < 5) return;
-  if (!extendDrag.moved) {
-    extendDrag.moved = true;
-    try { $('#words').setPointerCapture(extendDrag.pointer); } catch { /* released */ }
-    $('#words').classList.add('is-extending');
+/* ------------------------------------------------------------------ *
+ * Timeline: when each word is on screen, and dragging to change it
+ * ------------------------------------------------------------------ */
+
+const TL = { px: 90, row: 13, drag: /** @type {any} */ (null) };
+
+/** Captions alternate between two tracks, so neighbours that overlap show it. */
+function drawTimeline() {
+  const host = $('#tl-inner');
+  if (!host || $('#tl').hidden || !state.plan) return;
+  const px = TL.px;
+  const dur = planDuration();
+  const ps = state.plan.phrases;
+  const most = Math.max(1, ...ps.map((p) => p.words.length));
+  const trackH = most * TL.row + 10;
+  const top = [24, 24 + trackH + 8];
+  host.style.width = `${Math.ceil(dur * px) + 60}px`;
+  host.style.height = `${top[1] + trackH + 8}px`;
+  const parts = [];
+  // Ruler: a tick a second, labels every second or two as space allows.
+  const every = px >= 60 ? 1 : px >= 30 ? 2 : 5;
+  for (let s = 0; s <= dur + 0.001; s += 1) {
+    parts.push(`<span class="tl-tick${s % every === 0 ? ' is-major' : ''}" style="left:${s * px}px">${s % every === 0 ? `${s}s` : ''}</span>`);
   }
-  const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('.wgroup');
-  if (extendDrag.over && extendDrag.over !== target) extendDrag.over.classList.remove('is-target', 'is-bad');
-  extendDrag.over = target ?? null;
-  if (target) {
-    const n = Number(target.dataset.phrase) - extendDrag.pi;
-    target.classList.add(n >= 0 && n <= 3 ? 'is-target' : 'is-bad');
+  ps.forEach((p, pi) => {
+    const t0 = Math.min(...p.words.map((w) => w.start)), t1 = Math.max(...p.words.map((w) => w.end));
+    const y = top[pi % 2];
+    parts.push(`<div class="tl-cap" style="left:${t0 * px}px;width:${(t1 - t0) * px}px;top:${y}px;height:${p.words.length * TL.row + 6}px" data-phrase="${pi}">` +
+      `<span class="tl-num">${pi + 1}</span></div>`);
+    parts.push(`<span class="tl-capend" style="left:${t1 * px - 3}px;top:${y}px;height:${p.words.length * TL.row + 6}px" data-phrase="${pi}" title="Drag: when this whole caption leaves"></span>`);
+    p.words.forEach((w, k) => {
+      const set = Number.isFinite(state.overrides[w.id]?.startAt) || Number.isFinite(state.overrides[w.id]?.endAt);
+      parts.push(`<div class="tl-word lv-${w.level}${w.id === state.selected ? ' is-sel' : ''}${set ? ' is-set' : ''}" data-id="${w.id}" ` +
+        `style="left:${w.start * px}px;width:${Math.max(4, (w.end - w.start) * px)}px;top:${y + 3 + k * TL.row}px" title="${esc(w.text)} · ${w.start.toFixed(2)}–${w.end.toFixed(2)}s">` +
+        `<span class="tl-h tl-h-start" data-edge="start"></span><span class="tl-label">${esc(w.text)}</span><span class="tl-h tl-h-end" data-edge="end"></span></div>`);
+    });
+  });
+  parts.push('<div id="tl-play" class="tl-play"></div>');
+  host.innerHTML = parts.join('');
+  movePlayhead();
+}
+
+function movePlayhead() {
+  const line = $('#tl-play');
+  if (!line) return;
+  line.style.left = `${state.time * TL.px}px`;
+  // Keep the playhead in view while playing.
+  const sc = $('#tl-scroll');
+  if (state.playing && sc) {
+    const x = state.time * TL.px;
+    if (x < sc.scrollLeft || x > sc.scrollLeft + sc.clientWidth - 40) sc.scrollLeft = Math.max(0, x - 80);
   }
+}
+
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+/** A time under the pointer, on a frame, pulled to nearby caption edges. */
+function timeAt(clientX, exclude = new Set()) {
+  const box = $('#tl-inner').getBoundingClientRect();
+  let t = Math.max(0, (clientX - box.left) / TL.px);
+  const fps = state.frame.fps || 30;
+  t = Math.round(t * fps) / fps;
+  // Snap to the start and end of other words and captions within 6 pixels.
+  const snap = 6 / TL.px;
+  let best = null;
+  for (const p of state.plan.phrases) {
+    for (const w of p.words) {
+      if (exclude.has(w.id)) continue;
+      for (const edge of [w.start, w.end]) if (Math.abs(edge - t) < snap && (best === null || Math.abs(edge - t) < Math.abs(best - t))) best = edge;
+    }
+  }
+  if (Math.abs(state.time - t) < snap) best = state.time;   // and to the playhead
+  return best ?? t;
+}
+
+function setTimes(ids, patch) {
+  for (const id of ids) {
+    const o = { ...(state.overrides[id] ?? {}), ...patch };
+    for (const k of Object.keys(patch)) if (patch[k] === undefined) delete o[k];
+    if (Object.keys(o).length) state.overrides[id] = o; else delete state.overrides[id];
+  }
+  regenerate();
+}
+
+$('#tl-scroll').addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 || !state.plan) return;
+  const handle = e.target.closest('.tl-h');
+  const bar = e.target.closest('.tl-word');
+  const capEnd = e.target.closest('.tl-capend');
+  const fps = state.frame.fps || 30;
+  if (capEnd) {
+    const p = state.plan.phrases[Number(capEnd.dataset.phrase)];
+    TL.drag = { kind: 'capEnd', ids: p.words.map((w) => w.id), minEnd: Math.max(...p.words.map((w) => w.start)) + 2 / fps };
+  } else if (handle && bar) {
+    const w = allWords().find((x) => x.id === bar.dataset.id);
+    TL.drag = { kind: handle.dataset.edge, ids: [w.id], start: w.start, end: w.end };
+    select(w.id);
+  } else if (bar) {
+    const w = allWords().find((x) => x.id === bar.dataset.id);
+    select(w.id, { seek: true });
+    return;
+  } else {
+    seek(timeAt(e.clientX));                                 // click the ruler or space: move the playhead
+    return;
+  }
+  $('#tl-scroll').setPointerCapture(e.pointerId);
+  $('#tl').classList.add('is-dragging');
+  e.preventDefault();
 });
-const endExtend = (e) => {
-  if (!extendDrag.id) return;
-  const { id, pi, moved, over } = extendDrag;
-  over?.classList.remove('is-target', 'is-bad');
-  $('#words').classList.remove('is-extending');
-  extendDrag.id = '';
-  if (e.type === 'pointercancel') return;
-  if (!moved) return setStay(id, (stayOf(id) + 1) % 3);          // a click: 0 → 1 → 2 → 0
-  if (!over) return;
-  const n = Number(over.dataset.phrase) - pi;
-  if (n >= 0 && n <= 3) setStay(id, n);
-  else setStatus('Drag onto one of the next three captions — or back onto its own to stop.', true);
-};
-$('#words').addEventListener('pointerup', endExtend);
-$('#words').addEventListener('pointercancel', endExtend);
+$('#tl-scroll').addEventListener('pointermove', (e) => {
+  const d = TL.drag;
+  if (!d) return;
+  const fps = state.frame.fps || 30;
+  const t = timeAt(e.clientX, new Set(d.ids));
+  if (d.kind === 'end') setTimes(d.ids, { endAt: Math.max(t, d.start + 2 / fps) });
+  else if (d.kind === 'start') setTimes(d.ids, { startAt: Math.min(t, d.end - 2 / fps) });
+  else if (d.kind === 'capEnd') setTimes(d.ids, { endAt: Math.max(t, d.minEnd) });
+  setStatus(`${d.kind === 'start' ? 'Appears' : 'Leaves'} at ${t.toFixed(2)}s`);
+});
+const endTl = () => { if (TL.drag) { TL.drag = null; $('#tl').classList.remove('is-dragging'); } };
+$('#tl-scroll').addEventListener('pointerup', endTl);
+$('#tl-scroll').addEventListener('pointercancel', endTl);
+
+// Double-click a word's bar: back to its automatic timing.
+$('#tl-scroll').addEventListener('dblclick', (e) => {
+  const bar = e.target.closest('.tl-word');
+  if (!bar) return;
+  setTimes([bar.dataset.id], { startAt: undefined, endAt: undefined });
+  setStatus('Back to its automatic timing.');
+});
+
+$('#tl-zoom').oninput = () => { TL.px = Number($('#tl-zoom').value); drawTimeline(); };
+for (const b of $$('#cap-view button')) {
+  b.onclick = () => {
+    for (const x of $$('#cap-view button')) x.classList.toggle('is-on', x === b);
+    const tl = b.dataset.v === 'timeline';
+    $('#tl').hidden = !tl;
+    $('#words').hidden = tl;
+    $('#cap-hint').textContent = tl
+      ? 'Drag the end of a word to keep it on longer — into the next caption if you like; drag its start to change when it appears. Drag a caption’s gold edge to move when it all leaves. Double-click a word for its automatic timing.'
+      : 'Drag a word into the caption before or after it. Click between two words for a new line; click the ↵ again to split the caption there. Click a word to style it below.';
+    drawTimeline();
+  };
+}
 

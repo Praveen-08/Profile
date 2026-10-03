@@ -234,7 +234,9 @@ export function compose(opts) {
     const appears = [];
     phrase.words.forEach((w, i) => {
       const together = i > 0 && (styles[i].o.withPrevious ?? styles[i].e.withPrevious);
-      appears.push(template.motion.reveal === 'phrase' ? phrase.start : together ? appears[i - 1] : w.start);
+      // A time the editor set on the timeline wins.
+      const own = styles[i].o.startAt;
+      appears.push(Number.isFinite(own) ? own : template.motion.reveal === 'phrase' ? phrase.start : together ? appears[i - 1] : w.start);
     });
 
     for (let i = 0; i < phrase.words.length; i++) {
@@ -257,7 +259,7 @@ export function compose(opts) {
       const stay = Math.max(0, Math.min(3, Math.round(e.tune?.stayThrough ?? 0)));
       const into = stay ? phrases[Math.min(pi + stay, phrases.length - 1)] : null;
       const after = stay ? phrases[Math.min(pi + stay, phrases.length - 1) + 1] : null;
-      const end = snapToFrame(into
+      const end = snapToFrame(Number.isFinite(o.endAt) ? o.endAt : into
         ? Math.min(into.end + template.motion.hold, Math.max(into.end + 0.02, after ? after.start + 0.10 : Infinity))
         : phraseEnd, frame.fps);
       const life = atLeastOneFrame(Math.max(end - start, 2 / frame.fps), frame.fps);

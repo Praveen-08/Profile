@@ -608,3 +608,16 @@ test('a word can stay on screen through the next caption', () => {
   const other = plan.phrases[0].words[1];
   assert.equal(other.end, base.phrases[0].words[1].end);
 });
+
+test('a word appears and leaves when the timeline says', () => {
+  const transcript = ingest('This beautiful home has four bedrooms and a stunning view of the harbour at sunset', { format: 'text' });
+  const template = builtinById('pk-modern');
+  const frame = { width: 1080, height: 1920, fps: 30 };
+  const base = compose({ transcript, template, frame });
+  const w = base.phrases[0].words[1];
+  const plan = compose({ transcript, template, frame, overrides: { [w.id]: { startAt: 0.1, endAt: 4.5 } } });
+  const x = plan.phrases[0].words.find((y) => y.id === w.id);
+  assert.ok(Math.abs(x.start - 0.1) < 1 / 30 + 1e-6);
+  assert.ok(Math.abs(x.end - 4.5) < 1 / 30 + 1e-6);
+  assert.ok(x.motion.opacity.length > 0, 'it still animates in and out');
+});

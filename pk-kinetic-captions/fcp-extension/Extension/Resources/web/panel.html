@@ -186,8 +186,13 @@
 <div class="tab-pane" data-tab="words" hidden>
   <section class="pstep">
     <h2>Captions <span id="wstats" class="hint"></span></h2>
-    <p class="hint">Drag a word into the caption before or after it. Click between two words for a new line; click the ↵ again to split the caption there. Click a word to style it below.</p>
+    <div class="seg wide" id="cap-view"><button data-v="text" class="is-on">Text</button><button data-v="timeline">Timeline</button></div>
+    <p id="cap-hint" class="hint mt-s">Drag a word into the caption before or after it. Click between two words for a new line; click the ↵ again to split the caption there. Click a word to style it below.</p>
     <div id="words" class="words"></div>
+    <div id="tl" class="tl" hidden>
+      <div class="size-row"><span class="hint">Zoom</span><input type="range" id="tl-zoom" min="20" max="300" step="5" value="90"></div>
+      <div id="tl-scroll" class="tl-scroll"><div id="tl-inner" class="tl-inner"></div></div>
+    </div>
   </section>
   <section class="pstep">
     <p id="word-empty" class="hint">Click a word in the picture or the captions above to style it on its own.</p>
