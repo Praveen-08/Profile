@@ -535,6 +535,8 @@ function showWord() {
   const w = selectedWord();
   $('#pv-quick').hidden = !w;
   $('#pv-quick-break').hidden = !w;
+  $('#pv-quick-layer').hidden = !w;
+  if (w) setSeg('#pv-layer', w.depth === 'background' ? 'background' : 'foreground');
   $('#word-empty').hidden = Boolean(w);
   if (!w) { host.hidden = true; return; }
   host.hidden = false;
@@ -940,6 +942,7 @@ function drawWords() {
       const styled = Object.keys(state.overrides[w.id] ?? {}).some((k) => !['breakBefore', 'withPrevious'].includes(k));
       chip.classList.toggle('is-custom', styled || Boolean(state.wordNudges[w.id]));
       if (state.overrides[w.id]?.withPrevious) chip.classList.add('is-with');
+      if (w.depth === 'background') { chip.classList.add('is-behind'); chip.title = `Behind the agent · ${chip.title}`; }
       // A word that stays on into the next caption.
       if (state.overrides[w.id]?.tune?.stayThrough) {
         chip.classList.add('is-stays');
@@ -2489,7 +2492,7 @@ function drawTimeline() {
     parts.push(`<span class="tl-capend" style="left:${t1 * px - 3}px;top:${y}px;height:${p.words.length * TL.row + 6}px" data-phrase="${pi}" title="Drag: when this whole caption leaves"></span>`);
     p.words.forEach((w, k) => {
       const set = Number.isFinite(state.overrides[w.id]?.startAt) || Number.isFinite(state.overrides[w.id]?.endAt);
-      parts.push(`<div class="tl-word lv-${w.level}${w.id === state.selected ? ' is-sel' : ''}${set ? ' is-set' : ''}" data-id="${w.id}" ` +
+      parts.push(`<div class="tl-word lv-${w.level}${w.id === state.selected ? ' is-sel' : ''}${set ? ' is-set' : ''}${w.depth === 'background' ? ' is-behind' : ''}" data-id="${w.id}" ` +
         `style="left:${w.start * px}px;width:${Math.max(4, (w.end - w.start) * px)}px;top:${y + 3 + k * TL.row}px" title="${esc(w.text)} · ${w.start.toFixed(2)}–${w.end.toFixed(2)}s">` +
         `<span class="tl-h tl-h-start" data-edge="start"></span><span class="tl-label">${esc(w.text)}</span><span class="tl-h tl-h-end" data-edge="end"></span></div>`);
     });
@@ -2601,4 +2604,27 @@ for (const b of $$('#cap-view button')) {
     drawTimeline();
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * Behind the agent, one word at a time
+ * ------------------------------------------------------------------ */
+
+function setBehind(id, behind) {
+  const o = { ...(state.overrides[id] ?? {}) };
+  if (behind) o.depth = 'background'; else o.depth = 'foreground';
+  state.overrides[id] = o;
+  regenerate();
+  showWord();
+  setStatus(behind
+    ? 'Behind the agent. In Final Cut it goes on the lower caption layer, under the masked copy of your clip.'
+    : 'In front of the agent.');
+}
+for (const b of $$('#pv-layer button')) b.onclick = () => { if (state.selected) setBehind(state.selected, b.dataset.v === 'background'); };
+window.addEventListener('keydown', (e) => {
+  if (!state.selected || e.metaKey || e.ctrlKey || e.altKey || e.key.toLowerCase() !== 'b') return;
+  if (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable]')) return;
+  e.preventDefault();
+  const w = allWords().find((x) => x.id === state.selected);
+  if (w) setBehind(w.id, w.depth !== 'background');
+});
 
