@@ -266,7 +266,10 @@ export function layoutBlock(items, zone, template, frame, opts = {}) {
     // The editor asked for a new line here: honoured whatever the width or line count.
     if (it.lineBreak && lines[lines.length - 1].length) {
       lines.push([]); lineWidth = 0;
-    } else if (lineWidth + gapPx + it.width > wrapAt && lines[lines.length - 1].length && (opts.keepLines || lines.length < template.hierarchy.maxLines)) {
+    } else if (lineWidth + gapPx + it.width > wrapAt && lines[lines.length - 1].length
+      && (opts.keepLines || lines.length < template.hierarchy.maxLines
+        // An extra line beats a line that runs off the frame.
+        || lineWidth + gapPx + it.width > live.w * frame.width)) {
       lines.push([]); lineWidth = 0;
     }
     const g = lines[lines.length - 1].length ? template.spacing.wordGap * it.size : 0;

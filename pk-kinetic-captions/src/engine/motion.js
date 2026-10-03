@@ -233,7 +233,8 @@ function applyIn(kind, ch, { inDuration, dist, scaleFrom, style, ein, level, fro
       // A strobe: visible one frame, gone the next, a few times, then it
       // stays. Keyframes sit on frame boundaries, so every rendered frame is
       // fully on or fully off — never a fade between.
-      const n = Math.max(4, Math.round(inDuration * fps));
+      // At least on-off-on; never longer than the time the entrance has.
+      const n = Math.max(2, Math.round(inDuration * fps));
       for (let k = 0; k < n; k++) ch.opacity.push({ t: k / fps, v: k % 2 === 0 ? 1 : 0, ease: EASING.linear });
       ch.opacity.push({ t: n / fps, v: 1, ease: EASING.linear });
       break;
@@ -285,8 +286,8 @@ function applyOut(kind, ch, { outStart, life, outDuration, dist, style, eout, fr
       break;
     case 'blink': {
       // The same strobe on the way out, ending gone.
-      const n = Math.max(4, Math.round((life - outStart) * fps));
-      const from0 = life - n / fps;
+      const n = Math.max(2, Math.min(Math.round((life - outStart) * fps), Math.floor(life * fps)));
+      const from0 = Math.max(0, life - n / fps);
       for (let k = 0; k < n; k++) ch.opacity.push({ t: from0 + k / fps, v: k % 2 === 0 ? 1 : 0, ease: EASING.linear });
       ch.opacity.push({ t: life, v: 0, ease: EASING.linear });
       break;

@@ -680,3 +680,27 @@ test('changing one word’s level changes only that word', () => {
   const fits = plan2.phrases[pj].words.reduce((m, w) => Math.max(m, w.line), 0) === base.phrases[pj].words.reduce((m, w) => Math.max(m, w.line), 0);
   if (fits) assert.deepEqual(plan2.phrases[pj].words.map((w) => w.line), base.phrases[pj].words.map((w) => w.line));
 });
+
+test('a long phrase takes an extra line rather than running off the frame', () => {
+  // Found by fuzzing: on a 4:5 frame "INCOME OPPORTUNITY?" was laid on one
+  // line wider than the frame (the style allows two lines), leaving INCOME
+  // off the left edge.
+  const transcript = ingest('and also create an income opportunity? I have some brand new homes', { format: 'text' });
+  for (const frame of [{ width: 1080, height: 1350, fps: 30 }, { width: 1080, height: 1920, fps: 30 }, { width: 1920, height: 1080, fps: 25 }]) {
+    for (const t of BUILTIN_TEMPLATES) {
+      const plan = compose({ transcript, template: t, frame });
+      for (const w of plan.phrases.flatMap((p) => p.words)) {
+        assert.ok(Math.abs(w.position.x) + w.box.w / 2 <= 0.52, `${t.id} ${frame.width}x${frame.height}: ${w.text} off frame`);
+      }
+    }
+  }
+});
+
+test('a blink on a very short word stays inside the word', () => {
+  const transcript = ingest('quick', { format: 'text' });
+  const w0 = transcript.words[0];
+  const plan = compose({ transcript, template: builtinById('pk-modern'), frame: { width: 1080, height: 1920, fps: 30 },
+    overrides: { [w0.id]: { inAnimation: 'blink', outAnimation: 'blink', endAt: w0.start + 0.07 } } });
+  const w = plan.phrases[0].words[0];
+  assert.ok(w.motion.opacity.every((k) => k.t >= 0 && k.t <= w.end - w.start + 1e-6));
+});
