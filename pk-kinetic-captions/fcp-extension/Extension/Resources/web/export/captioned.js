@@ -24,7 +24,10 @@ const TIMED = new Set(['asset-clip', 'clip', 'video', 'sync-clip', 'ref-clip', '
 
 /**
  * @param {string} projectXml  the FCPXML Final Cut gave the panel (a project)
- * @param {string | {xml: string, lane: number, name: string}[]} clips
+ * @param {string | {xml: string, lane: number, name: string, inline?: boolean}[]} clips
+ *   With `inline`, the clip's titles go straight onto the project timeline —
+ *   each word its own title, selectable and editable in Final Cut — on lanes
+ *   from `lane` up, instead of one compound clip.
  *   exportFCPXML(plan, { as: 'clip' }) — or several, each on its own lane
  *   (the words behind the agent below a gap for the masked shot, the rest above)
  * @param {{name?: string, lane?: number, projectName?: string}} [opts]
@@ -40,12 +43,23 @@ export function captionedProject(projectXml, clips, opts = {}) {
   // or each other's: resource ids and title style ids are document-wide.
   const resources = [];
   const anchors = [];
+  /** @type {{titles: string, lane: number}[]} */
+  const inlined = [];
   list.forEach((c, i) => {
     const resMatch = /<resources>([\s\S]*?)<\/resources>/.exec(c.xml);
     const refMatch = /<ref-clip\b[^>]*\bref="(r\d+)"[^>]*\bduration="([^"]+)"[^>]*\/>/.exec(c.xml);
     if (!resMatch || !refMatch) throw new Error('No captions to add.');
     const p = `pk${i}`;
     const rename = (s) => s.replace(/\b(id|ref|format)="r(\d+)"/g, `$1="${p}r$2"`).replace(/\b(id|ref)="ts(\d+)"/g, `$1="${p}ts$2"`);
+    if (c.inline) {
+      // The titles themselves, out of the clip's own storyline; only the
+      // resources they use (format, title effect) come along.
+      const gap = /<gap\b[^>]*>([\s\S]*)<\/gap>/.exec(c.xml);
+      const res = rename(resMatch[1]).replace(/<media\b[\s\S]*?<\/media>/, '').trim();
+      resources.push(res);
+      inlined.push({ titles: rename(gap ? gap[1] : ''), lane: c.lane });
+      return;
+    }
     resources.push(rename(resMatch[1]).trim());
     anchors.push({ id: `${p}r${refMatch[1].slice(1)}`, duration: refMatch[2], lane: c.lane, name: c.name });
   });
@@ -66,8 +80,20 @@ export function captionedProject(projectXml, clips, opts = {}) {
   // Cut's rational for it.
   const offset = seconds(first.attrs.start) + (tcStart - seconds(first.attrs.offset));
   const exact = Math.abs(seconds(first.attrs.offset) - tcStart) < 1e-9 ? (first.attrs.start ?? '0s') : null;
-  const anchorXml = anchors.map((a) =>
+  let anchorXml = anchors.map((a) =>
     `<ref-clip ref="${a.id}" lane="${a.lane}" offset="${exact ?? fcpTime(offset)}" name="${esc(a.name)}" duration="${a.duration}"/>`).join('');
+
+  // Inlined titles: each one's offset moved from the captions' clock (0 at
+  // the project's first frame) into the first item's, exactly — as rationals,
+  // so every word stays on its frame — and its lane lifted above `lane`.
+  const base = rational(exact ?? fcpTime(offset));
+  for (const { titles, lane } of inlined) {
+    anchorXml += titles.replace(/<title\b([^>]*)>/g, (m, attrs) => {
+      let a = attrs.replace(/\boffset="([^"]+)"/, (o, v) => `offset="${ratString(ratAdd(base, rational(v)))}"`);
+      a = a.replace(/\blane="(-?\d+)"/, (l, v) => `lane="${lane + Math.max(0, Number(v) - 1)}"`);
+      return `<title${a}>`;
+    });
+  }
 
   let out = src;
   // Into the first item: before any child that must come after connected
@@ -134,3 +160,20 @@ function fcpTime(t) {
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const unesc = (s) => String(s).replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+
+/** FCPXML time "N/Ds" or "Ns" as an exact rational [n, d]. */
+function rational(t) {
+  const s = String(t).trim().replace(/s$/, '');
+  if (s.includes('/')) { const [n, d] = s.split('/').map(Number); return [n, d]; }
+  if (/^-?\d+$/.test(s)) return [Number(s), 1];
+  const k = 240000;                                    // a decimal: to a fine timebase
+  return [Math.round(Number(s) * k), k];
+}
+const gcd = (a, b) => (b ? gcd(b, a % b) : Math.abs(a));
+function ratAdd([a, b], [c, d]) {
+  const n = a * d + c * b, m = b * d;
+  const g = gcd(n, m) || 1;
+  return [n / g, m / g];
+}
+const ratString = ([n, d]) => (n === 0 ? '0s' : d === 1 ? `${n}s` : `${n}/${d}s`);
+

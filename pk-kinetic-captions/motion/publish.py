@@ -25,7 +25,8 @@ TEXT = '10011'           # the text layer
 # (name shown in Final Cut, object, channel). Channel IDs confirmed in Motion
 # (each control shows its parameter's default) and against installed
 # templates publishing the same controls; the numbering is not regular — the
-# shadow's distance is 27, its angle 29, its blur 75, the outline's width 36.
+# shadow's distance is 27, its angle 29, its blur 75, the glow's blur 77, the
+# outline's width 36.
 CONTROLS = [
     ('Font',               STYLE, './83'),
     ('Size',               STYLE, './3'),
@@ -43,7 +44,10 @@ CONTROLS = [
     ('Outline Width',      STYLE, './30/36'),
     ('Glow Color',         STYLE, './38/40'),
     ('Glow Opacity',       STYLE, './38/43'),
-    ('Glow Blur',          STYLE, './38/44'),
+    # Glow has two Blur parameters: 44 is inert in text glow; 77 is the one
+    # Motion and Final Cut's Text inspector actually use (measured: 44 set to 80
+    # left the inspector's Blur at 1 and the glow a hard rim).
+    ('Glow Blur',          STYLE, './38/77'),
     ('Glow Radius',        STYLE, './38/45'),
     ('Shadow Color',       STYLE, './21/23'),
     ('Shadow Opacity',     STYLE, './21/26'),

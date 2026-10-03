@@ -329,6 +329,11 @@ test('the PK title carries gradient and glow as its own published controls', () 
   assert.ok(xml.includes('key="9999/10005/10011/5/10042/14/15" value="1 (Gradient)"'), 'gradient fill');
   assert.ok(xml.includes('key="9999/10005/10011/5/10042/14/17/1/999140132/3" value="1 0.231373 0.188235"'), 'start stop');
   assert.ok(/key="9999\/10005\/10011\/5\/10042\/38\/43" value="0.8"/.test(xml), 'glow opacity');
+  // Glow spread goes to Blur ./38/77 (44 is inert in text glow) with a Radius too:
+  // without them the glow drew as a hard 1-pixel rim (measured in Final Cut 12.2).
+  assert.ok(/key="9999\/10005\/10011\/5\/10042\/38\/77" value="[\d.]+"/.test(xml), 'glow blur on the live channel');
+  assert.ok(/key="9999\/10005\/10011\/5\/10042\/38\/45" value="[\d.]+"/.test(xml), 'glow radius');
+  assert.ok(!xml.includes('/38/44"'), 'never the inert blur');
   // Words without a gradient switch the template's glow off rather than inherit it.
   assert.ok(xml.includes('key="9999/10005/10011/5/10042/14/15" value="0 (Color)"'));
   assert.ok(xml.includes('key="9999/10005/10011/5/10042/38/43" value="0"'));
@@ -492,4 +497,21 @@ test('a blink exports as one keyframe per frame, alternating, never two on one f
   const times = keys.map(([time]) => time);
   assert.equal(new Set(times).size, times.length, 'one keyframe per time');
   assert.deepEqual(keys.slice(0, 8).map(([, v]) => v), [1, 0, 1, 0, 1, 0, 1, 0]);
+});
+
+test('inlined captions: every word its own title on the project timeline, on its exact frame', async () => {
+  const { captionedProject } = await import('../src/export/captioned.js');
+  const plan = make(builtinById('pk-reel-bold'), { width: 1080, height: 1920, fps: 23.976 });
+  const clip = exportFCPXML(plan, { as: 'clip' }).xml;
+  const project = PROJECT.replace('start="3600s" duration="30s">', 'start="86400314/24000s" duration="30s">').replace('offset="3600s" start="3600s"', 'offset="3600s" start="86400314/24000s"');
+  const out = captionedProject(project, [{ xml: clip, lane: 20, name: 'Captions', inline: true }]);
+  const ours = [...out.matchAll(/<title ref="pk0r\d+"[^>]*offset="([^"]+)"[^>]*>/g)];
+  const words = plan.phrases.flatMap((p) => p.words);
+  assert.equal(ours.length, words.length, 'one title per word, no compound clip');
+  assert.ok(!/<ref-clip ref="pk0/.test(out));
+  // The first word's offset is the gap's start plus its own time, exactly.
+  const [n, d] = ours[0][1].replace(/s$/, '').split('/').map(Number);
+  const first = Math.min(...words.map((w) => w.start));
+  assert.ok(Math.abs(n / (d || 1) - (86400314 / 24000 + first)) < 1e-6);
+  assert.ok(/<title ref="pk0r\d+" lane="2\d"/.test(out), 'lifted onto the caption lanes');
 });

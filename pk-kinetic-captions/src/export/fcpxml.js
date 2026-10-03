@@ -68,7 +68,7 @@ export const PK_PARAMS = {
   gradientEnd: `${PK_KEY}/14/17/1/999140133/3`,
   glowColor: `${PK_KEY}/38/40`,
   glowOpacity: `${PK_KEY}/38/43`,
-  glowBlur: `${PK_KEY}/38/44`,
+  glowBlur: `${PK_KEY}/38/77`,
   glowRadius: `${PK_KEY}/38/45`,
   outlineOpacity: `${PK_KEY}/30/35`,
   shadowOpacity: `${PK_KEY}/21/26`,
@@ -92,6 +92,7 @@ const BLEND_NAMES = {
  * @typedef {object} ExportOptions
  * @property {string} [projectName]
  * @property {string} [eventName]
+ * @property {string} [role]  The titles' role (default "PK Captions"; "PK Captions Behind" for the layer behind the agent).
  * @property {"background"|"foreground"} [only]  Export just the words behind the agent, or just those in front.
  * @property {"native"|"pk"} [profile]   Stock Basic Title, or the installed PK template.
  * @property {number} [easingSamples]    Keyframes baked per transition.
@@ -158,7 +159,10 @@ export function exportFCPXML(plan, opts = {}) {
   const effectUID = profile === 'pk' ? PK_TITLE_UID : BASIC_TITLE_UID;
   const effectName = profile === 'pk' ? 'PK Kinetic Caption' : 'Basic Title';
 
-  const titles = words.map((w, i) => renderTitle(w, i, laneMap.get(w.id) ?? 1, plan, samples, profile)).join('\n');
+  // Words behind the agent get a role of their own, so they can be shown,
+  // hidden or soloed together in Final Cut's timeline index.
+  const rolePlan = { ...plan, role: opts.role ?? (opts.only === 'background' ? 'PK Captions Behind' : 'PK Captions') };
+  const titles = words.map((w, i) => renderTitle(w, i, laneMap.get(w.id) ?? 1, rolePlan, samples, profile)).join('\n');
   void effectName;
 
   const name = opts.projectName ?? `${plan.templateName} Captions`;
@@ -250,7 +254,7 @@ function renderTitle(w, index, lane, plan, samples, profile) {
 
   // A dedicated video role lets the editor solo, hide or export every
   // caption in one click, which matters when there are two hundred of them.
-  return `              <title ref="r2" lane="${lane}" offset="${offset}" name="${esc(`${w.level}: ${w.text}`)}" start="0s" duration="${dur}" role="PK Captions">
+  return `              <title ref="r2" lane="${lane}" offset="${offset}" name="${esc(`${w.level}: ${w.text}`)}" start="0s" duration="${dur}" role="${esc(plan.role ?? 'PK Captions')}">
 ${params}                <text>
                   <text-style ref="${styleId}">${esc(w.text)}</text-style>
                 </text>
@@ -412,7 +416,13 @@ function renderPKParams(w, plan) {
   out += p('Glow Opacity', PK_PARAMS.glowOpacity, d.glow.enabled ? num(Math.min(1, d.glow.intensity), 3) : '0');
   if (d.glow.enabled) {
     out += p('Glow Color', PK_PARAMS.glowColor, rgb(d.glow.colour));
-    out += p('Glow Blur', PK_PARAMS.glowBlur, num(d.glow.radius, 1));
+    // Motion's glow: Blur sets how far it spreads, Radius how solid it is
+    // near the letters. Measured in Final Cut 12.2 against the preview's
+    // glow of the same size: blur ≈ 0.75 × size and radius ≈ 0.15 × size,
+    // in the 1080-line units title text uses.
+    const k = 1080 / plan.frame.height;
+    out += p('Glow Blur', PK_PARAMS.glowBlur, num(d.glow.radius * 0.75 * k, 1));
+    out += p('Glow Radius', PK_PARAMS.glowRadius, num(Math.max(1, d.glow.radius * 0.15 * k), 1));
   }
   if (!(d.outline.enabled && d.outline.width > 0)) out += p('Outline Opacity', PK_PARAMS.outlineOpacity, '0');
   if (!(d.shadow.enabled && d.shadow.opacity > 0)) out += p('Shadow Opacity', PK_PARAMS.shadowOpacity, '0');

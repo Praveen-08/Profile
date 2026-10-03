@@ -253,7 +253,7 @@
 		<target object="10042" channel="./30/36" name="Outline Width"/>
 		<target object="10042" channel="./38/40" name="Glow Color"/>
 		<target object="10042" channel="./38/43" name="Glow Opacity"/>
-		<target object="10042" channel="./38/44" name="Glow Blur"/>
+		<target object="10042" channel="./38/77" name="Glow Blur"/>
 		<target object="10042" channel="./38/45" name="Glow Radius"/>
 		<target object="10042" channel="./21/23" name="Shadow Color"/>
 		<target object="10042" channel="./21/26" name="Shadow Opacity"/>

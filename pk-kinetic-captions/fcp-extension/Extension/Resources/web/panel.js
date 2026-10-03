@@ -1277,14 +1277,17 @@ $('#apply').onclick = async () => {
     let xml, message;
     if (state.droppedXml && /<project\b/.test(state.droppedXml)) {
       const behind = hasBehind();
-      const layer = (only, name, lane) => ({ xml: exportFCPXML(state.plan, exportOptions({ as: 'clip', ...(only ? { only } : {}), projectName: name })).xml, lane, name });
+      // Every word lands as its own title on the project's timeline, so each
+      // can still be selected and adjusted in Final Cut. Behind-the-agent
+      // words sit on lower lanes (role "PK Captions Behind") than the rest.
+      const layer = (only, name, lane) => ({ xml: exportFCPXML(state.plan, exportOptions({ as: 'clip', ...(only ? { only } : {}), projectName: name })).xml, lane, name, inline: true });
       const clips = behind
-        ? [layer('background', 'Captions — behind the agent', 9), layer('foreground', 'Captions — in front', 11)]
-        : [layer(null, 'Captions', 9)];
+        ? [layer('background', 'Captions — behind the agent', 20), layer('foreground', 'Captions — in front', 60)]
+        : [layer(null, 'Captions', 20)];
       xml = captionedProject(state.droppedXml, clips);
       message = behind
-        ? `Sent “${state.projectName} — captions”. Choose the library, open it, then copy your clip onto the empty lane between the two caption layers and add a Magnetic Mask to the agent.`
-        : `Sent “${state.projectName} — captions”. Choose the library and open it — the captions are already in sync. Your original project is unchanged.`;
+        ? `Sent “${state.projectName} — captions”: every word is its own title, in sync. Open it, Option-drag your clip up above the “PK Captions Behind” titles (below the rest) and add a Magnetic Mask to the agent.`
+        : `Sent “${state.projectName} — captions”: every word is its own title on the timeline, in sync — select any to adjust it. Your original project is unchanged.`;
     } else {
       const out = exportFCPXML(state.plan, exportOptions({}));
       xml = out.xml;
