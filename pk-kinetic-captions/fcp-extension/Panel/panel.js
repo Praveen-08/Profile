@@ -92,6 +92,15 @@ const state = {
     hook: { enabled: false, seconds: 3 },
     patternScope: 'off',
     pattern: ['#c9a84c', '#14b8a6', '#f97362', '#a78bfa'],
+    /**
+     * The client's colours. 'style' keeps the style's own; 'one' paints every
+     * word `colourMain`; 'two' adds `colourHigh` for highlights; 'many' cycles
+     * the pattern. Unset in settings saved before this existed — see
+     * colourModeOf.
+     */
+    colourMode: undefined,
+    colourMain: '#ffffff',
+    colourHigh: '#c9a84c',
     // Where the editor dragged the captions, per orientation, as a fraction
     // of the frame (centre origin, +y up — the engine's own coordinates).
     offsetVertical: { x: 0, y: 0 },
@@ -266,6 +275,7 @@ function regenerate() {
     $('#wstats').textContent = `${s.words} words · ${s.byLevel.normal}/${s.byLevel.emphasis}/${s.byLevel.hero}`;
     drawWords();
     drawTimeline();
+    showWordColours();
     $('#apply').disabled = s.words === 0;
     $('#dragout').classList.toggle('is-off', s.words === 0);
     setStatus(`${state.frame.width}×${state.frame.height} · ${state.frame.fps}fps · ${s.phrases} phrases`);
@@ -808,6 +818,14 @@ function customPatch(base) {
   // "Exits: Cut": no exit keyframes, so titles lengthened in Final Cut stay on.
   const outAll = a.exitCut ? 'maskExit' : dz;
   const motionIn = dz ? { normal: dz, emphasis: dz, hero: dz } : {};
+  // The Colours choice beats each type's own colour; a word's own still wins.
+  const mode = colourModeOf(c);
+  const main = mode === 'style' ? {} : { colour: c.colourMain };
+  const paint = {
+    normal: main,
+    highlight: mode === 'one' ? main : mode === 'two' ? { colour: c.colourHigh } : {},
+    hook: mode === 'one' ? main : {},
+  };
   const motionOut = outAll ? { normal: outAll, emphasis: outAll, hero: outAll } : {};
   if (g.normal?.in) motionIn.normal = g.normal.in;
   if (g.high?.in) { motionIn.emphasis = g.high.in; motionIn.hero = g.high.in; }
@@ -824,19 +842,20 @@ function customPatch(base) {
     scale: { base: base.scale.base * pct },
     hook: { enabled: Boolean(c.hook?.enabled), seconds: c.hook?.seconds ?? 3 },
     groups: {
-      normal: clean(c.groups?.normal),
-      highlight: clean(c.groups?.highlight),
-      pattern: clean(c.groups?.pattern),
+      normal: { ...clean(c.groups?.normal), ...paint.normal },
+      highlight: { ...clean(c.groups?.highlight), ...paint.highlight },
+      pattern: { ...clean(c.groups?.pattern), ...paint.highlight },
       // The hook animates on its own too, from the animation editor's Hook tab.
       hook: {
         ...clean(c.groups?.hook),
+        ...paint.hook,
         ...(g.hook?.in ? { inAnimation: g.hook.in } : {}),
         ...(g.hook?.out ? { outAnimation: g.hook.out } : {}),
         ...(g.hook?.tune && Object.keys(g.hook.tune).length ? { tune: g.hook.tune } : {}),
       },
     },
     colours: {
-      pattern: c.patternScope === 'off' ? [] : c.pattern,
+      pattern: mode === 'many' ? c.pattern : [],
       patternScope: c.patternScope === 'off' ? 'highlights' : c.patternScope,
     },
     // Fixed place: one composition the panel then puts on the caption line,
@@ -856,7 +875,7 @@ function showCustom() {
   $('#size').value = c[sizeKey()];
   $('#size-val').textContent = `${c[sizeKey()]}%`;
   $('#size-orient').textContent = isVertical() ? '· vertical' : '· horizontal';
-  setSeg('#pattern-scope', c.patternScope);
+  showColours();
   showPlace();
   showGroupStyle();
   drawPattern();
@@ -867,9 +886,44 @@ function showCustom() {
   showTypeCards();
 }
 
+/** The Colours choice; settings saved before it existed had only the pattern. */
+function colourModeOf(c) {
+  return c.colourMode ?? (c.patternScope && c.patternScope !== 'off' ? 'many' : 'style');
+}
+
+/** The Colours section: the mode, its swatches, and words with their own colour. */
+function showColours() {
+  const c = state.custom;
+  const mode = colourModeOf(c);
+  setSeg('#colour-mode', mode);
+  const swatch = (label, key) => {
+    const input = Object.assign(document.createElement('input'), { type: 'color', value: c[key] });
+    input.oninput = () => { c[key] = input.value; changed(); };
+    input.onchange = () => showTypeCards();
+    const l = document.createElement('label');
+    l.append(input, label);
+    return l;
+  };
+  $('#colour-swatches').replaceChildren(...(
+    mode === 'one' ? [swatch('Every word', 'colourMain')]
+      : mode === 'two' ? [swatch('Main text', 'colourMain'), swatch('Highlights', 'colourHigh')]
+        : mode === 'many' ? [swatch('Main text', 'colourMain')] : []));
+  $('#pattern-wrap').hidden = mode !== 'many';
+  setSeg('#pattern-scope', c.patternScope);
+  drawPattern();
+  showWordColours();
+}
+
+/** Words coloured one by one keep their colour; say how many, and offer to clear them. */
+function showWordColours() {
+  const n = Object.values(state.overrides ?? {}).filter((o) => o.colour).length;
+  const btn = $('#colour-clear');
+  btn.hidden = n === 0;
+  btn.textContent = `${n} word${n === 1 ? ' keeps its' : 's keep their'} own colour — clear`;
+}
+
 function drawPattern() {
   const host = $('#pattern');
-  host.classList.toggle('is-off', state.custom.patternScope === 'off');
   host.replaceChildren(...state.custom.pattern.map((hex, i) => {
     const input = document.createElement('input');
     input.type = 'color';
@@ -1543,8 +1597,16 @@ function styleEditor(host, { blank }, onChange) {
       : value.look === 'luminous' ? 'Screen only brightens: dark colours disappear.'
         : value.look === 'invert' ? 'Difference inverts what is behind the text; the colour mixes with the picture.' : '';
   }
+  const lockNote = el('span', { className: 'hint' });
+  colourAuto.after(lockNote);
+  /** A type whose colour Style ▸ Colours sets shows it, but cannot change it here. */
+  function lockColour(why) {
+    colour.disabled = !!why;
+    colourAuto.hidden = !!why;
+    lockNote.textContent = why || '';
+  }
   show({});
-  return { show, parts: { text: textPart, fx: fxPart } };
+  return { show, lockColour, parts: { text: textPart, fx: fxPart } };
 }
 
 /** Gradient presets: the pairs seen in the reference reels, plus the brand's gold. */
@@ -1644,10 +1706,22 @@ function summarise(t) {
   typeCards[t.key].summaryLine.textContent = parts.join(' · ');
 }
 
+/** Why a type's colour is set by Style ▸ Colours, or '' when it is its own. */
+function colourLockOf(key) {
+  const mode = colourModeOf(state.custom);
+  const by = { one: 'One colour', two: 'Two colours', many: 'Many colours' }[mode];
+  if (!by) return '';
+  if (key === 'normal' || mode === 'one') return `Set by Style ▸ Colours (${by})`;
+  if (key === 'highlight' && mode === 'two') return `Set by Style ▸ Colours (${by})`;
+  if (key === 'pattern' && mode === 'many') return 'Set by the Many colours list in Style ▸ Colours';
+  return '';
+}
+
 function showTypeCards() {
   for (const t of TYPES) {
     const sample = allWords().find((w) => w.level === t.level);
     typeCards[t.key].look.show(state.custom.groups?.[t.key] ?? {}, sample ? toHex(sample.colour) : '#ffffff');
+    typeCards[t.key].look.lockColour(colourLockOf(t.key));
     typeCards[t.key].anim.show(state.custom.anim.groups?.[t.anim] ?? {});
     summarise(t);
   }
@@ -1838,11 +1912,36 @@ $('#size').oninput = () => {
   $('#size-val').textContent = `${$('#size').value}%`;
   changed();
 };
-for (const [sel, key] of [['#pattern-scope', 'patternScope']]) {
-  for (const b of $$(`${sel} button`)) {
-    b.onclick = () => { state.custom[key] = b.dataset.v; setSeg(sel, b.dataset.v); drawPattern(); changed(); };
-  }
+for (const b of $$('#pattern-scope button')) {
+  b.onclick = () => { state.custom.patternScope = b.dataset.v; showColours(); changed(); };
 }
+for (const b of $$('#colour-mode button')) {
+  b.onclick = () => {
+    const c = state.custom;
+    // The first time, start from the colours on screen, not from white.
+    if (c.colourMode === undefined && b.dataset.v !== 'style') {
+      const sample = (level) => allWords().find((w) => w.level === level && !state.overrides[w.id]?.colour);
+      const n = sample('normal'), h = sample('emphasis') ?? sample('hero');
+      if (n) c.colourMain = toHex(n.colour);
+      if (h) c.colourHigh = toHex(h.colour);
+    }
+    c.colourMode = b.dataset.v;
+    if (c.colourMode === 'many' && c.patternScope === 'off') c.patternScope = 'highlights';
+    showColours();
+    changed();
+    showTypeCards();
+  };
+}
+$('#colour-clear').onclick = () => {
+  for (const [id, o] of Object.entries(state.overrides)) {
+    if (!o.colour) continue;
+    const { colour: _, ...rest } = o;
+    if (Object.keys(rest).length) state.overrides[id] = rest; else delete state.overrides[id];
+  }
+  regenerate();
+  showColours();
+  if (state.selected) showWord();
+};
 
 /*
  * Drag to timeline. A web page cannot start a native drag, so pressing the
@@ -2316,6 +2415,7 @@ function applySetup(setup, { quiet = false } = {}) {
   state.templateId = known ? setup.templateId : state.templateId;
   state.patch = JSON.parse(JSON.stringify(setup.patch ?? {}));
   state.custom = { ...state.custom, ...JSON.parse(JSON.stringify(setup.custom)) };
+  state.custom.colourMode = setup.custom.colourMode;
   refreshAll();
   if (!quiet) setStatus('Setup applied.');
   callNative('savePrefs', { json: JSON.stringify(state.custom) }).catch(() => {});
@@ -2326,7 +2426,7 @@ function setupTemplate(setup) {
   const base = [...BUILTIN_TEMPLATES, ...state.userTemplates].find((t) => t.id === setup.templateId) ?? BUILTIN_TEMPLATES[0];
   const saved = state.custom;
   try {
-    state.custom = { ...saved, ...setup.custom };
+    state.custom = { ...saved, ...setup.custom, colourMode: setup.custom.colourMode };
     return merge(merge(base, setup.patch ?? {}), customPatch(base));
   } finally {
     state.custom = saved;

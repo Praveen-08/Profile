@@ -172,11 +172,18 @@
       <div class="seg" id="a-reveal"><button data-v="spoken">As spoken</button><button data-v="phrase">Whole phrase</button></div>
     </div>
 
-    <h2 class="mt">Colour pattern</h2>
-    <div class="seg wide" id="pattern-scope">
-      <button data-v="off" class="is-on">Off</button><button data-v="highlights">Highlights</button><button data-v="all">Every word</button><button data-v="phrases">Phrases</button>
+    <h2 class="mt">Colours</h2>
+    <div class="seg wide" id="colour-mode">
+      <button data-v="style" class="is-on" title="The colours the style comes with">Style's own</button><button data-v="one" title="Every word in one colour">One colour</button><button data-v="two" title="Main text in one colour, highlights in another">Two colours</button><button data-v="many" title="Main text in one colour, highlights cycling through several">Many colours</button>
     </div>
-    <div id="pattern" class="pattern-row mt-s"></div>
+    <div id="colour-swatches" class="colour-swatches mt-s"></div>
+    <div id="pattern-wrap" class="mt-s" hidden>
+      <div class="seg wide" id="pattern-scope">
+        <button data-v="highlights">Cycle highlights</button><button data-v="all">Cycle every word</button><button data-v="phrases">Cycle phrases</button>
+      </div>
+      <div id="pattern" class="pattern-row mt-s"></div>
+    </div>
+    <p class="hint mt-s"><span id="colour-note">Saved with your setup, so each client keeps their colours.</span> <button id="colour-clear" class="pv-btn" hidden></button></p>
   </section>
 </div>
 
